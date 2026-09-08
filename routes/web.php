@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AbonoController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\VentaCreditoController;
 use Illuminate\Support\Facades\Route;
@@ -14,3 +15,6 @@ Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.st
 
 Route::get('/ventas-credito', [VentaCreditoController::class, 'index'])->name('ventas-credito.index');
 Route::post('/ventas-credito', [VentaCreditoController::class, 'store'])->name('ventas-credito.store');
+
+Route::get('/ventas-credito/{venta}/abonos', [AbonoController::class, 'show'])->name('ventas-credito.abonos');
+Route::post('/abonos', [AbonoController::class, 'store'])->name('abonos.store');

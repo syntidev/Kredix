@@ -41,4 +41,24 @@ class VentaCredito extends Model
     {
         return $this->hasMany(ItemVenta::class, 'venta_credito_id');
     }
+
+    public function abonos(): HasMany
+    {
+        return $this->hasMany(Abono::class, 'venta_credito_id');
+    }
+
+    public function totalCobrado(): float
+    {
+        return (float) $this->abonos()->where('tipo', 'abono')->sum('monto');
+    }
+
+    public function totalAjustes(): float
+    {
+        return (float) $this->abonos()->where('tipo', 'ajuste_devolucion')->sum('monto');
+    }
+
+    public function saldoPendiente(): float
+    {
+        return (float) $this->monto_total - $this->totalCobrado() - $this->totalAjustes();
+    }
 }

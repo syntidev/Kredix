@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, Link } from '@inertiajs/vue3';
 
 const props = defineProps({
     ventas: {
@@ -299,6 +299,9 @@ function cancelForm() {
                         {{ venta.monto_total }} {{ venta.moneda.toUpperCase() }} - {{ venta.plazo_meses }} meses ({{ venta.frecuencia_pago }})
                     </p>
                     <p class="text-sm text-kredix-gris">{{ venta.items.length }} item(s) - estado: {{ venta.estado }}</p>
+                    <Link :href="`/ventas-credito/${venta.id}/abonos`" class="mt-1 inline-block text-sm text-kredix-rojo underline">
+                        Ver abonos
+                    </Link>
                 </li>
             </ul>
         </div>
