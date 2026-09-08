@@ -1,6 +1,9 @@
 <script setup>
 import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import AppLayout from '../../Layouts/AppLayout.vue';
+
+defineOptions({ layout: AppLayout });
 
 defineProps({
     clientes: {
@@ -41,21 +44,24 @@ function cancelForm() {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gray-50 px-4 py-6">
-        <div class="mx-auto flex max-w-md flex-col gap-4">
-            <div class="flex items-center justify-between">
-                <h1 class="text-xl font-semibold text-kredix-negro">Clientes</h1>
-                <button
-                    v-if="!showForm"
-                    type="button"
-                    class="min-h-11 rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80"
-                    @click="openForm"
-                >
-                    + Nuevo cliente
-                </button>
-            </div>
+    <div class="mx-auto flex max-w-3xl flex-col gap-4">
+        <div class="flex items-center justify-between">
+            <h1 class="text-xl font-semibold text-kredix-negro">Clientes</h1>
+            <button
+                v-if="!showForm"
+                type="button"
+                class="min-h-11 rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80"
+                @click="openForm"
+            >
+                + Nuevo cliente
+            </button>
+        </div>
 
-            <form v-if="showForm" class="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4" @submit.prevent="submit">
+        <form
+            v-if="showForm"
+            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            @submit.prevent="submit"
+        >
                 <div class="flex flex-col gap-1">
                     <label for="nombre" class="text-sm font-medium text-kredix-negro">Nombre</label>
                     <input
@@ -120,18 +126,17 @@ function cancelForm() {
 
             <p v-if="clientes.length === 0" class="text-sm text-kredix-gris">Todavia no hay clientes registrados.</p>
 
-            <ul v-else class="flex flex-col gap-2">
-                <li
-                    v-for="cliente in clientes"
-                    :key="cliente.id"
-                    class="rounded-lg border border-gray-200 bg-white p-4"
-                >
-                    <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
-                    <p class="text-sm text-kredix-gris">{{ cliente.telefono }}</p>
-                    <p v-if="cliente.email" class="text-sm text-kredix-gris">{{ cliente.email }}</p>
-                    <p v-if="cliente.cedula" class="text-sm text-kredix-gris">CI: {{ cliente.cedula }}</p>
-                </li>
-            </ul>
-        </div>
+        <ul v-else class="flex flex-col gap-2">
+            <li
+                v-for="cliente in clientes"
+                :key="cliente.id"
+                class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            >
+                <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
+                <p class="text-sm text-kredix-gris">{{ cliente.telefono }}</p>
+                <p v-if="cliente.email" class="text-sm text-kredix-gris">{{ cliente.email }}</p>
+                <p v-if="cliente.cedula" class="text-sm text-kredix-gris">CI: {{ cliente.cedula }}</p>
+            </li>
+        </ul>
     </div>
 </template>

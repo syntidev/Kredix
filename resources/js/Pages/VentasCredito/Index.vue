@@ -1,6 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
+import AppLayout from '../../Layouts/AppLayout.vue';
+
+defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     ventas: {
@@ -102,21 +105,24 @@ function cancelForm() {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gray-50 px-4 py-6">
-        <div class="mx-auto flex max-w-md flex-col gap-4">
-            <div class="flex items-center justify-between">
-                <h1 class="text-xl font-semibold text-kredix-negro">Ventas a credito</h1>
-                <button
-                    v-if="!showForm"
-                    type="button"
-                    class="min-h-11 rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80"
-                    @click="openForm"
-                >
-                    + Nueva venta
-                </button>
-            </div>
+    <div class="mx-auto flex max-w-3xl flex-col gap-4">
+        <div class="flex items-center justify-between">
+            <h1 class="text-xl font-semibold text-kredix-negro">Ventas a credito</h1>
+            <button
+                v-if="!showForm"
+                type="button"
+                class="min-h-11 rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80"
+                @click="openForm"
+            >
+                + Nueva venta
+            </button>
+        </div>
 
-            <form v-if="showForm" class="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4" @submit.prevent="submit">
+        <form
+            v-if="showForm"
+            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            @submit.prevent="submit"
+        >
                 <div class="flex flex-col gap-1">
                     <label for="cliente_id" class="text-sm font-medium text-kredix-negro">Cliente</label>
                     <select
@@ -288,22 +294,21 @@ function cancelForm() {
 
             <p v-if="ventas.length === 0" class="text-sm text-kredix-gris">Todavia no hay ventas registradas.</p>
 
-            <ul v-else class="flex flex-col gap-2">
-                <li
-                    v-for="venta in ventas"
-                    :key="venta.id"
-                    class="rounded-lg border border-gray-200 bg-white p-4"
-                >
-                    <p class="font-medium text-kredix-negro">{{ venta.cliente?.nombre }}</p>
-                    <p class="text-sm text-kredix-gris">
-                        {{ venta.monto_total }} {{ venta.moneda.toUpperCase() }} - {{ venta.plazo_meses }} meses ({{ venta.frecuencia_pago }})
-                    </p>
-                    <p class="text-sm text-kredix-gris">{{ venta.items.length }} item(s) - estado: {{ venta.estado }}</p>
-                    <Link :href="`/ventas-credito/${venta.id}/abonos`" class="mt-1 inline-block text-sm text-kredix-rojo underline">
-                        Ver abonos
-                    </Link>
-                </li>
-            </ul>
-        </div>
+        <ul v-else class="flex flex-col gap-2">
+            <li
+                v-for="venta in ventas"
+                :key="venta.id"
+                class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            >
+                <p class="font-medium text-kredix-negro">{{ venta.cliente?.nombre }}</p>
+                <p class="text-sm text-kredix-gris">
+                    {{ venta.monto_total }} {{ venta.moneda.toUpperCase() }} - {{ venta.plazo_meses }} meses ({{ venta.frecuencia_pago }})
+                </p>
+                <p class="text-sm text-kredix-gris">{{ venta.items.length }} item(s) - estado: {{ venta.estado }}</p>
+                <Link :href="`/ventas-credito/${venta.id}/abonos`" class="mt-1 inline-block text-sm text-kredix-rojo underline">
+                    Ver abonos
+                </Link>
+            </li>
+        </ul>
     </div>
 </template>
