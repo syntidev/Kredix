@@ -69,6 +69,7 @@ class ClienteController extends Controller
                 'id' => $m->id,
                 'fecha' => $m->fecha->toDateString(),
                 'tipo' => $m->tipo,
+                'tipo_contacto' => $m->tipo_contacto,
                 'descripcion' => $m->descripcion,
                 'cantidad' => $m->cantidad,
                 'precio_unitario' => $m->precio_unitario,

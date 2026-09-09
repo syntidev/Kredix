@@ -20,6 +20,9 @@ function today() {
 const movimientosConSaldo = computed(() => {
     let saldo = 0;
     return props.movimientos.map((m) => {
+        if (m.tipo === 'gestion') {
+            return { ...m, saldoAcumulado: saldo };
+        }
         const monto = parseFloat(m.monto) || 0;
         saldo += m.tipo === 'cargo' ? monto : -monto;
         return { ...m, saldoAcumulado: saldo };
@@ -118,6 +121,34 @@ function submitAbono() {
     });
 }
 
+const gestionForm = useForm({
+    cliente_id: props.cliente.id,
+    tipo: 'gestion',
+    fecha: today(),
+    descripcion: '',
+    moneda: 'usd',
+    tipo_contacto: 'llamada',
+    comentario: '',
+});
+
+const tipoContactoLabel = { llamada: 'Llamada', whatsapp: 'WhatsApp', visita: 'Visita', otro: 'Otro' };
+
+function submitGestion() {
+    gestionForm.descripcion = tipoContactoLabel[gestionForm.tipo_contacto];
+
+    gestionForm.post('/movimientos', {
+        preserveScroll: true,
+        onSuccess: () => {
+            gestionForm.reset();
+            gestionForm.tipo = 'gestion';
+            gestionForm.fecha = today();
+            gestionForm.moneda = 'usd';
+            gestionForm.tipo_contacto = 'llamada';
+            formMode.value = null;
+        },
+    });
+}
+
 const editingMovId = ref(null);
 const editTipo = ref('cargo');
 
@@ -192,6 +223,7 @@ function toggleMotivo(id) {
 function cancelForms() {
     cargoForm.clearErrors();
     abonoForm.clearErrors();
+    gestionForm.clearErrors();
     editForm.clearErrors();
     editingMovId.value = null;
     formMode.value = null;
@@ -225,6 +257,9 @@ function cancelForms() {
                 </button>
                 <button type="button" class="min-h-11 rounded-lg bg-kredix-rojo px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'abono'">
                     + Nuevo abono
+                </button>
+                <button type="button" class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="formMode = 'gestion'">
+                    Registrar contacto
                 </button>
             </div>
         </div>
@@ -378,6 +413,37 @@ function cancelForms() {
             </div>
         </form>
 
+        <form v-if="formMode === 'gestion'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitGestion">
+            <p class="text-sm font-medium text-kredix-negro">Registrar contacto</p>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Fecha</label>
+                <input v-model="gestionForm.fecha" type="date" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Tipo de contacto</label>
+                <select v-model="gestionForm.tipo_contacto" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                    <option value="llamada">Llamada</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="visita">Visita</option>
+                    <option value="otro">Otro</option>
+                </select>
+                <p v-if="gestionForm.errors.tipo_contacto" class="text-sm text-kredix-rojo">{{ gestionForm.errors.tipo_contacto }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Comentario</label>
+                <textarea v-model="gestionForm.comentario" rows="2" placeholder="ej: cliente indico que paga la proxima semana" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
+                <p v-if="gestionForm.errors.comentario" class="text-sm text-kredix-rojo">{{ gestionForm.errors.comentario }}</p>
+            </div>
+
+            <div class="mt-1 flex gap-2">
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
+                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="gestionForm.processing">Guardar</button>
+            </div>
+        </form>
+
         <form v-if="formMode === 'editar'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitEditMov">
             <p class="text-sm font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'cargo' : 'abono/ajuste' }}</p>
 
@@ -514,35 +580,41 @@ function cancelForms() {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="m in movimientosConSaldo" :key="m.id" class="border-t border-gray-100">
+                    <tr v-for="m in movimientosConSaldo" :key="m.id" class="border-t border-gray-100" :class="m.tipo === 'gestion' ? 'bg-gray-50 italic' : ''">
                         <td class="px-3 py-2 text-kredix-negro">{{ m.fecha }}</td>
                         <td class="px-3 py-2 text-kredix-gris">{{ m.tipo }}</td>
                         <td class="px-3 py-2 text-kredix-negro">
-                            {{ m.descripcion }}
-                            <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-xs text-kredix-gris">— {{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
-                            <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="ml-1 text-xs text-kredix-rojo underline">comprobante</a>
-                            <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="ml-1 text-xs text-kredix-rojo underline">foto producto</a>
+                            <template v-if="m.tipo === 'gestion'">
+                                {{ tipoContactoLabel[m.tipo_contacto] ?? m.tipo_contacto }} — {{ m.comentario }}
+                            </template>
+                            <template v-else>
+                                {{ m.descripcion }}
+                                <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-xs text-kredix-gris">— {{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
+                                <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="ml-1 text-xs text-kredix-rojo underline">comprobante</a>
+                                <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="ml-1 text-xs text-kredix-rojo underline">foto producto</a>
+                            </template>
                             <button
                                 v-if="m.editado"
                                 type="button"
                                 :title="m.motivo_edicion"
-                                class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                                class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 not-italic"
                                 @click="toggleMotivo(m.id)"
                             >
                                 editado
                             </button>
                             <p v-if="motivoAbierto === m.id" class="mt-1 text-xs text-kredix-gris">Motivo: {{ m.motivo_edicion }}</p>
                         </td>
-                        <td class="px-3 py-2 text-right text-kredix-negro">{{ m.cantidad ?? '-' }}</td>
-                        <td class="px-3 py-2 text-right text-kredix-negro">{{ m.tipo === 'cargo' ? m.precio_unitario : m.monto }}</td>
+                        <td class="px-3 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.cantidad ?? '-') }}</td>
+                        <td class="px-3 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}</td>
                         <td class="px-3 py-2">
-                            <span v-if="m.tasa_cambio" class="text-kredix-negro">{{ m.tasa_cambio }}</span>
+                            <span v-if="m.tipo === 'gestion'">-</span>
+                            <span v-else-if="m.tasa_cambio" class="text-kredix-negro">{{ m.tasa_cambio }}</span>
                             <span v-else class="italic text-kredix-gris">tasa pendiente</span>
                         </td>
-                        <td class="px-3 py-2 text-kredix-gris">{{ m.metodo_pago ?? '-' }}</td>
+                        <td class="px-3 py-2 text-kredix-gris">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</td>
                         <td class="px-3 py-2 text-right font-medium text-kredix-negro">{{ m.saldoAcumulado.toFixed(2) }}</td>
                         <td class="px-3 py-2 text-right">
-                            <button type="button" class="text-xs font-medium text-kredix-gris underline" @click="openEditMov(m)">Editar</button>
+                            <button v-if="m.tipo !== 'gestion'" type="button" class="text-xs font-medium text-kredix-gris underline not-italic" @click="openEditMov(m)">Editar</button>
                         </td>
                     </tr>
                 </tbody>

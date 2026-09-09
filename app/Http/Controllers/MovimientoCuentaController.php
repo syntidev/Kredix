@@ -10,11 +10,15 @@ class MovimientoCuentaController extends Controller
 {
     public function store(Request $request)
     {
-        $esCargo = $request->input('tipo') === 'cargo';
+        $tipo = $request->input('tipo');
+        $esCargo = $tipo === 'cargo';
+        $esGestion = $tipo === 'gestion';
+        $requiereMonto = in_array($tipo, ['abono', 'ajuste_devolucion'], true);
 
         $validated = $request->validate([
             'cliente_id' => ['required', 'exists:clientes,id'],
-            'tipo' => ['required', 'in:cargo,abono,ajuste_devolucion'],
+            'tipo' => ['required', 'in:cargo,abono,ajuste_devolucion,gestion'],
+            'tipo_contacto' => [Rule::requiredIf($esGestion), 'nullable', 'in:llamada,whatsapp,visita,otro'],
             'fecha' => ['required', 'date'],
             'descripcion' => ['required', 'string', 'max:255'],
             'moneda' => ['required', 'in:usd,ves'],
@@ -24,8 +28,8 @@ class MovimientoCuentaController extends Controller
             'modalidad_precio' => [Rule::requiredIf($esCargo), 'nullable', 'in:divisa,bcv'],
             'plazo_meses' => [Rule::requiredIf($esCargo), 'nullable', 'integer', 'min:1'],
             'frecuencia_pago' => [Rule::requiredIf($esCargo), 'nullable', 'in:semanal,quincenal,mensual'],
-            'monto' => [Rule::requiredIf(! $esCargo), 'nullable', 'numeric', 'min:0.01'],
-            'metodo_pago' => [Rule::requiredIf(! $esCargo), 'nullable', 'in:efectivo,zelle,binance,transferencia,pago_movil'],
+            'monto' => [Rule::requiredIf($requiereMonto), 'nullable', 'numeric', 'min:0.01'],
+            'metodo_pago' => [Rule::requiredIf($requiereMonto), 'nullable', 'in:efectivo,zelle,binance,transferencia,pago_movil'],
             'comentario' => [Rule::requiredIf(! $esCargo), 'nullable', 'string', 'max:1000'],
             'comprobante' => ['nullable', 'image', 'max:5120'],
             'foto_producto' => ['nullable', 'image', 'max:5120'],
@@ -37,16 +41,18 @@ class MovimientoCuentaController extends Controller
             'precio_unitario.required' => 'precio unitario requerido',
             'plazo_meses.required' => 'plazo requerido',
             'frecuencia_pago.required' => 'frecuencia de pago requerida',
+            'tipo_contacto.required' => 'tipo de contacto requerido',
         ]);
 
         $monto = $esCargo
             ? $validated['cantidad'] * $validated['precio_unitario']
-            : $validated['monto'];
+            : ($validated['monto'] ?? 0);
 
         $movimiento = MovimientoCuenta::create([
             'cliente_id' => $validated['cliente_id'],
             'fecha' => $validated['fecha'],
             'tipo' => $validated['tipo'],
+            'tipo_contacto' => $esGestion ? $validated['tipo_contacto'] : null,
             'descripcion' => $validated['descripcion'],
             'cantidad' => $esCargo ? $validated['cantidad'] : null,
             'precio_unitario' => $esCargo ? $validated['precio_unitario'] : null,

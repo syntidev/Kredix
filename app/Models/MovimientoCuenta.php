@@ -19,6 +19,7 @@ class MovimientoCuenta extends Model implements HasMedia
         'cliente_id',
         'fecha',
         'tipo',
+        'tipo_contacto',
         'descripcion',
         'cantidad',
         'plazo_meses',
