@@ -319,8 +319,8 @@ function cancelForms() {
             </div>
         </div>
 
-        <form v-if="formMode === 'cargo'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitCargo">
-            <div class="flex flex-col gap-1">
+        <form v-if="formMode === 'cargo'" class="mx-auto grid w-full grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" @submit.prevent="submitCargo">
+            <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Descripcion</label>
                 <input v-model="cargoForm.descripcion" type="text" placeholder="ej: Bicicleta Factor Monza" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 <p v-if="cargoForm.errors.descripcion" class="text-sm text-kredix-rojo">{{ cargoForm.errors.descripcion }}</p>
@@ -331,20 +331,17 @@ function cancelForms() {
                 <input v-model="cargoForm.fecha" type="date" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
             </div>
 
-            <div class="flex gap-2">
-                <div class="flex flex-1 flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Cantidad</label>
-                    <input v-model="cargoForm.cantidad" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
-                    <p v-if="cargoForm.errors.cantidad" class="text-sm text-kredix-rojo">{{ cargoForm.errors.cantidad }}</p>
-                </div>
-                <div class="flex flex-1 flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Precio unit.</label>
-                    <input v-model="cargoForm.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
-                    <p v-if="cargoForm.errors.precio_unitario" class="text-sm text-kredix-rojo">{{ cargoForm.errors.precio_unitario }}</p>
-                </div>
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Cantidad</label>
+                <input v-model="cargoForm.cantidad" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
+                <p v-if="cargoForm.errors.cantidad" class="text-sm text-kredix-rojo">{{ cargoForm.errors.cantidad }}</p>
             </div>
 
-            <div class="rounded-lg bg-gray-100 px-3 py-2 text-sm text-kredix-negro">Monto: <span class="font-semibold">{{ formatMoney(montoCargo) }}</span></div>
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Precio unit.</label>
+                <input v-model="cargoForm.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
+                <p v-if="cargoForm.errors.precio_unitario" class="text-sm text-kredix-rojo">{{ cargoForm.errors.precio_unitario }}</p>
+            </div>
 
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Modalidad de precio</label>
@@ -361,62 +358,62 @@ function cancelForms() {
                 <p v-if="faltaTasaBcv" class="text-sm text-amber-600">Falta tasa BCV para este registro</p>
             </div>
 
-            <div class="flex gap-2">
-                <div class="flex flex-1 flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">
-                        Plazo (meses)
-                        <span v-if="plazoSugerido" class="font-normal text-kredix-gris">- sugerido {{ plazoSugerido }}</span>
-                    </label>
-                    <input v-model="cargoForm.plazo_meses" type="number" min="1" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-                    <p v-if="cargoForm.errors.plazo_meses" class="text-sm text-kredix-rojo">{{ cargoForm.errors.plazo_meses }}</p>
-                </div>
-                <div class="flex flex-1 flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Frecuencia</label>
-                    <select v-model="cargoForm.frecuencia_pago" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
-                        <option value="semanal">Semanal</option>
-                        <option value="quincenal">Quincenal</option>
-                        <option value="mensual">Mensual</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="flex gap-2">
-                <div class="flex flex-1 flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Moneda</label>
-                    <select v-model="cargoForm.moneda" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
-                        <option value="usd">USD</option>
-                        <option value="ves">VES</option>
-                    </select>
-                </div>
-                <div v-if="cargoForm.modalidad_precio === 'bcv'" class="flex flex-1 flex-col gap-1">
-                    <template v-if="tasaBcvTexto && !manualTasaBcv">
-                        <label class="text-sm font-medium text-kredix-negro">Tasa cambio</label>
-                        <div class="flex min-h-11 items-center rounded-lg bg-gray-100 px-3 text-sm text-kredix-negro">{{ tasaBcvTexto }}</div>
-                        <button type="button" class="self-start text-xs text-kredix-gris underline" @click="manualTasaBcv = true">cambiar manualmente</button>
-                    </template>
-                    <template v-else>
-                        <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
-                        <input v-model="cargoForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-                        <button v-if="tasaBcvTexto" type="button" class="self-start text-xs text-kredix-gris underline" @click="usarTasaAutomatica">usar tasa automatica</button>
-                    </template>
-                </div>
-            </div>
-            <p v-if="cargoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo">{{ cargoForm.errors.tasa_cambio }}</p>
+            <div class="rounded-lg bg-gray-100 px-3 py-2 text-sm text-kredix-negro md:col-span-2">Monto: <span class="font-semibold">{{ formatMoney(montoCargo) }}</span></div>
 
             <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">
+                    Plazo (meses)
+                    <span v-if="plazoSugerido" class="font-normal text-kredix-gris">- sugerido {{ plazoSugerido }}</span>
+                </label>
+                <input v-model="cargoForm.plazo_meses" type="number" min="1" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <p v-if="cargoForm.errors.plazo_meses" class="text-sm text-kredix-rojo">{{ cargoForm.errors.plazo_meses }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Frecuencia</label>
+                <select v-model="cargoForm.frecuencia_pago" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                    <option value="semanal">Semanal</option>
+                    <option value="quincenal">Quincenal</option>
+                    <option value="mensual">Mensual</option>
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Moneda</label>
+                <select v-model="cargoForm.moneda" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                    <option value="usd">USD</option>
+                    <option value="ves">VES</option>
+                </select>
+            </div>
+
+            <div v-if="cargoForm.modalidad_precio === 'bcv'" class="flex flex-col gap-1">
+                <template v-if="tasaBcvTexto && !manualTasaBcv">
+                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio</label>
+                    <div class="flex min-h-11 items-center rounded-lg bg-gray-100 px-3 text-sm text-kredix-negro">{{ tasaBcvTexto }}</div>
+                    <button type="button" class="self-start text-xs text-kredix-gris underline" @click="manualTasaBcv = true">cambiar manualmente</button>
+                </template>
+                <template v-else>
+                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <input v-model="cargoForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <button v-if="tasaBcvTexto" type="button" class="self-start text-xs text-kredix-gris underline" @click="usarTasaAutomatica">usar tasa automatica</button>
+                </template>
+            </div>
+            <p v-if="cargoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo md:col-span-2">{{ cargoForm.errors.tasa_cambio }}</p>
+
+            <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional)</span></label>
                 <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onFotoProductoChange" />
                 <p v-if="cargoForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ cargoForm.errors.foto_producto }}</p>
             </div>
 
-            <div class="mt-1 flex gap-2">
+            <div class="mt-1 flex gap-2 md:col-span-2">
                 <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
                 <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="cargoForm.processing">Guardar cargo</button>
             </div>
         </form>
 
-        <form v-if="formMode === 'abono'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" enctype="multipart/form-data" @submit.prevent="submitAbono">
-            <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro">
+        <form v-if="formMode === 'abono'" class="mx-auto grid w-full grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
+            <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro md:col-span-2">
                 <input v-model="esAjuste" type="checkbox" class="h-4 w-4" />
                 Es ajuste / devolucion (no cuenta como dinero cobrado)
             </label>
@@ -432,22 +429,21 @@ function cancelForms() {
                 <p v-if="abonoForm.errors.monto" class="text-sm text-kredix-rojo">{{ abonoForm.errors.monto }}</p>
             </div>
 
-            <div class="flex gap-2">
-                <div class="flex flex-1 flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Moneda</label>
-                    <select v-model="abonoForm.moneda" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
-                        <option value="usd">USD</option>
-                        <option value="ves">VES</option>
-                    </select>
-                </div>
-                <div class="flex flex-1 flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
-                    <input v-model="abonoForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-                </div>
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Moneda</label>
+                <select v-model="abonoForm.moneda" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                    <option value="usd">USD</option>
+                    <option value="ves">VES</option>
+                </select>
             </div>
-            <p v-if="abonoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo">{{ abonoForm.errors.tasa_cambio }}</p>
 
             <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                <input v-model="abonoForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+            </div>
+            <p v-if="abonoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo md:col-span-2">{{ abonoForm.errors.tasa_cambio }}</p>
+
+            <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Metodo de pago</label>
                 <select v-model="abonoForm.metodo_pago" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
                     <option value="efectivo">Efectivo</option>
@@ -458,19 +454,19 @@ function cancelForms() {
                 </select>
             </div>
 
-            <div class="flex flex-col gap-1">
+            <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Comentario</label>
                 <textarea v-model="abonoForm.comentario" rows="2" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
                 <p v-if="abonoForm.errors.comentario" class="text-sm text-kredix-rojo">{{ abonoForm.errors.comentario }}</p>
             </div>
 
-            <div class="flex flex-col gap-1">
+            <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Foto de comprobante (opcional)</label>
                 <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onFileChange" />
                 <p v-if="abonoForm.errors.comprobante" class="text-sm text-kredix-rojo">{{ abonoForm.errors.comprobante }}</p>
             </div>
 
-            <div class="mt-1 flex gap-2">
+            <div class="mt-1 flex gap-2 md:col-span-2">
                 <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
                 <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="abonoForm.processing">Guardar abono</button>
             </div>
