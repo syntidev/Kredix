@@ -10,10 +10,40 @@ use Inertia\Inertia;
 
 class ClienteController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $q = $request->query('q');
+
+        $clientes = Cliente::query()
+            ->when($q, fn ($query) => $query->where(function ($query) use ($q) {
+                $query->where('nombre', 'like', "%{$q}%")
+                    ->orWhere('cedula', 'like', "%{$q}%")
+                    ->orWhere('telefono', 'like', "%{$q}%")
+                    ->orWhere('email', 'like', "%{$q}%");
+            }))
+            ->latest()
+            ->get();
+
+        $productosMatch = $q
+            ? MovimientoCuenta::where('tipo', 'cargo')
+                ->where('descripcion', 'like', "%{$q}%")
+                ->with('cliente:id,nombre')
+                ->orderByDesc('fecha')
+                ->get()
+                ->map(fn (MovimientoCuenta $m) => [
+                    'id' => $m->id,
+                    'cliente_id' => $m->cliente_id,
+                    'cliente_nombre' => $m->cliente?->nombre,
+                    'descripcion' => $m->descripcion,
+                    'fecha' => $m->fecha->toDateString(),
+                    'monto' => $m->monto,
+                ])
+            : [];
+
         return Inertia::render('Clientes/Index', [
-            'clientes' => Cliente::latest()->get(),
+            'clientes' => $clientes,
+            'productosMatch' => $productosMatch,
+            'q' => $q,
         ]);
     }
 

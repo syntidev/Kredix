@@ -5,12 +5,33 @@ import AppLayout from '../../Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
 
-defineProps({
+const props = defineProps({
     clientes: {
         type: Array,
         required: true,
     },
+    productosMatch: {
+        type: Array,
+        default: () => [],
+    },
+    q: {
+        type: String,
+        default: '',
+    },
 });
+
+const search = ref(props.q ?? '');
+let searchTimeout = null;
+
+function onSearchInput() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        router.get('/clientes', search.value ? { q: search.value } : {}, {
+            preserveState: true,
+            replace: true,
+        });
+    }, 300);
+}
 
 const showForm = ref(false);
 
@@ -108,6 +129,27 @@ function doDelete() {
             >
                 + Nuevo cliente
             </button>
+        </div>
+
+        <input
+            v-model="search"
+            type="search"
+            placeholder="Buscar por nombre, cedula, telefono, email o producto..."
+            class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+            @input="onSearchInput"
+        />
+
+        <div v-if="productosMatch.length > 0" class="flex flex-col gap-2">
+            <h2 class="text-sm font-semibold text-kredix-negro">Productos encontrados</h2>
+            <Link
+                v-for="p in productosMatch"
+                :key="p.id"
+                :href="`/clientes/${p.cliente_id}`"
+                class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm active:bg-gray-50"
+            >
+                <p class="font-medium text-kredix-negro">{{ p.descripcion }}</p>
+                <p class="text-sm text-kredix-gris">{{ p.cliente_nombre }} — {{ p.fecha }} — {{ p.monto }}</p>
+            </Link>
         </div>
 
         <form
