@@ -99,12 +99,34 @@ class KpiController extends Controller
             $rangos[$rango] += $saldo;
         }
 
+        // 6. ultimos 6 meses: otorgado (cargos) vs cobrado (abonos), meses sin
+        // actividad quedan en 0 en vez de ausentes
+        $nombresMes = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+        $ultimos6Meses = collect(range(5, 0))->map(function (int $i) use ($hoy, $todos, $nombresMes) {
+            $mes = $hoy->copy()->subMonthsNoOverflow($i);
+            $movs = $todos->filter(fn (MovimientoCuenta $m) => $m->fecha->between($mes->copy()->startOfMonth(), $mes->copy()->endOfMonth()));
+
+            return [
+                'mes' => $nombresMes[$mes->month - 1].' '.$mes->format('y'),
+                'otorgado' => (float) $movs->where('tipo', 'cargo')->sum('monto'),
+                'cobrado' => (float) $movs->where('tipo', 'abono')->sum('monto'),
+            ];
+        })->values();
+
+        // 7. totales acumulados desde el inicio del sistema (sin filtro de fecha)
+        $totalOtorgadoHistorico = (float) $todos->where('tipo', 'cargo')->sum('monto');
+        $totalCobradoHistorico = (float) $todos->where('tipo', 'abono')->sum('monto');
+
         return Inertia::render('Kpi/Index', [
             'dineroEnCalle' => $dineroEnCalle,
             'recuperadoMesActual' => $recuperadoMesActual,
             'recuperadoMesAnterior' => $recuperadoMesAnterior,
             'cambioPorcentaje' => $cambioPorcentaje,
             'semanasDelMes' => $semanasDelMes,
+            'ultimos6Meses' => $ultimos6Meses,
+            'totalOtorgadoHistorico' => $totalOtorgadoHistorico,
+            'totalCobradoHistorico' => $totalCobradoHistorico,
             'actividadCobradores' => $actividadCobradores,
             'antiguedadCartera' => $rangos,
         ]);

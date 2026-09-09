@@ -1,5 +1,5 @@
 <script setup>
-import { computed, defineAsyncComponent } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import { TrendingUp, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
@@ -16,13 +16,20 @@ const props = defineProps({
     recuperadoMesAnterior: { type: Number, required: true },
     cambioPorcentaje: { type: [Number, null], default: null },
     semanasDelMes: { type: Array, required: true },
+    ultimos6Meses: { type: Array, required: true },
+    totalOtorgadoHistorico: { type: Number, required: true },
+    totalCobradoHistorico: { type: Number, required: true },
     actividadCobradores: { type: Array, required: true },
     antiguedadCartera: { type: Object, required: true },
 });
 
+const vista = ref('semana');
+const datosVista = computed(() => (vista.value === 'semana' ? props.semanasDelMes : props.ultimos6Meses));
+const etiquetaVista = (item) => (vista.value === 'semana' ? item.semana : item.mes);
+
 const chartSeries = computed(() => [
-    { name: 'Otorgado', data: props.semanasDelMes.map((s) => s.otorgado) },
-    { name: 'Cobrado', data: props.semanasDelMes.map((s) => s.cobrado) },
+    { name: 'Otorgado', data: datosVista.value.map((s) => s.otorgado) },
+    { name: 'Cobrado', data: datosVista.value.map((s) => s.cobrado) },
 ]);
 
 const chartOptions = computed(() => ({
@@ -30,7 +37,7 @@ const chartOptions = computed(() => ({
     colors: ['#101010', '#FA0A0A'],
     plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
     dataLabels: { enabled: false },
-    xaxis: { categories: props.semanasDelMes.map((s) => s.semana) },
+    xaxis: { categories: datosVista.value.map(etiquetaVista) },
     legend: { position: 'top' },
     tooltip: { y: { formatter: (v) => formatMoney(v) } },
     grid: { borderColor: '#e5e7eb' },
@@ -59,9 +66,34 @@ const rangosCartera = computed(() => {
             </StatCard>
         </div>
 
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <StatCard label="Total otorgado (historico)" :value="formatMoney(totalOtorgadoHistorico)" :icon="Wallet" variant="negro" />
+            <StatCard label="Total cobrado (historico)" :value="formatMoney(totalCobradoHistorico)" :icon="TrendingUp" variant="verde" />
+        </div>
+
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <h2 class="mb-2 text-sm font-semibold text-kredix-negro">Otorgado vs cobrado - semanas de este mes</h2>
-            <p v-if="semanasDelMes.length === 0" class="text-sm text-kredix-gris">Sin movimientos este mes.</p>
+            <div class="mb-2 flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-kredix-negro">Otorgado vs cobrado</h2>
+                <div class="flex rounded-lg border border-gray-300 text-xs font-medium">
+                    <button
+                        type="button"
+                        class="rounded-l-lg px-3 py-1.5"
+                        :class="vista === 'semana' ? 'bg-kredix-negro text-white' : 'text-kredix-gris'"
+                        @click="vista = 'semana'"
+                    >
+                        Esta semana
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-r-lg px-3 py-1.5"
+                        :class="vista === 'meses' ? 'bg-kredix-negro text-white' : 'text-kredix-gris'"
+                        @click="vista = 'meses'"
+                    >
+                        Ultimos 6 meses
+                    </button>
+                </div>
+            </div>
+            <p v-if="datosVista.length === 0" class="text-sm text-kredix-gris">Sin movimientos en este periodo.</p>
             <VueApexCharts v-else type="bar" height="280" :options="chartOptions" :series="chartSeries" />
         </div>
 
