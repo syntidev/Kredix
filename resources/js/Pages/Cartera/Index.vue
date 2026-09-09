@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -18,6 +18,8 @@ const clientesConSaldo = computed(() => props.clientes.filter((c) => Number(c.sa
 </script>
 
 <template>
+    <Head title="Cartera" />
+
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <h1 class="text-xl font-semibold text-kredix-negro">Cartera general</h1>
 

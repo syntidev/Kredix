@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 
@@ -238,6 +238,8 @@ function cancelForms() {
 </script>
 
 <template>
+    <Head :title="cliente.nombre" />
+
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <BackButton href="/clientes" label="Clientes" />
 

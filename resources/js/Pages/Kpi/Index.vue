@@ -1,5 +1,6 @@
 <script setup>
 import { computed, defineAsyncComponent } from 'vue';
+import { Head } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
 
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
@@ -44,6 +45,8 @@ const rangosCartera = computed(() => {
 </script>
 
 <template>
+    <Head title="KPI" />
+
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <h1 class="text-xl font-semibold text-kredix-negro">KPI</h1>
 

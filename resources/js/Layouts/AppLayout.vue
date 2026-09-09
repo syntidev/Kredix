@@ -1,6 +1,7 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { BarChart3, LogOut, Settings, Users, Wallet } from '@lucide/vue';
+import InstallPrompt from '../Components/InstallPrompt.vue';
 
 const page = usePage();
 
@@ -51,6 +52,8 @@ function logout() {
                 </button>
             </div>
         </header>
+
+        <InstallPrompt />
 
         <main class="px-4 py-6 pb-24 md:px-8 md:pb-6">
             <slot />

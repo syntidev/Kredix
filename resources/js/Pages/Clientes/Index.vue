@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { useForm, Link, router } from '@inertiajs/vue3';
+import { useForm, Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -118,6 +118,8 @@ function doDelete() {
 </script>
 
 <template>
+    <Head title="Clientes" />
+
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <div class="flex items-center justify-between">
             <h1 class="text-xl font-semibold text-kredix-negro">Clientes</h1>
