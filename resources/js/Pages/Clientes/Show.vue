@@ -37,12 +37,16 @@ const cargoForm = useForm({
     descripcion: '',
     cantidad: '',
     precio_unitario: '',
+    modalidad_precio: 'divisa',
     plazo_meses: '',
     frecuencia_pago: 'mensual',
     moneda: 'usd',
     tasa_cambio: '',
     foto_producto: null,
 });
+
+const faltaTasaBcv = computed(() => cargoForm.modalidad_precio === 'bcv' && !cargoForm.tasa_cambio);
+const faltaTasaBcvEdit = computed(() => editForm.modalidad_precio === 'bcv' && !editForm.tasa_cambio);
 
 const montoCargo = computed(() => (parseFloat(cargoForm.cantidad) || 0) * (parseFloat(cargoForm.precio_unitario) || 0));
 
@@ -70,6 +74,7 @@ function submitCargo() {
             cargoForm.fecha = today();
             cargoForm.moneda = 'usd';
             cargoForm.frecuencia_pago = 'mensual';
+            cargoForm.modalidad_precio = 'divisa';
             plazoSugerido.value = null;
             formMode.value = null;
         },
@@ -122,6 +127,7 @@ const editForm = useForm({
     descripcion: '',
     cantidad: '',
     precio_unitario: '',
+    modalidad_precio: 'divisa',
     plazo_meses: '',
     frecuencia_pago: 'mensual',
     monto: '',
@@ -140,6 +146,7 @@ function openEditMov(m) {
     editForm.descripcion = m.descripcion;
     editForm.cantidad = m.cantidad ?? '';
     editForm.precio_unitario = m.precio_unitario ?? '';
+    editForm.modalidad_precio = m.modalidad_precio ?? 'divisa';
     editForm.plazo_meses = m.plazo_meses ?? '';
     editForm.frecuencia_pago = m.frecuencia_pago ?? 'mensual';
     editForm.monto = m.tipo === 'cargo' ? '' : m.monto;
@@ -174,6 +181,12 @@ function submitEditMov() {
             formMode.value = null;
         },
     });
+}
+
+const motivoAbierto = ref(null);
+
+function toggleMotivo(id) {
+    motivoAbierto.value = motivoAbierto.value === id ? null : id;
 }
 
 function cancelForms() {
@@ -242,6 +255,21 @@ function cancelForms() {
             </div>
 
             <div class="rounded-lg bg-gray-100 px-3 py-2 text-sm text-kredix-negro">Monto: <span class="font-semibold">{{ montoCargo.toFixed(2) }}</span></div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Modalidad de precio</label>
+                <div class="flex gap-4">
+                    <label class="flex items-center gap-1 text-sm text-kredix-negro">
+                        <input v-model="cargoForm.modalidad_precio" type="radio" value="divisa" class="h-4 w-4" />
+                        Divisa
+                    </label>
+                    <label class="flex items-center gap-1 text-sm text-kredix-negro">
+                        <input v-model="cargoForm.modalidad_precio" type="radio" value="bcv" class="h-4 w-4" />
+                        BCV
+                    </label>
+                </div>
+                <p v-if="faltaTasaBcv" class="text-sm text-amber-600">Falta tasa BCV para este registro</p>
+            </div>
 
             <div class="flex gap-2">
                 <div class="flex flex-1 flex-col gap-1">
@@ -393,6 +421,20 @@ function cancelForms() {
                     </div>
                 </div>
                 <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Modalidad de precio</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-1 text-sm text-kredix-negro">
+                            <input v-model="editForm.modalidad_precio" type="radio" value="divisa" class="h-4 w-4" />
+                            Divisa
+                        </label>
+                        <label class="flex items-center gap-1 text-sm text-kredix-negro">
+                            <input v-model="editForm.modalidad_precio" type="radio" value="bcv" class="h-4 w-4" />
+                            BCV
+                        </label>
+                    </div>
+                    <p v-if="faltaTasaBcvEdit" class="text-sm text-amber-600">Falta tasa BCV para este registro</p>
+                </div>
+                <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional, reemplaza la actual)</span></label>
                     <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onEditFotoProductoChange" />
                     <p v-if="editForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ editForm.errors.foto_producto }}</p>
@@ -480,6 +522,16 @@ function cancelForms() {
                             <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-xs text-kredix-gris">— {{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
                             <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="ml-1 text-xs text-kredix-rojo underline">comprobante</a>
                             <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="ml-1 text-xs text-kredix-rojo underline">foto producto</a>
+                            <button
+                                v-if="m.editado"
+                                type="button"
+                                :title="m.motivo_edicion"
+                                class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                                @click="toggleMotivo(m.id)"
+                            >
+                                editado
+                            </button>
+                            <p v-if="motivoAbierto === m.id" class="mt-1 text-xs text-kredix-gris">Motivo: {{ m.motivo_edicion }}</p>
                         </td>
                         <td class="px-3 py-2 text-right text-kredix-negro">{{ m.cantidad ?? '-' }}</td>
                         <td class="px-3 py-2 text-right text-kredix-negro">{{ m.tipo === 'cargo' ? m.precio_unitario : m.monto }}</td>

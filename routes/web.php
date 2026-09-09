@@ -20,6 +20,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
+    Route::get('/cartera', [ClienteController::class, 'cartera'])->name('cartera');
     Route::put('/clientes/{cliente}', [ClienteController::class, 'update'])->name('clientes.update');
     Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
 

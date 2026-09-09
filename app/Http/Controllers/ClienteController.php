@@ -7,6 +7,7 @@ use App\Models\MovimientoCuenta;
 use App\Models\ReglaPlazo;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Spatie\Activitylog\Models\Activity;
 
 class ClienteController extends Controller
 {
@@ -49,18 +50,29 @@ class ClienteController extends Controller
 
     public function show(Cliente $cliente)
     {
-        $movimientos = MovimientoCuenta::where('cliente_id', $cliente->id)
+        $movimientosRaw = MovimientoCuenta::where('cliente_id', $cliente->id)
             ->with('registradoPor:id,name')
             ->orderBy('fecha')
             ->orderBy('id')
+            ->get();
+
+        $edicionesPorMovimiento = Activity::where('subject_type', MovimientoCuenta::class)
+            ->whereIn('subject_id', $movimientosRaw->pluck('id'))
+            ->latest()
             ->get()
-            ->map(fn (MovimientoCuenta $m) => [
+            ->groupBy('subject_id');
+
+        $movimientos = $movimientosRaw->map(function (MovimientoCuenta $m) use ($edicionesPorMovimiento) {
+            $ultimaEdicion = $edicionesPorMovimiento->get($m->id)?->first();
+
+            return [
                 'id' => $m->id,
                 'fecha' => $m->fecha->toDateString(),
                 'tipo' => $m->tipo,
                 'descripcion' => $m->descripcion,
                 'cantidad' => $m->cantidad,
                 'precio_unitario' => $m->precio_unitario,
+                'modalidad_precio' => $m->modalidad_precio,
                 'plazo_meses' => $m->plazo_meses,
                 'frecuencia_pago' => $m->frecuencia_pago,
                 'monto' => $m->monto,
@@ -71,7 +83,10 @@ class ClienteController extends Controller
                 'registrado_por' => $m->registradoPor?->name,
                 'comprobante_url' => $m->getFirstMediaUrl('comprobantes') ?: null,
                 'producto_url' => $m->getFirstMediaUrl('producto') ?: null,
-            ]);
+                'editado' => $ultimaEdicion !== null,
+                'motivo_edicion' => $ultimaEdicion?->getExtraProperty('motivo'),
+            ];
+        });
 
         return Inertia::render('Clientes/Show', [
             'cliente' => $cliente,
@@ -79,6 +94,29 @@ class ClienteController extends Controller
             'saldoPendiente' => MovimientoCuenta::saldoPendiente($cliente->id),
             'totalCobrado' => MovimientoCuenta::totalCobrado($cliente->id),
             'reglas' => ReglaPlazo::orderBy('monto_min')->get(),
+        ]);
+    }
+
+    public function cartera()
+    {
+        $movimientos = MovimientoCuenta::orderBy('fecha')->get()->groupBy('cliente_id');
+
+        $clientes = Cliente::all()->map(function (Cliente $c) use ($movimientos) {
+            $movs = $movimientos->get($c->id, collect());
+            $saldo = $movs->sum(fn (MovimientoCuenta $m) => $m->tipo === 'cargo' ? (float) $m->monto : -(float) $m->monto);
+            $ultimoAbono = $movs->where('tipo', 'abono')->last();
+
+            return [
+                'id' => $c->id,
+                'nombre' => $c->nombre,
+                'saldoPendiente' => $saldo,
+                'ultimoAbonoFecha' => $ultimoAbono?->fecha->toDateString(),
+                'diasDesdeUltimoAbono' => $ultimoAbono ? now()->startOfDay()->diffInDays($ultimoAbono->fecha, true) : null,
+            ];
+        })->sortByDesc('saldoPendiente')->values();
+
+        return Inertia::render('Cartera/Index', [
+            'clientes' => $clientes,
         ]);
     }
 

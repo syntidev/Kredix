@@ -21,6 +21,7 @@ class MovimientoCuentaController extends Controller
             'tasa_cambio' => ['nullable', 'numeric', 'min:0.0001'],
             'cantidad' => [Rule::requiredIf($esCargo), 'nullable', 'numeric', 'min:0.01'],
             'precio_unitario' => [Rule::requiredIf($esCargo), 'nullable', 'numeric', 'min:0.01'],
+            'modalidad_precio' => [Rule::requiredIf($esCargo), 'nullable', 'in:divisa,bcv'],
             'plazo_meses' => [Rule::requiredIf($esCargo), 'nullable', 'integer', 'min:1'],
             'frecuencia_pago' => [Rule::requiredIf($esCargo), 'nullable', 'in:semanal,quincenal,mensual'],
             'monto' => [Rule::requiredIf(! $esCargo), 'nullable', 'numeric', 'min:0.01'],
@@ -49,6 +50,7 @@ class MovimientoCuentaController extends Controller
             'descripcion' => $validated['descripcion'],
             'cantidad' => $esCargo ? $validated['cantidad'] : null,
             'precio_unitario' => $esCargo ? $validated['precio_unitario'] : null,
+            'modalidad_precio' => $esCargo ? $validated['modalidad_precio'] : null,
             'plazo_meses' => $esCargo ? $validated['plazo_meses'] : null,
             'frecuencia_pago' => $esCargo ? $validated['frecuencia_pago'] : null,
             'monto' => $monto,
@@ -81,6 +83,7 @@ class MovimientoCuentaController extends Controller
             'tasa_cambio' => ['nullable', 'numeric', 'min:0.0001'],
             'cantidad' => [Rule::requiredIf($esCargo), 'nullable', 'numeric', 'min:0.01'],
             'precio_unitario' => [Rule::requiredIf($esCargo), 'nullable', 'numeric', 'min:0.01'],
+            'modalidad_precio' => [Rule::requiredIf($esCargo), 'nullable', 'in:divisa,bcv'],
             'plazo_meses' => [Rule::requiredIf($esCargo), 'nullable', 'integer', 'min:1'],
             'frecuencia_pago' => [Rule::requiredIf($esCargo), 'nullable', 'in:semanal,quincenal,mensual'],
             'monto' => [Rule::requiredIf(! $esCargo), 'nullable', 'numeric', 'min:0.01'],
@@ -105,7 +108,7 @@ class MovimientoCuentaController extends Controller
             : $validated['monto'];
 
         $antes = $movimiento->only([
-            'fecha', 'descripcion', 'cantidad', 'precio_unitario', 'plazo_meses',
+            'fecha', 'descripcion', 'cantidad', 'precio_unitario', 'modalidad_precio', 'plazo_meses',
             'frecuencia_pago', 'monto', 'moneda', 'tasa_cambio', 'metodo_pago', 'comentario',
         ]);
 
@@ -114,6 +117,7 @@ class MovimientoCuentaController extends Controller
             'descripcion' => $validated['descripcion'],
             'cantidad' => $esCargo ? $validated['cantidad'] : null,
             'precio_unitario' => $esCargo ? $validated['precio_unitario'] : null,
+            'modalidad_precio' => $esCargo ? $validated['modalidad_precio'] : null,
             'plazo_meses' => $esCargo ? $validated['plazo_meses'] : null,
             'frecuencia_pago' => $esCargo ? $validated['frecuencia_pago'] : null,
             'monto' => $monto,
