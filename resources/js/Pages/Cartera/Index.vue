@@ -1,17 +1,16 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
+import { Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
+import StatCard from '../../Components/StatCard.vue';
+import { formatMoney } from '../../lib/formatMoney';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     clientes: { type: Array, required: true },
 });
-
-function fmt(n) {
-    return Number(n).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 const totalCarteraActiva = computed(() => props.clientes.reduce((sum, c) => sum + Number(c.saldoPendiente), 0));
 const clientesConSaldo = computed(() => props.clientes.filter((c) => Number(c.saldoPendiente) > 0).length);
@@ -26,14 +25,8 @@ const clientesConSaldo = computed(() => props.clientes.filter((c) => Number(c.sa
         <p v-if="clientes.length === 0" class="text-sm text-kredix-gris">Todavia no hay clientes registrados.</p>
 
         <div v-if="clientes.length > 0" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <p class="text-xs uppercase text-kredix-gris">Cartera activa</p>
-                <p class="mt-1 text-3xl font-bold text-kredix-negro">{{ fmt(totalCarteraActiva) }}</p>
-            </div>
-            <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <p class="text-xs uppercase text-kredix-gris">Clientes con saldo</p>
-                <p class="mt-1 text-3xl font-bold text-kredix-negro">{{ clientesConSaldo }}</p>
-            </div>
+            <StatCard label="Cartera activa" :value="formatMoney(totalCarteraActiva)" :icon="Wallet" variant="rojo" />
+            <StatCard label="Clientes con saldo" :value="String(clientesConSaldo)" :icon="Users" variant="negro" />
         </div>
 
         <div v-if="clientes.length > 0" class="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -57,7 +50,7 @@ const clientesConSaldo = computed(() => props.clientes.filter((c) => Number(c.sa
                         <td class="break-words px-2 py-2">
                             <Link :href="`/clientes/${c.id}`" class="text-kredix-negro underline">{{ c.nombre }}</Link>
                         </td>
-                        <td class="break-words px-2 py-2 text-right font-medium text-kredix-rojo">{{ c.saldoPendiente.toFixed(2) }}</td>
+                        <td class="break-words px-2 py-2 text-right font-medium text-kredix-rojo">{{ formatMoney(c.saldoPendiente) }}</td>
                         <td class="break-words px-2 py-2 text-kredix-gris">{{ c.ultimoAbonoFecha ?? 'nunca' }}</td>
                         <td class="break-words px-2 py-2 text-right text-kredix-gris">{{ c.diasDesdeUltimoAbono ?? 'nunca' }}</td>
                     </tr>
