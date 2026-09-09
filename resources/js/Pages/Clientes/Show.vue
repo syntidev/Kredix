@@ -77,6 +77,11 @@ watch(() => cargoForm.modalidad_precio, (val) => {
     }
 });
 
+function usarTasaAutomatica() {
+    manualTasaBcv.value = false;
+    cargoForm.tasa_cambio = props.tasaBcv ? props.tasaBcv.rate : '';
+}
+
 const faltaTasaBcv = computed(() => cargoForm.modalidad_precio === 'bcv' && !cargoForm.tasa_cambio);
 const faltaTasaBcvEdit = computed(() => editForm.modalidad_precio === 'bcv' && !editForm.tasa_cambio);
 
@@ -382,6 +387,7 @@ function cancelForms() {
                     <template v-else>
                         <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
                         <input v-model="cargoForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        <button v-if="tasaBcvTexto" type="button" class="self-start text-xs text-kredix-gris underline" @click="usarTasaAutomatica">usar tasa automatica</button>
                     </template>
                 </div>
             </div>
