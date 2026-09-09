@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MovimientoCuentaController;
 use App\Http\Controllers\ProfileController;
@@ -23,6 +24,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
     Route::get('/cartera', [ClienteController::class, 'cartera'])->name('cartera');
     Route::get('/kpi', [KpiController::class, 'index'])->name('kpi');
+    Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion.index');
+    Route::put('/configuracion', [ConfiguracionController::class, 'update'])->name('configuracion.update');
     Route::put('/clientes/{cliente}', [ClienteController::class, 'update'])->name('clientes.update');
     Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
 

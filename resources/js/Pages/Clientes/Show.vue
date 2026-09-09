@@ -11,6 +11,17 @@ const props = defineProps({
     saldoPendiente: { type: [Number, String], required: true },
     totalCobrado: { type: [Number, String], required: true },
     reglas: { type: Array, required: true },
+    mensajeWhatsapp: { type: String, default: '' },
+});
+
+const waLink = computed(() => {
+    if (!props.cliente.telefono) {
+        return null;
+    }
+    // ponytail: asume numero venezolano (0xxx -> 58xxx); ajustar si hay clientes de otros paises
+    const digitos = props.cliente.telefono.replace(/\D/g, '');
+    const telefonoInternacional = digitos.startsWith('0') ? '58' + digitos.slice(1) : digitos;
+    return `https://wa.me/${telefonoInternacional}?text=${encodeURIComponent(props.mensajeWhatsapp)}`;
 });
 
 function today() {
@@ -247,6 +258,15 @@ function cancelForms() {
                     <p class="font-semibold text-kredix-rojo">{{ saldoPendiente }}</p>
                 </div>
             </div>
+            <a
+                v-if="waLink"
+                :href="waLink"
+                target="_blank"
+                rel="noopener"
+                class="mt-3 flex min-h-11 items-center justify-center rounded-lg border border-green-600 text-sm font-medium text-green-700 active:bg-green-50"
+            >
+                Enviar recordatorio por WhatsApp
+            </a>
         </div>
 
         <div class="flex items-center justify-between">

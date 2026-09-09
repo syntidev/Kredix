@@ -7,6 +7,7 @@ const links = [
     { href: '/clientes', label: 'Clientes' },
     { href: '/cartera', label: 'Cartera' },
     { href: '/kpi', label: 'KPI' },
+    { href: '/configuracion', label: 'Configuracion' },
 ];
 
 function isActive(href) {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cliente;
+use App\Models\Configuracion;
 use App\Models\MovimientoCuenta;
 use App\Models\ReglaPlazo;
 use Illuminate\Http\Request;
@@ -89,12 +90,28 @@ class ClienteController extends Controller
             ];
         });
 
+        $saldoPendiente = MovimientoCuenta::saldoPendiente($cliente->id);
+        $ultimoAbono = $movimientosRaw->where('tipo', 'abono')->last();
+        $diasSinAbonar = $ultimoAbono ? now()->startOfDay()->diffInDays($ultimoAbono->fecha, true) : null;
+
+        $intro = str_replace(
+            ['{nombre}', '{saldo}', '{dias_sin_abonar}'],
+            [$cliente->nombre, number_format($saldoPendiente, 2), $diasSinAbonar ?? 'sin abonos registrados'],
+            Configuracion::valorDe('whatsapp_intro', 'Hola {nombre},')
+        );
+
+        $mensajeWhatsapp = $intro
+            ."\n\nSaldo pendiente: ".number_format($saldoPendiente, 2)
+            ."\nDias sin abonar: ".($diasSinAbonar ?? 'sin abonos registrados')
+            ."\n\nQuedamos atentos, gracias por su preferencia.";
+
         return Inertia::render('Clientes/Show', [
             'cliente' => $cliente,
             'movimientos' => $movimientos,
-            'saldoPendiente' => MovimientoCuenta::saldoPendiente($cliente->id),
+            'saldoPendiente' => $saldoPendiente,
             'totalCobrado' => MovimientoCuenta::totalCobrado($cliente->id),
             'reglas' => ReglaPlazo::orderBy('monto_min')->get(),
+            'mensajeWhatsapp' => $mensajeWhatsapp,
         ]);
     }
 
