@@ -72,6 +72,8 @@ const cargoForm = useForm({
 watch(() => cargoForm.modalidad_precio, (val) => {
     if (val === 'bcv' && props.tasaBcv && !manualTasaBcv.value) {
         cargoForm.tasa_cambio = props.tasaBcv.rate;
+    } else if (val === 'divisa') {
+        cargoForm.tasa_cambio = '';
     }
 });
 
@@ -371,8 +373,8 @@ function cancelForms() {
                         <option value="ves">VES</option>
                     </select>
                 </div>
-                <div class="flex flex-1 flex-col gap-1">
-                    <template v-if="cargoForm.modalidad_precio === 'bcv' && tasaBcvTexto && !manualTasaBcv">
+                <div v-if="cargoForm.modalidad_precio === 'bcv'" class="flex flex-1 flex-col gap-1">
+                    <template v-if="tasaBcvTexto && !manualTasaBcv">
                         <label class="text-sm font-medium text-kredix-negro">Tasa cambio</label>
                         <div class="flex min-h-11 items-center rounded-lg bg-gray-100 px-3 text-sm text-kredix-negro">{{ tasaBcvTexto }}</div>
                         <button type="button" class="self-start text-xs text-kredix-gris underline" @click="manualTasaBcv = true">cambiar manualmente</button>
