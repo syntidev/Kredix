@@ -14,6 +14,19 @@ const props = defineProps({
 
 const totalCarteraActiva = computed(() => props.clientes.reduce((sum, c) => sum + Number(c.saldoPendiente), 0));
 const clientesConSaldo = computed(() => props.clientes.filter((c) => Number(c.saldoPendiente) > 0).length);
+
+// mismos 4 rangos que Kpi/Index.vue (antiguedadCartera en KpiController)
+const clientesOrdenados = computed(() =>
+    [...props.clientes].sort((a, b) => (b.diasDesdeUltimoAbono ?? Infinity) - (a.diasDesdeUltimoAbono ?? Infinity))
+);
+
+function colorDias(dias) {
+    if (dias === null) return 'text-kredix-rojo';
+    if (dias <= 15) return 'text-green-600';
+    if (dias <= 30) return 'text-amber-600';
+    if (dias <= 60) return 'text-orange-600';
+    return 'text-kredix-rojo';
+}
 </script>
 
 <template>
@@ -46,13 +59,13 @@ const clientesConSaldo = computed(() => props.clientes.filter((c) => Number(c.sa
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="c in clientes" :key="c.id" class="border-t border-gray-100">
+                    <tr v-for="c in clientesOrdenados" :key="c.id" class="border-t border-gray-100">
                         <td class="break-words px-2 py-2">
                             <Link :href="`/clientes/${c.id}`" class="text-kredix-negro underline">{{ c.nombre }}</Link>
                         </td>
                         <td class="break-words px-2 py-2 text-right font-medium text-kredix-rojo">{{ formatMoney(c.saldoPendiente) }}</td>
                         <td class="break-words px-2 py-2 text-kredix-gris">{{ c.ultimoAbonoFecha ?? 'nunca' }}</td>
-                        <td class="break-words px-2 py-2 text-right text-kredix-gris">{{ c.diasDesdeUltimoAbono ?? 'nunca' }}</td>
+                        <td class="break-words px-2 py-2 text-right font-medium" :class="colorDias(c.diasDesdeUltimoAbono)">{{ c.diasDesdeUltimoAbono ?? 'nunca' }}</td>
                     </tr>
                 </tbody>
             </table>
