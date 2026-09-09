@@ -1,11 +1,12 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { BarChart3, LogOut, Settings, Users, Wallet } from '@lucide/vue';
+import { BarChart3, Home, LogOut, Settings, Users, Wallet } from '@lucide/vue';
 import InstallPrompt from '../Components/InstallPrompt.vue';
 
 const page = usePage();
 
 const links = [
+    { href: '/home', label: 'Inicio' },
     { href: '/clientes', label: 'Clientes' },
     { href: '/cartera', label: 'Cartera' },
     { href: '/kpi', label: 'KPI' },
@@ -13,6 +14,7 @@ const links = [
 ];
 
 const tabs = [
+    { href: '/home', label: 'Inicio', icon: Home },
     { href: '/clientes', label: 'Clientes', icon: Users },
     { href: '/cartera', label: 'Cartera', icon: Wallet },
     { href: '/kpi', label: 'KPI', icon: BarChart3 },

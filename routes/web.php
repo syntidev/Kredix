@@ -2,20 +2,22 @@
 
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ConfiguracionController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MovimientoCuentaController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return redirect()->route(auth()->check() ? 'clientes.index' : 'login');
+    return redirect()->route(auth()->check() ? 'home' : 'login');
 });
 
 Route::get('/dashboard', function () {
-    return redirect()->route('clientes.index');
+    return redirect()->route('home');
 })->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/home', [HomeController::class, 'index'])->name('home');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
