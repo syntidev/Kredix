@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { useForm, Link } from '@inertiajs/vue3';
+import { useForm } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
+import BackButton from '../../Components/BackButton.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -238,7 +239,7 @@ function cancelForms() {
 
 <template>
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
-        <Link href="/clientes" class="text-sm text-kredix-gris">← Clientes</Link>
+        <BackButton href="/clientes" label="Clientes" />
 
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>

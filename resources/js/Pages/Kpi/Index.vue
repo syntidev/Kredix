@@ -27,7 +27,7 @@ const chartSeries = computed(() => [
 
 const chartOptions = computed(() => ({
     chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
-    colors: ['#101010', '#c00000'],
+    colors: ['#101010', '#FA0A0A'],
     plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
     dataLabels: { enabled: false },
     xaxis: { categories: props.semanasDelMes.map((s) => s.semana) },
