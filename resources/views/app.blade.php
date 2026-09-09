@@ -5,7 +5,13 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#101010">
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title inertia>{{ config('app.name', 'Kredix') }}</title>
+
+        <meta property="og:title" content="Kredix">
+        <meta property="og:site_name" content="Kredix">
+        <meta property="og:description" content="Gestion de creditos y cobranza">
+        <meta property="og:image" content="https://kredix.synti.cloud/logo.png">
+        <meta property="og:url" content="https://kredix.synti.cloud">
 
         <link rel="icon" href="/favicon.ico" sizes="32x32">
         <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
