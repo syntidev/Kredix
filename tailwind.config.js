@@ -16,9 +16,9 @@ export default {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
             colors: {
-                'kredix-negro': '#1a1a1a',
-                'kredix-rojo': '#e4032e',
-                'kredix-gris': '#6b6b6b',
+                'kredix-negro': '#101010',
+                'kredix-rojo': '#c00000',
+                'kredix-gris': '#8c8c8c',
             },
         },
     },
