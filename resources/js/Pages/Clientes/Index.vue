@@ -277,7 +277,7 @@ function doDelete() {
             </li>
         </ul>
 
-        <div v-if="deletingCliente" class="fixed inset-0 z-10 flex items-center justify-center bg-black/40 px-4">
+        <div v-if="deletingCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
             <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
                 <p class="font-medium text-kredix-negro">¿Eliminar a {{ deletingCliente.nombre }}?</p>
                 <p class="mt-1 text-sm text-kredix-gris">El cliente dejara de aparecer en el listado. No se borra fisicamente.</p>
