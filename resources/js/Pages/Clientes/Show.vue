@@ -256,16 +256,16 @@ function cancelForms() {
             </div>
         </div>
 
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <h2 class="text-lg font-semibold text-kredix-negro">Movimientos</h2>
-            <div v-if="!formMode" class="flex flex-wrap gap-2">
-                <button type="button" class="min-h-11 rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'cargo'">
+            <div v-if="!formMode" class="grid grid-cols-2 gap-2 md:flex md:flex-wrap">
+                <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'cargo'">
                     + Nuevo cargo
                 </button>
-                <button type="button" class="min-h-11 rounded-lg bg-kredix-rojo px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'abono'">
+                <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-kredix-rojo px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'abono'">
                     + Nuevo abono
                 </button>
-                <button type="button" class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="formMode = 'gestion'">
+                <button type="button" class="col-span-2 flex min-h-11 items-center justify-center rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-gris active:bg-gray-100 md:col-span-1" @click="formMode = 'gestion'">
                     Registrar contacto
                 </button>
             </div>
@@ -626,56 +626,67 @@ function cancelForms() {
             </div>
         </div>
 
-        <div v-if="movimientos.length > 0" class="hidden overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm md:block">
-            <table class="w-full min-w-[860px] text-left text-sm">
+        <div v-if="movimientos.length > 0" class="hidden rounded-lg border border-gray-200 bg-white shadow-sm md:block">
+            <table class="w-full table-fixed text-left text-sm">
+                <colgroup>
+                    <col class="w-[80px]" />
+                    <col class="w-[80px]" />
+                    <col />
+                    <col class="w-[80px]" />
+                    <col class="w-[104px]" />
+                    <col class="w-[40px]" />
+                    <col class="w-[80px]" />
+                    <col class="w-[104px]" />
+                    <col class="w-[52px]" />
+                </colgroup>
                 <thead class="bg-gray-100 text-xs uppercase text-kredix-gris">
                     <tr>
-                        <th class="px-3 py-2">Fecha</th>
-                        <th class="px-3 py-2">Tipo</th>
-                        <th class="px-3 py-2">Descripcion</th>
-                        <th class="px-3 py-2 text-right">Cant.</th>
-                        <th class="px-3 py-2 text-right">Precio/Monto</th>
-                        <th class="px-3 py-2">Tasa</th>
-                        <th class="px-3 py-2">Metodo</th>
-                        <th class="px-3 py-2 text-right">Saldo</th>
-                        <th class="px-3 py-2"></th>
+                        <th class="px-2 py-2">Fecha</th>
+                        <th class="px-2 py-2">Tipo</th>
+                        <th class="px-2 py-2">Descripcion</th>
+                        <th class="px-2 py-2 text-right">Cant.</th>
+                        <th class="px-2 py-2 text-right">Precio/Monto</th>
+                        <th class="px-2 py-2 text-center" title="Tasa de cambio">Tasa</th>
+                        <th class="px-2 py-2">Metodo</th>
+                        <th class="px-2 py-2 text-right">Saldo</th>
+                        <th class="px-2 py-2"></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="m in movimientosConSaldo" :key="m.id" class="border-t border-gray-100" :class="m.tipo === 'gestion' ? 'bg-gray-50 italic' : ''">
-                        <td class="px-3 py-2 text-kredix-negro">{{ m.fecha }}</td>
-                        <td class="px-3 py-2 text-kredix-gris">{{ m.tipo }}</td>
-                        <td class="px-3 py-2 text-kredix-negro">
+                    <tr v-for="m in movimientosConSaldo" :key="m.id" class="border-t border-gray-100 align-top" :class="m.tipo === 'gestion' ? 'bg-gray-50 italic' : ''">
+                        <td class="break-words px-2 py-2 text-kredix-negro">{{ m.fecha }}</td>
+                        <td class="break-words px-2 py-2 text-kredix-gris">{{ m.tipo }}</td>
+                        <td class="break-words px-2 py-2 text-kredix-negro">
                             <template v-if="m.tipo === 'gestion'">
                                 {{ tipoContactoLabel[m.tipo_contacto] ?? m.tipo_contacto }} — {{ m.comentario }}
                             </template>
                             <template v-else>
                                 {{ m.descripcion }}
-                                <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-xs text-kredix-gris">— {{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
-                                <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="ml-1 text-xs text-kredix-rojo underline">comprobante</a>
-                                <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="ml-1 text-xs text-kredix-rojo underline">foto producto</a>
+                                <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="block text-xs text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
+                                <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="block text-xs text-kredix-rojo underline">comprobante</a>
+                                <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="block text-xs text-kredix-rojo underline">foto producto</a>
                             </template>
                             <button
                                 v-if="m.editado"
                                 type="button"
                                 :title="m.motivo_edicion"
-                                class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 not-italic"
+                                class="mt-1 block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 not-italic"
                                 @click="toggleMotivo(m.id)"
                             >
                                 editado
                             </button>
                             <p v-if="motivoAbierto === m.id" class="mt-1 text-xs text-kredix-gris">Motivo: {{ m.motivo_edicion }}</p>
                         </td>
-                        <td class="px-3 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.cantidad ?? '-') }}</td>
-                        <td class="px-3 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}</td>
-                        <td class="px-3 py-2">
-                            <span v-if="m.tipo === 'gestion'">-</span>
-                            <span v-else-if="m.tasa_cambio" class="text-kredix-negro">{{ m.tasa_cambio }}</span>
-                            <span v-else class="italic text-kredix-gris">tasa pendiente</span>
+                        <td class="break-words px-2 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.cantidad ?? '-') }}</td>
+                        <td class="break-words px-2 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}</td>
+                        <td class="px-1 py-2 text-center" :title="m.tipo === 'gestion' ? '' : (m.tasa_cambio ? `Tasa: ${m.tasa_cambio}` : 'Tasa pendiente')">
+                            <span v-if="m.tipo === 'gestion'" class="text-kredix-gris">-</span>
+                            <span v-else-if="m.tasa_cambio" class="text-kredix-negro">%</span>
+                            <span v-else class="text-amber-600">%</span>
                         </td>
-                        <td class="px-3 py-2 text-kredix-gris">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</td>
-                        <td class="px-3 py-2 text-right font-medium text-kredix-negro">{{ m.saldoAcumulado.toFixed(2) }}</td>
-                        <td class="px-3 py-2 text-right">
+                        <td class="break-words px-2 py-2 text-kredix-gris">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</td>
+                        <td class="break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ m.saldoAcumulado.toFixed(2) }}</td>
+                        <td class="px-1 py-2 text-right">
                             <button v-if="m.tipo !== 'gestion'" type="button" class="text-xs font-medium text-kredix-gris underline not-italic" @click="openEditMov(m)">Editar</button>
                         </td>
                     </tr>
