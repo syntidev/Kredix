@@ -127,17 +127,15 @@ function cancelForm() {
             <p v-if="clientes.length === 0" class="text-sm text-kredix-gris">Todavia no hay clientes registrados.</p>
 
         <ul v-else class="flex flex-col gap-2">
-            <li
-                v-for="cliente in clientes"
-                :key="cliente.id"
-                class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
-            >
-                <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
-                <p class="text-sm text-kredix-gris">{{ cliente.telefono }}</p>
-                <p v-if="cliente.email" class="text-sm text-kredix-gris">{{ cliente.email }}</p>
-                <p v-if="cliente.cedula" class="text-sm text-kredix-gris">CI: {{ cliente.cedula }}</p>
-                <Link :href="`/clientes/${cliente.id}/cuenta`" class="mt-1 inline-block text-sm text-kredix-rojo underline">
-                    Ver cuenta
+            <li v-for="cliente in clientes" :key="cliente.id">
+                <Link
+                    :href="`/clientes/${cliente.id}`"
+                    class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm active:bg-gray-50"
+                >
+                    <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
+                    <p class="text-sm text-kredix-gris">{{ cliente.telefono }}</p>
+                    <p v-if="cliente.email" class="text-sm text-kredix-gris">{{ cliente.email }}</p>
+                    <p v-if="cliente.cedula" class="text-sm text-kredix-gris">CI: {{ cliente.cedula }}</p>
                 </Link>
             </li>
         </ul>

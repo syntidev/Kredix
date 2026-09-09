@@ -1,0 +1,308 @@
+<script setup>
+import { computed, ref } from 'vue';
+import { useForm, Link } from '@inertiajs/vue3';
+import AppLayout from '../../Layouts/AppLayout.vue';
+
+defineOptions({ layout: AppLayout });
+
+const props = defineProps({
+    cliente: { type: Object, required: true },
+    movimientos: { type: Array, required: true },
+    saldoPendiente: { type: [Number, String], required: true },
+    totalCobrado: { type: [Number, String], required: true },
+    reglas: { type: Array, required: true },
+});
+
+function today() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+const movimientosConSaldo = computed(() => {
+    let saldo = 0;
+    return props.movimientos.map((m) => {
+        const monto = parseFloat(m.monto) || 0;
+        saldo += m.tipo === 'cargo' ? monto : -monto;
+        return { ...m, saldoAcumulado: saldo };
+    });
+});
+
+// formMode: null | 'cargo' | 'abono'
+const formMode = ref(null);
+const plazoSugerido = ref(null);
+
+const cargoForm = useForm({
+    cliente_id: props.cliente.id,
+    tipo: 'cargo',
+    fecha: today(),
+    descripcion: '',
+    cantidad: '',
+    precio_unitario: '',
+    plazo_meses: '',
+    frecuencia_pago: 'mensual',
+    moneda: 'usd',
+    tasa_cambio: '',
+});
+
+const montoCargo = computed(() => (parseFloat(cargoForm.cantidad) || 0) * (parseFloat(cargoForm.precio_unitario) || 0));
+
+function actualizarSugerencia() {
+    const regla = props.reglas.find((r) => montoCargo.value >= parseFloat(r.monto_min) && montoCargo.value <= parseFloat(r.monto_max));
+    const sugerido = regla ? regla.plazo_min_meses : null;
+
+    if (cargoForm.plazo_meses === '' || Number(cargoForm.plazo_meses) === plazoSugerido.value) {
+        cargoForm.plazo_meses = sugerido ?? '';
+    }
+    plazoSugerido.value = sugerido;
+}
+
+function submitCargo() {
+    cargoForm.post('/movimientos', {
+        preserveScroll: true,
+        onSuccess: () => {
+            cargoForm.reset();
+            cargoForm.tipo = 'cargo';
+            cargoForm.fecha = today();
+            cargoForm.moneda = 'usd';
+            cargoForm.frecuencia_pago = 'mensual';
+            plazoSugerido.value = null;
+            formMode.value = null;
+        },
+    });
+}
+
+const esAjuste = ref(false);
+
+const abonoForm = useForm({
+    cliente_id: props.cliente.id,
+    tipo: 'abono',
+    fecha: today(),
+    descripcion: '',
+    monto: '',
+    moneda: 'usd',
+    tasa_cambio: '',
+    metodo_pago: 'efectivo',
+    comentario: '',
+    comprobante: null,
+});
+
+function onFileChange(event) {
+    abonoForm.comprobante = event.target.files[0] ?? null;
+}
+
+function submitAbono() {
+    abonoForm.tipo = esAjuste.value ? 'ajuste_devolucion' : 'abono';
+    abonoForm.descripcion = esAjuste.value ? 'Ajuste / devolucion' : 'Abono';
+
+    abonoForm.post('/movimientos', {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            abonoForm.reset();
+            abonoForm.fecha = today();
+            abonoForm.moneda = 'usd';
+            abonoForm.metodo_pago = 'efectivo';
+            esAjuste.value = false;
+            formMode.value = null;
+        },
+    });
+}
+
+function cancelForms() {
+    cargoForm.clearErrors();
+    abonoForm.clearErrors();
+    formMode.value = null;
+}
+</script>
+
+<template>
+    <div class="mx-auto flex max-w-3xl flex-col gap-4">
+        <Link href="/clientes" class="text-sm text-kredix-gris">← Clientes</Link>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
+            <p class="text-sm text-kredix-gris">{{ cliente.telefono }}</p>
+            <div class="mt-3 grid grid-cols-2 gap-2 text-center">
+                <div>
+                    <p class="text-xs text-kredix-gris">Total cobrado</p>
+                    <p class="font-semibold text-kredix-negro">{{ totalCobrado }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-kredix-gris">Saldo pendiente</p>
+                    <p class="font-semibold text-kredix-rojo">{{ saldoPendiente }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-kredix-negro">Movimientos</h2>
+            <div v-if="!formMode" class="flex gap-2">
+                <button type="button" class="min-h-11 rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'cargo'">
+                    + Nuevo cargo
+                </button>
+                <button type="button" class="min-h-11 rounded-lg bg-kredix-rojo px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'abono'">
+                    + Nuevo abono
+                </button>
+            </div>
+        </div>
+
+        <form v-if="formMode === 'cargo'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitCargo">
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Descripcion</label>
+                <input v-model="cargoForm.descripcion" type="text" placeholder="ej: Bicicleta Factor Monza" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <p v-if="cargoForm.errors.descripcion" class="text-sm text-kredix-rojo">{{ cargoForm.errors.descripcion }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Fecha</label>
+                <input v-model="cargoForm.fecha" type="date" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+            </div>
+
+            <div class="flex gap-2">
+                <div class="flex flex-1 flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Cantidad</label>
+                    <input v-model="cargoForm.cantidad" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
+                    <p v-if="cargoForm.errors.cantidad" class="text-sm text-kredix-rojo">{{ cargoForm.errors.cantidad }}</p>
+                </div>
+                <div class="flex flex-1 flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Precio unit.</label>
+                    <input v-model="cargoForm.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
+                    <p v-if="cargoForm.errors.precio_unitario" class="text-sm text-kredix-rojo">{{ cargoForm.errors.precio_unitario }}</p>
+                </div>
+            </div>
+
+            <div class="rounded-lg bg-gray-100 px-3 py-2 text-sm text-kredix-negro">Monto: <span class="font-semibold">{{ montoCargo.toFixed(2) }}</span></div>
+
+            <div class="flex gap-2">
+                <div class="flex flex-1 flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">
+                        Plazo (meses)
+                        <span v-if="plazoSugerido" class="font-normal text-kredix-gris">- sugerido {{ plazoSugerido }}</span>
+                    </label>
+                    <input v-model="cargoForm.plazo_meses" type="number" min="1" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="cargoForm.errors.plazo_meses" class="text-sm text-kredix-rojo">{{ cargoForm.errors.plazo_meses }}</p>
+                </div>
+                <div class="flex flex-1 flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Frecuencia</label>
+                    <select v-model="cargoForm.frecuencia_pago" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                        <option value="semanal">Semanal</option>
+                        <option value="quincenal">Quincenal</option>
+                        <option value="mensual">Mensual</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <div class="flex flex-1 flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Moneda</label>
+                    <select v-model="cargoForm.moneda" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                        <option value="usd">USD</option>
+                        <option value="ves">VES</option>
+                    </select>
+                </div>
+                <div class="flex flex-1 flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio</label>
+                    <input v-model="cargoForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                </div>
+            </div>
+            <p v-if="cargoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo">{{ cargoForm.errors.tasa_cambio }}</p>
+
+            <div class="mt-1 flex gap-2">
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
+                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="cargoForm.processing">Guardar cargo</button>
+            </div>
+        </form>
+
+        <form v-if="formMode === 'abono'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" enctype="multipart/form-data" @submit.prevent="submitAbono">
+            <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro">
+                <input v-model="esAjuste" type="checkbox" class="h-4 w-4" />
+                Es ajuste / devolucion (no cuenta como dinero cobrado)
+            </label>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Fecha</label>
+                <input v-model="abonoForm.fecha" type="date" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Monto</label>
+                <input v-model="abonoForm.monto" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <p v-if="abonoForm.errors.monto" class="text-sm text-kredix-rojo">{{ abonoForm.errors.monto }}</p>
+            </div>
+
+            <div class="flex gap-2">
+                <div class="flex flex-1 flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Moneda</label>
+                    <select v-model="abonoForm.moneda" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                        <option value="usd">USD</option>
+                        <option value="ves">VES</option>
+                    </select>
+                </div>
+                <div class="flex flex-1 flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio</label>
+                    <input v-model="abonoForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                </div>
+            </div>
+            <p v-if="abonoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo">{{ abonoForm.errors.tasa_cambio }}</p>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Metodo de pago</label>
+                <select v-model="abonoForm.metodo_pago" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                    <option value="efectivo">Efectivo</option>
+                    <option value="zelle">Zelle</option>
+                    <option value="binance">Binance</option>
+                    <option value="transferencia">Transferencia</option>
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Comentario</label>
+                <textarea v-model="abonoForm.comentario" rows="2" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
+                <p v-if="abonoForm.errors.comentario" class="text-sm text-kredix-rojo">{{ abonoForm.errors.comentario }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Foto de comprobante (opcional)</label>
+                <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onFileChange" />
+                <p v-if="abonoForm.errors.comprobante" class="text-sm text-kredix-rojo">{{ abonoForm.errors.comprobante }}</p>
+            </div>
+
+            <div class="mt-1 flex gap-2">
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
+                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="abonoForm.processing">Guardar abono</button>
+            </div>
+        </form>
+
+        <p v-if="movimientos.length === 0" class="text-sm text-kredix-gris">Todavia no hay movimientos registrados.</p>
+
+        <div v-else class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+            <table class="w-full min-w-[760px] text-left text-sm">
+                <thead class="bg-gray-100 text-xs uppercase text-kredix-gris">
+                    <tr>
+                        <th class="px-3 py-2">Fecha</th>
+                        <th class="px-3 py-2">Tipo</th>
+                        <th class="px-3 py-2">Descripcion</th>
+                        <th class="px-3 py-2 text-right">Cant.</th>
+                        <th class="px-3 py-2 text-right">Precio/Monto</th>
+                        <th class="px-3 py-2">Metodo</th>
+                        <th class="px-3 py-2 text-right">Saldo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="m in movimientosConSaldo" :key="m.id" class="border-t border-gray-100">
+                        <td class="px-3 py-2 text-kredix-negro">{{ m.fecha }}</td>
+                        <td class="px-3 py-2 text-kredix-gris">{{ m.tipo }}</td>
+                        <td class="px-3 py-2 text-kredix-negro">
+                            {{ m.descripcion }}
+                            <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-xs text-kredix-gris">— {{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
+                            <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="ml-1 text-xs text-kredix-rojo underline">comprobante</a>
+                        </td>
+                        <td class="px-3 py-2 text-right text-kredix-negro">{{ m.cantidad ?? '-' }}</td>
+                        <td class="px-3 py-2 text-right text-kredix-negro">{{ m.tipo === 'cargo' ? m.precio_unitario : m.monto }}</td>
+                        <td class="px-3 py-2 text-kredix-gris">{{ m.metodo_pago ?? '-' }}</td>
+                        <td class="px-3 py-2 text-right font-medium text-kredix-negro">{{ m.saldoAcumulado.toFixed(2) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</template>

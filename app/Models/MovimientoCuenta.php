@@ -21,6 +21,8 @@ class MovimientoCuenta extends Model implements HasMedia
         'tipo',
         'descripcion',
         'cantidad',
+        'plazo_meses',
+        'frecuencia_pago',
         'precio_unitario',
         'monto',
         'moneda',

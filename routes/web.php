@@ -21,7 +21,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
 
-    Route::get('/clientes/{cliente}/cuenta', [MovimientoCuentaController::class, 'show'])->name('clientes.cuenta');
+    Route::get('/clientes/{cliente}', [ClienteController::class, 'show'])->name('clientes.show');
     Route::post('/movimientos', [MovimientoCuentaController::class, 'store'])->name('movimientos.store');
 });
 
