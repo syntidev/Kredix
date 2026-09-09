@@ -11,15 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('abonos', function (Blueprint $table) {
+        Schema::create('movimientos_cuenta', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('venta_credito_id')->constrained('ventas_credito')->restrictOnDelete();
+            $table->foreignId('cliente_id')->constrained('clientes')->restrictOnDelete();
+            $table->date('fecha');
+            $table->enum('tipo', ['cargo', 'abono', 'ajuste_devolucion']);
+            $table->text('descripcion');
+            $table->decimal('cantidad', 12, 2)->nullable();
+            $table->decimal('precio_unitario', 12, 2)->nullable();
             $table->decimal('monto', 12, 2);
             $table->enum('moneda', ['usd', 'ves']);
             $table->decimal('tasa_cambio', 12, 4);
-            $table->enum('metodo_pago', ['efectivo', 'zelle', 'binance', 'transferencia']);
-            $table->enum('tipo', ['abono', 'ajuste_devolucion'])->default('abono');
-            $table->text('comentario');
+            $table->enum('metodo_pago', ['efectivo', 'zelle', 'binance', 'transferencia'])->nullable();
+            $table->text('comentario')->nullable();
             $table->foreignId('registrado_por')->constrained('users')->restrictOnDelete();
             $table->timestamps();
             $table->softDeletes();
@@ -31,6 +35,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('abonos');
+        Schema::dropIfExists('movimientos_cuenta');
     }
 };

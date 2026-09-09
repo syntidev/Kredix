@@ -1,20 +1,28 @@
 <?php
 
-use App\Http\Controllers\AbonoController;
 use App\Http\Controllers\ClienteController;
-use App\Http\Controllers\VentaCreditoController;
+use App\Http\Controllers\MovimientoCuentaController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome');
+    return redirect()->route(auth()->check() ? 'clientes.index' : 'login');
 });
 
-Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
-Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
+Route::get('/dashboard', function () {
+    return redirect()->route('clientes.index');
+})->name('dashboard');
 
-Route::get('/ventas-credito', [VentaCreditoController::class, 'index'])->name('ventas-credito.index');
-Route::post('/ventas-credito', [VentaCreditoController::class, 'store'])->name('ventas-credito.store');
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-Route::get('/ventas-credito/{venta}/abonos', [AbonoController::class, 'show'])->name('ventas-credito.abonos');
-Route::post('/abonos', [AbonoController::class, 'store'])->name('abonos.store');
+    Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
+    Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
+
+    Route::get('/clientes/{cliente}/cuenta', [MovimientoCuentaController::class, 'show'])->name('clientes.cuenta');
+    Route::post('/movimientos', [MovimientoCuentaController::class, 'store'])->name('movimientos.store');
+});
+
+require __DIR__.'/auth.php';

@@ -1,15 +1,18 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 
 const page = usePage();
 
 const links = [
     { href: '/clientes', label: 'Clientes' },
-    { href: '/ventas-credito', label: 'Ventas' },
 ];
 
 function isActive(href) {
     return page.url.startsWith(href);
+}
+
+function logout() {
+    router.post('/logout');
 }
 </script>
 
@@ -18,7 +21,7 @@ function isActive(href) {
         <header class="bg-kredix-negro">
             <div class="mx-auto flex h-14 max-w-3xl items-center justify-between px-4 md:px-8">
                 <span class="text-base font-semibold text-white">Kredix</span>
-                <nav class="flex gap-4">
+                <nav class="flex items-center gap-4">
                     <Link
                         v-for="link in links"
                         :key="link.href"
@@ -28,6 +31,10 @@ function isActive(href) {
                     >
                         {{ link.label }}
                     </Link>
+                    <span class="text-sm text-white/60">{{ page.props.auth?.user?.name }}</span>
+                    <button type="button" class="text-sm font-medium text-white/80 hover:text-white" @click="logout">
+                        Salir
+                    </button>
                 </nav>
             </div>
         </header>

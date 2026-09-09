@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, Link } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -136,6 +136,9 @@ function cancelForm() {
                 <p class="text-sm text-kredix-gris">{{ cliente.telefono }}</p>
                 <p v-if="cliente.email" class="text-sm text-kredix-gris">{{ cliente.email }}</p>
                 <p v-if="cliente.cedula" class="text-sm text-kredix-gris">CI: {{ cliente.cedula }}</p>
+                <Link :href="`/clientes/${cliente.id}/cuenta`" class="mt-1 inline-block text-sm text-kredix-rojo underline">
+                    Ver cuenta
+                </Link>
             </li>
         </ul>
     </div>
