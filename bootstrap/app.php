@@ -13,10 +13,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule): void {
-        $schedule->call(fn () => app(TasaBcvService::class)->fetchAndStore())
-            ->dailyAt('07:00')
-            ->name('tasa-bcv-fetch')
-            ->onOneServer();
+        // BCV publica su tasa oficial entre 4pm y 6pm hora Venezuela; 07:00 solo
+        // trae el valor del dia anterior como respaldo seguro.
+        foreach (['07:00', '15:00', '16:30', '18:00'] as $hora) {
+            $schedule->call(fn () => app(TasaBcvService::class)->fetchAndStore())
+                ->dailyAt($hora)
+                ->timezone('America/Caracas')
+                ->name('tasa-bcv-fetch-'.str_replace(':', '', $hora))
+                ->onOneServer();
+        }
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
