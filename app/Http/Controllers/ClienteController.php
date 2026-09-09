@@ -6,6 +6,7 @@ use App\Models\Cliente;
 use App\Models\Configuracion;
 use App\Models\MovimientoCuenta;
 use App\Models\ReglaPlazo;
+use App\Services\TasaBcvService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Spatie\Activitylog\Models\Activity;
@@ -49,7 +50,7 @@ class ClienteController extends Controller
         ]);
     }
 
-    public function show(Cliente $cliente)
+    public function show(Cliente $cliente, TasaBcvService $tasaBcvService)
     {
         $movimientosRaw = MovimientoCuenta::where('cliente_id', $cliente->id)
             ->with('registradoPor:id,name')
@@ -105,6 +106,8 @@ class ClienteController extends Controller
             ."\nDias sin abonar: ".($diasSinAbonar ?? 'sin abonos registrados')
             ."\n\nQuedamos atentos, gracias por su preferencia.";
 
+        $ultimaTasaBcv = $tasaBcvService->getLastUpdate();
+
         return Inertia::render('Clientes/Show', [
             'cliente' => $cliente,
             'movimientos' => $movimientos,
@@ -112,6 +115,12 @@ class ClienteController extends Controller
             'totalCobrado' => MovimientoCuenta::totalCobrado($cliente->id),
             'reglas' => ReglaPlazo::orderBy('monto_min')->get(),
             'mensajeWhatsapp' => $mensajeWhatsapp,
+            'tasaBcv' => $ultimaTasaBcv ? [
+                'rate' => $ultimaTasaBcv['rate'],
+                'source' => $ultimaTasaBcv['source'],
+                'fetchedAt' => $ultimaTasaBcv['fetched_at'],
+                'stale' => $tasaBcvService->isStale(),
+            ] : null,
         ]);
     }
 
