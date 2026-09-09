@@ -53,6 +53,7 @@ class MovimientoCuenta extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('comprobantes')->singleFile();
+        $this->addMediaCollection('producto')->singleFile();
     }
 
     public static function saldoPendiente(int $clienteId): float

@@ -20,9 +20,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
+    Route::put('/clientes/{cliente}', [ClienteController::class, 'update'])->name('clientes.update');
+    Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
 
     Route::get('/clientes/{cliente}', [ClienteController::class, 'show'])->name('clientes.show');
     Route::post('/movimientos', [MovimientoCuentaController::class, 'store'])->name('movimientos.store');
+    Route::put('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'update'])->name('movimientos.update');
 });
 
 require __DIR__.'/auth.php';

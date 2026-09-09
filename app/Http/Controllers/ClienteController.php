@@ -35,10 +35,12 @@ class ClienteController extends Controller
                 'frecuencia_pago' => $m->frecuencia_pago,
                 'monto' => $m->monto,
                 'moneda' => $m->moneda,
+                'tasa_cambio' => $m->tasa_cambio,
                 'metodo_pago' => $m->metodo_pago,
                 'comentario' => $m->comentario,
                 'registrado_por' => $m->registradoPor?->name,
                 'comprobante_url' => $m->getFirstMediaUrl('comprobantes') ?: null,
+                'producto_url' => $m->getFirstMediaUrl('producto') ?: null,
             ]);
 
         return Inertia::render('Clientes/Show', [
@@ -68,6 +70,35 @@ class ClienteController extends Controller
         ]);
 
         Cliente::create($validated);
+
+        return redirect()->route('clientes.index');
+    }
+
+    public function update(Request $request, Cliente $cliente)
+    {
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'telefono' => ['required', 'string', 'max:30'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'cedula' => ['nullable', 'string', 'max:20'],
+        ], [
+            'nombre.required' => 'nombre requerido',
+            'telefono.required' => 'telefono requerido',
+            'email.email' => 'email invalido',
+            'nombre.max' => 'nombre demasiado largo',
+            'telefono.max' => 'telefono demasiado largo',
+            'email.max' => 'email demasiado largo',
+            'cedula.max' => 'cedula demasiado larga',
+        ]);
+
+        $cliente->update($validated);
+
+        return redirect()->route('clientes.index');
+    }
+
+    public function destroy(Cliente $cliente)
+    {
+        $cliente->delete();
 
         return redirect()->route('clientes.index');
     }

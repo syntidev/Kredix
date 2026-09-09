@@ -26,7 +26,7 @@ const movimientosConSaldo = computed(() => {
     });
 });
 
-// formMode: null | 'cargo' | 'abono'
+// formMode: null | 'cargo' | 'abono' | 'editar'
 const formMode = ref(null);
 const plazoSugerido = ref(null);
 
@@ -41,6 +41,7 @@ const cargoForm = useForm({
     frecuencia_pago: 'mensual',
     moneda: 'usd',
     tasa_cambio: '',
+    foto_producto: null,
 });
 
 const montoCargo = computed(() => (parseFloat(cargoForm.cantidad) || 0) * (parseFloat(cargoForm.precio_unitario) || 0));
@@ -55,8 +56,13 @@ function actualizarSugerencia() {
     plazoSugerido.value = sugerido;
 }
 
+function onFotoProductoChange(event) {
+    cargoForm.foto_producto = event.target.files[0] ?? null;
+}
+
 function submitCargo() {
     cargoForm.post('/movimientos', {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             cargoForm.reset();
@@ -107,9 +113,74 @@ function submitAbono() {
     });
 }
 
+const editingMovId = ref(null);
+const editTipo = ref('cargo');
+
+const editForm = useForm({
+    _method: 'put',
+    fecha: '',
+    descripcion: '',
+    cantidad: '',
+    precio_unitario: '',
+    plazo_meses: '',
+    frecuencia_pago: 'mensual',
+    monto: '',
+    moneda: 'usd',
+    tasa_cambio: '',
+    metodo_pago: 'efectivo',
+    comentario: '',
+    comprobante: null,
+    foto_producto: null,
+    motivo_edicion: '',
+});
+
+function openEditMov(m) {
+    editForm.clearErrors();
+    editForm.fecha = m.fecha;
+    editForm.descripcion = m.descripcion;
+    editForm.cantidad = m.cantidad ?? '';
+    editForm.precio_unitario = m.precio_unitario ?? '';
+    editForm.plazo_meses = m.plazo_meses ?? '';
+    editForm.frecuencia_pago = m.frecuencia_pago ?? 'mensual';
+    editForm.monto = m.tipo === 'cargo' ? '' : m.monto;
+    editForm.moneda = m.moneda;
+    editForm.tasa_cambio = m.tasa_cambio ?? '';
+    editForm.metodo_pago = m.metodo_pago ?? 'efectivo';
+    editForm.comentario = m.comentario ?? '';
+    editForm.comprobante = null;
+    editForm.foto_producto = null;
+    editForm.motivo_edicion = '';
+    editTipo.value = m.tipo;
+    editingMovId.value = m.id;
+    formMode.value = 'editar';
+}
+
+function onEditComprobanteChange(event) {
+    editForm.comprobante = event.target.files[0] ?? null;
+}
+
+function onEditFotoProductoChange(event) {
+    editForm.foto_producto = event.target.files[0] ?? null;
+}
+
+function submitEditMov() {
+    // PHP never parses multipart bodies on a real PUT verb, so this form (it carries
+    // optional file inputs) must POST with _method spoofing instead of using .put().
+    editForm.post(`/movimientos/${editingMovId.value}`, {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            editingMovId.value = null;
+            formMode.value = null;
+        },
+    });
+}
+
 function cancelForms() {
     cargoForm.clearErrors();
     abonoForm.clearErrors();
+    editForm.clearErrors();
+    editingMovId.value = null;
     formMode.value = null;
 }
 </script>
@@ -200,11 +271,17 @@ function cancelForms() {
                     </select>
                 </div>
                 <div class="flex flex-1 flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio</label>
+                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
                     <input v-model="cargoForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 </div>
             </div>
             <p v-if="cargoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo">{{ cargoForm.errors.tasa_cambio }}</p>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onFotoProductoChange" />
+                <p v-if="cargoForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ cargoForm.errors.foto_producto }}</p>
+            </div>
 
             <div class="mt-1 flex gap-2">
                 <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
@@ -238,7 +315,7 @@ function cancelForms() {
                     </select>
                 </div>
                 <div class="flex flex-1 flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio</label>
+                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
                     <input v-model="abonoForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 </div>
             </div>
@@ -251,6 +328,7 @@ function cancelForms() {
                     <option value="zelle">Zelle</option>
                     <option value="binance">Binance</option>
                     <option value="transferencia">Transferencia</option>
+                    <option value="pago_movil">Pago Movil</option>
                 </select>
             </div>
 
@@ -272,10 +350,114 @@ function cancelForms() {
             </div>
         </form>
 
+        <form v-if="formMode === 'editar'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitEditMov">
+            <p class="text-sm font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'cargo' : 'abono/ajuste' }}</p>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Descripcion</label>
+                <input v-model="editForm.descripcion" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <p v-if="editForm.errors.descripcion" class="text-sm text-kredix-rojo">{{ editForm.errors.descripcion }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Fecha</label>
+                <input v-model="editForm.fecha" type="date" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+            </div>
+
+            <template v-if="editTipo === 'cargo'">
+                <div class="flex gap-2">
+                    <div class="flex flex-1 flex-col gap-1">
+                        <label class="text-sm font-medium text-kredix-negro">Cantidad</label>
+                        <input v-model="editForm.cantidad" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        <p v-if="editForm.errors.cantidad" class="text-sm text-kredix-rojo">{{ editForm.errors.cantidad }}</p>
+                    </div>
+                    <div class="flex flex-1 flex-col gap-1">
+                        <label class="text-sm font-medium text-kredix-negro">Precio unit.</label>
+                        <input v-model="editForm.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        <p v-if="editForm.errors.precio_unitario" class="text-sm text-kredix-rojo">{{ editForm.errors.precio_unitario }}</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <div class="flex flex-1 flex-col gap-1">
+                        <label class="text-sm font-medium text-kredix-negro">Plazo (meses)</label>
+                        <input v-model="editForm.plazo_meses" type="number" min="1" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        <p v-if="editForm.errors.plazo_meses" class="text-sm text-kredix-rojo">{{ editForm.errors.plazo_meses }}</p>
+                    </div>
+                    <div class="flex flex-1 flex-col gap-1">
+                        <label class="text-sm font-medium text-kredix-negro">Frecuencia</label>
+                        <select v-model="editForm.frecuencia_pago" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                            <option value="semanal">Semanal</option>
+                            <option value="quincenal">Quincenal</option>
+                            <option value="mensual">Mensual</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional, reemplaza la actual)</span></label>
+                    <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onEditFotoProductoChange" />
+                    <p v-if="editForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ editForm.errors.foto_producto }}</p>
+                </div>
+            </template>
+
+            <template v-else>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Monto</label>
+                    <input v-model="editForm.monto" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="editForm.errors.monto" class="text-sm text-kredix-rojo">{{ editForm.errors.monto }}</p>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Metodo de pago</label>
+                    <select v-model="editForm.metodo_pago" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                        <option value="efectivo">Efectivo</option>
+                        <option value="zelle">Zelle</option>
+                        <option value="binance">Binance</option>
+                        <option value="transferencia">Transferencia</option>
+                        <option value="pago_movil">Pago Movil</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Comentario</label>
+                    <textarea v-model="editForm.comentario" rows="2" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
+                    <p v-if="editForm.errors.comentario" class="text-sm text-kredix-rojo">{{ editForm.errors.comentario }}</p>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Foto de comprobante <span class="font-normal text-kredix-gris">(opcional, reemplaza la actual)</span></label>
+                    <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onEditComprobanteChange" />
+                    <p v-if="editForm.errors.comprobante" class="text-sm text-kredix-rojo">{{ editForm.errors.comprobante }}</p>
+                </div>
+            </template>
+
+            <div class="flex gap-2">
+                <div class="flex flex-1 flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Moneda</label>
+                    <select v-model="editForm.moneda" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                        <option value="usd">USD</option>
+                        <option value="ves">VES</option>
+                    </select>
+                </div>
+                <div class="flex flex-1 flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <input v-model="editForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                </div>
+            </div>
+            <p v-if="editForm.errors.tasa_cambio" class="text-sm text-kredix-rojo">{{ editForm.errors.tasa_cambio }}</p>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Motivo de edicion</label>
+                <textarea v-model="editForm.motivo_edicion" rows="2" placeholder="ej: se corrigio el monto, el cliente pago de mas" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
+                <p v-if="editForm.errors.motivo_edicion" class="text-sm text-kredix-rojo">{{ editForm.errors.motivo_edicion }}</p>
+            </div>
+
+            <div class="mt-1 flex gap-2">
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
+                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="editForm.processing">Guardar cambios</button>
+            </div>
+        </form>
+
         <p v-if="movimientos.length === 0" class="text-sm text-kredix-gris">Todavia no hay movimientos registrados.</p>
 
         <div v-else class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table class="w-full min-w-[760px] text-left text-sm">
+            <table class="w-full min-w-[860px] text-left text-sm">
                 <thead class="bg-gray-100 text-xs uppercase text-kredix-gris">
                     <tr>
                         <th class="px-3 py-2">Fecha</th>
@@ -283,8 +465,10 @@ function cancelForms() {
                         <th class="px-3 py-2">Descripcion</th>
                         <th class="px-3 py-2 text-right">Cant.</th>
                         <th class="px-3 py-2 text-right">Precio/Monto</th>
+                        <th class="px-3 py-2">Tasa</th>
                         <th class="px-3 py-2">Metodo</th>
                         <th class="px-3 py-2 text-right">Saldo</th>
+                        <th class="px-3 py-2"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -295,11 +479,19 @@ function cancelForms() {
                             {{ m.descripcion }}
                             <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-xs text-kredix-gris">— {{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
                             <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="ml-1 text-xs text-kredix-rojo underline">comprobante</a>
+                            <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="ml-1 text-xs text-kredix-rojo underline">foto producto</a>
                         </td>
                         <td class="px-3 py-2 text-right text-kredix-negro">{{ m.cantidad ?? '-' }}</td>
                         <td class="px-3 py-2 text-right text-kredix-negro">{{ m.tipo === 'cargo' ? m.precio_unitario : m.monto }}</td>
+                        <td class="px-3 py-2">
+                            <span v-if="m.tasa_cambio" class="text-kredix-negro">{{ m.tasa_cambio }}</span>
+                            <span v-else class="italic text-kredix-gris">tasa pendiente</span>
+                        </td>
                         <td class="px-3 py-2 text-kredix-gris">{{ m.metodo_pago ?? '-' }}</td>
                         <td class="px-3 py-2 text-right font-medium text-kredix-negro">{{ m.saldoAcumulado.toFixed(2) }}</td>
+                        <td class="px-3 py-2 text-right">
+                            <button type="button" class="text-xs font-medium text-kredix-gris underline" @click="openEditMov(m)">Editar</button>
+                        </td>
                     </tr>
                 </tbody>
             </table>
