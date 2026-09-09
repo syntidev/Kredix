@@ -451,6 +451,7 @@ function cancelForms() {
                     <option value="binance">Binance</option>
                     <option value="transferencia">Transferencia</option>
                     <option value="pago_movil">Pago Movil</option>
+                    <option value="bancamiga_divisa">Bancamiga Divisa</option>
                 </select>
             </div>
 
@@ -681,12 +682,12 @@ function cancelForms() {
         <div v-if="movimientos.length > 0" class="hidden rounded-lg border border-gray-200 bg-white shadow-sm md:block">
             <table class="w-full table-fixed text-left text-sm">
                 <colgroup>
-                    <col class="w-[80px]" />
+                    <col class="w-[92px]" />
                     <col class="w-[80px]" />
                     <col />
                     <col class="w-[80px]" />
                     <col class="w-[104px]" />
-                    <col class="w-[40px]" />
+                    <col class="w-[28px]" />
                     <col class="w-[80px]" />
                     <col class="w-[104px]" />
                     <col class="w-[52px]" />
@@ -706,7 +707,7 @@ function cancelForms() {
                 </thead>
                 <tbody>
                     <tr v-for="m in movimientosConSaldo" :key="m.id" class="border-t border-gray-100 align-top" :class="m.tipo === 'gestion' ? 'bg-gray-50 italic' : ''">
-                        <td class="break-words px-2 py-2 text-kredix-negro">{{ m.fecha }}</td>
+                        <td class="whitespace-nowrap px-2 py-2 text-kredix-negro">{{ m.fecha }}</td>
                         <td class="break-words px-2 py-2 text-kredix-gris">{{ m.tipo }}</td>
                         <td class="break-words px-2 py-2 text-kredix-negro">
                             <template v-if="m.tipo === 'gestion'">
