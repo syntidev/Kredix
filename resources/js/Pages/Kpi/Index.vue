@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue';
-import VueApexCharts from 'vue3-apexcharts';
+import { computed, defineAsyncComponent } from 'vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
+
+const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
 
 defineOptions({ layout: AppLayout });
 
