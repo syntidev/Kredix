@@ -6,6 +6,7 @@ const page = usePage();
 const links = [
     { href: '/clientes', label: 'Clientes' },
     { href: '/cartera', label: 'Cartera' },
+    { href: '/kpi', label: 'KPI' },
 ];
 
 function isActive(href) {
