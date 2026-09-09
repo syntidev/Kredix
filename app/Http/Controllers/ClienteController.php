@@ -85,7 +85,9 @@ class ClienteController extends Controller
                 'comentario' => $m->comentario,
                 'registrado_por' => $m->registradoPor?->name,
                 'comprobante_url' => $m->getFirstMediaUrl('comprobantes') ?: null,
+                'comprobante_thumb_url' => $m->getFirstMediaUrl('comprobantes', 'thumb') ?: null,
                 'producto_url' => $m->getFirstMediaUrl('producto') ?: null,
+                'producto_thumb_url' => $m->getFirstMediaUrl('producto', 'thumb') ?: null,
                 'editado' => $ultimaEdicion !== null,
                 'motivo_edicion' => $ultimaEdicion?->getExtraProperty('motivo'),
             ];

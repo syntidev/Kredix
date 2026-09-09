@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MovimientoCuenta extends Model implements HasMedia
 {
@@ -52,10 +53,26 @@ class MovimientoCuenta extends Model implements HasMedia
         return $this->belongsTo(User::class, 'registrado_por');
     }
 
+    // Requiere `php artisan storage:link` corrido una vez en el servidor (crea
+    // public/storage -> storage/app/public); sin el symlink las URLs de media
+    // devuelven 404 aunque el archivo exista en disco.
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('comprobantes')->singleFile();
         $this->addMediaCollection('producto')->singleFile();
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        // nonQueued: no hay worker de colas corriendo (app de 3 usuarios, sin
+        // infraestructura de colas) -- sin esto el thumb nunca se genera porque
+        // el job queda pendiente en la tabla jobs para siempre.
+        $this->addMediaConversion('thumb')
+            ->width(200)
+            ->height(200)
+            ->optimize()
+            ->nonQueued()
+            ->performOnCollections('comprobantes', 'producto');
     }
 
     public static function saldoPendiente(int $clienteId): float

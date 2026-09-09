@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { ImageOff } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import { formatMoney } from '../../lib/formatMoney';
@@ -249,6 +250,12 @@ function submitEditMov() {
             formMode.value = null;
         },
     });
+}
+
+const imgErrores = ref({});
+
+function onImgError(key) {
+    imgErrores.value[key] = true;
 }
 
 const motivoAbierto = ref(null);
@@ -665,8 +672,16 @@ function cancelForms() {
                     </div>
                     <p v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</p>
                     <div v-if="m.comprobante_url || m.producto_url" class="flex gap-3">
-                        <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="text-kredix-rojo underline">comprobante</a>
-                        <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="text-kredix-rojo underline">foto producto</a>
+                        <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="flex items-center gap-1 text-kredix-rojo underline">
+                            <img v-if="!imgErrores[`mc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`mc${m.id}`)" />
+                            <ImageOff v-else :size="18" class="text-kredix-gris" />
+                            comprobante
+                        </a>
+                        <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="flex items-center gap-1 text-kredix-rojo underline">
+                            <img v-if="!imgErrores[`mp${m.id}`]" :src="m.producto_thumb_url" alt="foto producto" class="h-8 w-8 rounded object-cover" @error="onImgError(`mp${m.id}`)" />
+                            <ImageOff v-else :size="18" class="text-kredix-gris" />
+                            foto producto
+                        </a>
                     </div>
                     <div v-if="m.editado" class="flex flex-col gap-0.5">
                         <span class="w-fit rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700">editado</span>
@@ -716,8 +731,16 @@ function cancelForms() {
                             <template v-else>
                                 {{ m.descripcion }}
                                 <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="block text-xs text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
-                                <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="block text-xs text-kredix-rojo underline">comprobante</a>
-                                <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="block text-xs text-kredix-rojo underline">foto producto</a>
+                                <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="mt-1 flex items-center gap-1 text-xs text-kredix-rojo underline">
+                                    <img v-if="!imgErrores[`dc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`dc${m.id}`)" />
+                                    <ImageOff v-else :size="16" class="text-kredix-gris" />
+                                    comprobante
+                                </a>
+                                <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="mt-1 flex items-center gap-1 text-xs text-kredix-rojo underline">
+                                    <img v-if="!imgErrores[`dp${m.id}`]" :src="m.producto_thumb_url" alt="foto producto" class="h-8 w-8 rounded object-cover" @error="onImgError(`dp${m.id}`)" />
+                                    <ImageOff v-else :size="16" class="text-kredix-gris" />
+                                    foto producto
+                                </a>
                             </template>
                             <button
                                 v-if="m.editado"
