@@ -23,12 +23,11 @@ const submit = () => {
 
 <template>
     <GuestLayout>
-        <Head title="Forgot Password" />
+        <Head title="Recuperar contrasena" />
 
-        <div class="mb-4 text-sm text-gray-600">
-            Forgot your password? No problem. Just let us know your email
-            address and we will email you a password reset link that will allow
-            you to choose a new one.
+        <div class="mb-4 text-sm text-kredix-gris">
+            ¿Olvidaste tu contrasena? Escribe tu correo y te enviaremos un
+            enlace para elegir una nueva.
         </div>
 
         <div
@@ -40,7 +39,7 @@ const submit = () => {
 
         <form @submit.prevent="submit">
             <div>
-                <InputLabel for="email" value="Email" />
+                <InputLabel for="email" value="Correo" />
 
                 <TextInput
                     id="email"
@@ -60,7 +59,7 @@ const submit = () => {
                     :class="{ 'opacity-25': form.processing }"
                     :disabled="form.processing"
                 >
-                    Email Password Reset Link
+                    Enviar enlace de recuperacion
                 </PrimaryButton>
             </div>
         </form>

@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { useForm, Link, router } from '@inertiajs/vue3';
+import { useForm, Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -118,6 +118,8 @@ function doDelete() {
 </script>
 
 <template>
+    <Head title="Clientes" />
+
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <div class="flex items-center justify-between">
             <h1 class="text-xl font-semibold text-kredix-negro">Clientes</h1>
@@ -277,7 +279,7 @@ function doDelete() {
             </li>
         </ul>
 
-        <div v-if="deletingCliente" class="fixed inset-0 z-10 flex items-center justify-center bg-black/40 px-4">
+        <div v-if="deletingCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
             <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
                 <p class="font-medium text-kredix-negro">¿Eliminar a {{ deletingCliente.nombre }}?</p>
                 <p class="mt-1 text-sm text-kredix-gris">El cliente dejara de aparecer en el listado. No se borra fisicamente.</p>
