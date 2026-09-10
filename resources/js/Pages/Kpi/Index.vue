@@ -37,10 +37,15 @@ const chartOptions = computed(() => ({
     colors: ['#101010', '#FA0A0A'],
     plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
     dataLabels: { enabled: false },
-    xaxis: { categories: datosVista.value.map(etiquetaVista) },
+    xaxis: {
+        categories: datosVista.value.map(etiquetaVista),
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+    },
+    yaxis: { axisBorder: { show: false } },
     legend: { position: 'top' },
-    tooltip: { y: { formatter: (v) => formatMoney(v) } },
-    grid: { borderColor: '#e5e7eb' },
+    tooltip: { y: { formatter: (v) => `<span class="tabular-nums">${formatMoney(v)}</span>` } },
+    grid: { borderColor: '#f3f4f6', strokeDashArray: 0, xaxis: { lines: { show: false } } },
 }));
 
 const rangosCartera = computed(() => {
@@ -57,7 +62,7 @@ const rangosCartera = computed(() => {
         <h1 class="text-xl font-semibold text-kredix-negro">KPI</h1>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <StatCard label="Dinero en calle" :value="formatMoney(dineroEnCalle)" :icon="Wallet" variant="rojo" />
+            <StatCard label="Dinero en calle" :value="formatMoney(dineroEnCalle)" :icon="Wallet" variant="rojo" tamano="grande" />
             <StatCard label="Recuperado este mes" :value="formatMoney(recuperadoMesActual)" :icon="TrendingUp" variant="verde">
                 <p v-if="cambioPorcentaje !== null" class="mt-1 text-sm font-medium" :class="cambioPorcentaje >= 0 ? 'text-green-600' : 'text-kredix-rojo'">
                     {{ cambioPorcentaje >= 0 ? '▲' : '▼' }} {{ Math.abs(cambioPorcentaje) }}% vs mes anterior
@@ -115,7 +120,7 @@ const rangosCartera = computed(() => {
                         <tr v-for="c in actividadCobradores" :key="c.nombre" class="border-t border-gray-100">
                             <td class="px-3 py-2 text-kredix-negro">{{ c.nombre }}</td>
                             <td class="px-3 py-2 text-right text-kredix-negro">{{ c.abonos_count }}</td>
-                            <td class="px-3 py-2 text-right text-kredix-negro">{{ formatMoney(c.abonos_monto) }}</td>
+                            <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ formatMoney(c.abonos_monto) }}</td>
                             <td class="px-3 py-2 text-right text-kredix-negro">{{ c.gestiones_count }}</td>
                             <td class="px-3 py-2 text-right text-kredix-negro">{{ c.gestiones_semana }}</td>
                         </tr>
@@ -130,7 +135,7 @@ const rangosCartera = computed(() => {
                 <div v-for="r in rangosCartera" :key="r.rango" class="flex flex-col gap-1">
                     <div class="flex items-center justify-between text-sm">
                         <span class="text-kredix-negro">{{ r.rango }} dias</span>
-                        <span class="font-medium text-kredix-negro">{{ formatMoney(r.monto) }}</span>
+                        <span class="tabular-nums font-medium text-kredix-negro">{{ formatMoney(r.monto) }}</span>
                     </div>
                     <div class="h-2 w-full rounded-full bg-gray-100">
                         <div class="h-2 rounded-full bg-kredix-rojo" :style="{ width: r.pct + '%' }"></div>

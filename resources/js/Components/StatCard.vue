@@ -4,6 +4,7 @@ defineProps({
     value: { type: String, required: true },
     icon: { type: [Object, Function], required: true },
     variant: { type: String, default: 'negro' }, // 'rojo' | 'negro' | 'verde'
+    tamano: { type: String, default: 'normal' }, // 'normal' | 'grande' -- el numero principal de la pantalla usa 'grande'
 });
 
 const VARIANTS = {
@@ -24,7 +25,12 @@ function classesFor(variant) {
             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" :class="classesFor(variant).bg">
                 <component :is="icon" :size="20" :class="classesFor(variant).icon" />
             </div>
-            <p class="text-3xl font-bold text-kredix-negro">{{ value }}</p>
+            <p
+                class="tabular-nums text-kredix-negro"
+                :class="tamano === 'grande' ? 'text-5xl font-bold' : 'text-3xl font-semibold'"
+            >
+                {{ value }}
+            </p>
         </div>
         <slot />
     </div>

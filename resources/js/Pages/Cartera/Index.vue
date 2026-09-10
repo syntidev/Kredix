@@ -40,8 +40,8 @@ function colorDias(dias) {
         <p v-if="clientes.length === 0" class="text-sm text-kredix-gris">Todavia no hay clientes registrados.</p>
 
         <div v-if="clientes.length > 0" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <StatCard v-if="esAdmin" label="Cartera activa" :value="formatMoney(totalCarteraActiva)" :icon="Wallet" variant="rojo" />
-            <StatCard v-else label="Clientes que requieren seguimiento" :value="String(clientesRequierenSeguimiento)" :icon="UserCheck" variant="rojo" />
+            <StatCard v-if="esAdmin" label="Cartera activa" :value="formatMoney(totalCarteraActiva)" :icon="Wallet" variant="rojo" tamano="grande" />
+            <StatCard v-else label="Clientes que requieren seguimiento" :value="String(clientesRequierenSeguimiento)" :icon="UserCheck" variant="rojo" tamano="grande" />
             <StatCard label="Clientes con saldo" :value="String(clientesConSaldo)" :icon="Users" variant="negro" />
         </div>
 
@@ -66,7 +66,7 @@ function colorDias(dias) {
                         <td class="break-words px-2 py-2">
                             <Link :href="`/clientes/${c.id}`" class="text-kredix-negro underline">{{ c.nombre }}</Link>
                         </td>
-                        <td class="break-words px-2 py-2 text-right font-medium text-kredix-rojo">{{ formatMoney(c.saldoPendiente) }}</td>
+                        <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-rojo">{{ formatMoney(c.saldoPendiente) }}</td>
                         <td class="break-words px-2 py-2 text-kredix-gris">{{ c.ultimoAbonoFecha ?? 'nunca' }}</td>
                         <td class="break-words px-2 py-2 text-right font-medium" :class="colorDias(c.diasDesdeUltimoAbono)">{{ c.diasDesdeUltimoAbono ?? 'nunca' }}</td>
                     </tr>

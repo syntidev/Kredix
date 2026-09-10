@@ -353,11 +353,11 @@ function cancelForms() {
             <div class="mt-3 grid grid-cols-2 gap-2 text-center">
                 <div>
                     <p class="text-xs text-kredix-gris">Total cobrado</p>
-                    <p class="font-semibold text-kredix-negro">{{ formatMoney(totalCobrado) }}</p>
+                    <p class="tabular-nums text-lg font-medium text-kredix-negro">{{ formatMoney(totalCobrado) }}</p>
                 </div>
                 <div>
                     <p class="text-xs text-kredix-gris">Saldo pendiente</p>
-                    <p class="font-semibold text-kredix-rojo">{{ formatMoney(saldoPendiente) }}</p>
+                    <p class="tabular-nums text-3xl font-bold text-kredix-rojo">{{ formatMoney(saldoPendiente) }}</p>
                 </div>
             </div>
             <a
@@ -403,10 +403,10 @@ function cancelForms() {
                 </p>
             </div>
             <div v-for="cargo in compromisosCuotas" :key="cargo.cargo_id" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-                <p class="text-sm font-medium text-kredix-negro">{{ cargo.descripcion }} — {{ formatMoney(cargo.monto_total) }} ({{ cargo.fecha }})</p>
+                <p class="text-sm font-medium text-kredix-negro">{{ cargo.descripcion }} — <span class="tabular-nums">{{ formatMoney(cargo.monto_total) }}</span> ({{ cargo.fecha }})</p>
                 <div class="mt-2 flex flex-col gap-1.5">
                     <div v-for="cuota in cargo.cuotas" :key="cuota.numero_cuota" class="flex items-center justify-between gap-2 text-sm">
-                        <span class="text-kredix-negro">Cuota {{ cuota.numero_cuota }} — {{ formatMoney(cuota.monto_sugerido) }} — {{ cuota.fecha_esperada }}</span>
+                        <span class="text-kredix-negro">Cuota {{ cuota.numero_cuota }} — <span class="tabular-nums">{{ formatMoney(cuota.monto_sugerido) }}</span> — {{ cuota.fecha_esperada }}</span>
                         <span
                             class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
                             :class="{
@@ -415,7 +415,7 @@ function cancelForms() {
                                 'bg-gray-100 text-kredix-gris': cuota.estado === 'pendiente',
                             }"
                         >
-                            {{ cuota.estado }}<template v-if="cuota.estado === 'parcial'"> ({{ formatMoney(cuota.monto_aplicado) }} de {{ formatMoney(cuota.monto_sugerido) }})</template>
+                            {{ cuota.estado }}<template v-if="cuota.estado === 'parcial'"> (<span class="tabular-nums">{{ formatMoney(cuota.monto_aplicado) }}</span> de <span class="tabular-nums">{{ formatMoney(cuota.monto_sugerido) }}</span>)</template>
                         </span>
                     </div>
                 </div>
@@ -476,7 +476,7 @@ function cancelForms() {
                 <p v-if="faltaTasaBcv" class="text-sm text-amber-600">Falta tasa BCV para este registro</p>
             </div>
 
-            <div class="rounded-lg bg-gray-100 px-3 py-2 text-sm text-kredix-negro md:col-span-2">Monto: <span class="font-semibold">{{ formatMoney(montoCargo) }}</span></div>
+            <div class="rounded-lg bg-gray-100 px-3 py-2 text-sm text-kredix-negro md:col-span-2">Monto: <span class="tabular-nums font-semibold">{{ formatMoney(montoCargo) }}</span></div>
 
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">
@@ -789,8 +789,8 @@ function cancelForms() {
                         </p>
                     </div>
                     <div class="flex shrink-0 flex-col items-end gap-0.5">
-                        <span class="text-sm font-semibold text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}</span>
-                        <span class="text-xs text-kredix-gris">saldo {{ formatMoney(m.saldoAcumulado) }}</span>
+                        <span class="tabular-nums text-sm font-semibold text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}</span>
+                        <span class="tabular-nums text-xs text-kredix-gris">saldo {{ formatMoney(m.saldoAcumulado) }}</span>
                     </div>
                 </button>
 
@@ -893,14 +893,14 @@ function cancelForms() {
                             <p v-if="motivoAbierto === m.id" class="mt-1 text-xs text-kredix-gris">Motivo: {{ m.motivo_edicion }}</p>
                         </td>
                         <td class="break-words px-2 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.cantidad ?? '-') }}</td>
-                        <td class="break-words px-2 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}</td>
+                        <td class="tabular-nums break-words px-2 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}</td>
                         <td class="px-1 py-2 text-center" :title="m.tipo === 'gestion' ? '' : (m.tasa_cambio ? `Tasa: ${m.tasa_cambio}` : 'Tasa pendiente')">
                             <span v-if="m.tipo === 'gestion'" class="text-kredix-gris">-</span>
                             <span v-else-if="m.tasa_cambio" class="text-kredix-negro">%</span>
                             <span v-else class="text-amber-600">%</span>
                         </td>
                         <td class="break-words px-2 py-2 text-kredix-gris">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</td>
-                        <td class="break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
+                        <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
                         <td class="px-1 py-2 text-right">
                             <button v-if="m.tipo !== 'gestion'" type="button" class="text-xs font-medium text-kredix-gris underline not-italic" @click="openEditMov(m)">Editar</button>
                         </td>
