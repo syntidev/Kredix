@@ -135,6 +135,44 @@ class TasaBcvService
         }
     }
 
+    // Mismo flujo de persistencia que fetchAndStore() (desactiva la fila activa,
+    // crea una nueva, limpia el cache) -- nunca escribe directo a la tabla. Un
+    // admin corrigiendo la tasa a mano es una accion deliberada y confiable, asi
+    // que se salta las guardas de "cambio sospechoso" pensadas para fuentes
+    // automaticas no confiables.
+    public function setManualRate(float $rate, string $adminName): array
+    {
+        try {
+            $tasaBcv = DB::transaction(function () use ($rate, $adminName) {
+                TasaBcv::query()
+                    ->where('is_active', true)
+                    ->update(['is_active' => false, 'effective_until' => Carbon::now()]);
+
+                return TasaBcv::create([
+                    'rate' => $rate,
+                    'source' => 'manual: '.$adminName,
+                    'effective_from' => Carbon::now(),
+                    'effective_until' => null,
+                    'is_active' => true,
+                ]);
+            });
+
+            Cache::forget(self::CACHE_KEY);
+
+            Log::info('TasaBcvService: manual rate set', [
+                'rate' => $rate,
+                'admin' => $adminName,
+                'rate_id' => $tasaBcv->id,
+            ]);
+
+            return ['success' => true, 'rate' => $rate, 'message' => 'Tasa BCV actualizada manualmente'];
+        } catch (Throwable $e) {
+            Log::error('TasaBcvService: Failed to persist manual rate', ['error' => $e->getMessage()]);
+
+            return ['success' => false, 'message' => "DB error: {$e->getMessage()}"];
+        }
+    }
+
     public function isStale(int $hoursThreshold = 26): bool
     {
         $row = TasaBcv::query()->orderByDesc('effective_from')->first();

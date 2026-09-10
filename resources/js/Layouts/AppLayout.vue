@@ -1,12 +1,30 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { BarChart3, Bell, ChevronDown, Home, LogOut, MoreHorizontal, Settings, Users, Wallet } from '@lucide/vue';
 import InstallPrompt from '../Components/InstallPrompt.vue';
 
 const page = usePage();
 
 const esAdmin = computed(() => !!page.props.auth?.user?.es_admin);
+
+const tasaBadgeAbierto = ref(false);
+const tasaForm = useForm({ rate: '' });
+
+function abrirEdicionTasa() {
+    tasaForm.clearErrors();
+    tasaForm.rate = page.props.tasaBcv;
+    tasaBadgeAbierto.value = true;
+}
+
+function guardarTasa() {
+    tasaForm.patch('/tasa-bcv', {
+        preserveScroll: true,
+        onSuccess: () => {
+            tasaBadgeAbierto.value = false;
+        },
+    });
+}
 
 // nav desktop: 5 primarios (4 + KPI si admin) + dropdown "Ajustes"
 const links = computed(() => [
@@ -59,48 +77,87 @@ function logout() {
     <div class="min-h-screen bg-[#F2F1EE]">
         <header class="bg-kredix-negro">
             <div class="mx-auto flex h-14 max-w-3xl items-center justify-between px-4 md:px-8">
-                <span class="text-base font-semibold text-white">Kredix</span>
-                <nav class="hidden items-center gap-4 md:flex">
-                    <Link
-                        v-for="link in links"
-                        :key="link.href"
-                        :href="link.href"
-                        class="text-sm font-medium"
-                        :class="isActive(link.href) ? 'text-kredix-rojo' : 'text-white/80 hover:text-white'"
-                    >
-                        {{ link.label }}
-                    </Link>
+                <Link href="/home" class="shrink-0">
+                    <img src="/logo_menu.png" alt="Kredix" class="h-8 w-auto" />
+                </Link>
 
-                    <div class="relative">
-                        <button
-                            type="button"
-                            class="flex items-center gap-1 text-sm font-medium"
-                            :class="ajustesActivo || ajustesAbierto ? 'text-kredix-rojo' : 'text-white/80 hover:text-white'"
-                            @click="ajustesAbierto = !ajustesAbierto"
+                <div class="flex items-center">
+                    <nav class="hidden items-center gap-4 md:flex">
+                        <Link
+                            v-for="link in links"
+                            :key="link.href"
+                            :href="link.href"
+                            class="text-sm font-medium"
+                            :class="isActive(link.href) ? 'text-kredix-rojo' : 'text-white/80 hover:text-white'"
                         >
-                            <Settings :size="16" />
-                            Ajustes
-                            <ChevronDown :size="14" />
-                        </button>
-                        <div v-if="ajustesAbierto" class="fixed inset-0 z-10" @click="ajustesAbierto = false"></div>
-                        <div v-if="ajustesAbierto" class="absolute right-0 top-full z-20 mt-2 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                            <Link
-                                v-for="item in ajustesItems"
-                                :key="item.href"
-                                :href="item.href"
-                                class="block px-4 py-2 text-sm text-kredix-negro hover:bg-gray-50"
-                                @click="ajustesAbierto = false"
-                            >
-                                {{ item.label }}
-                            </Link>
-                        </div>
-                    </div>
+                            {{ link.label }}
+                        </Link>
 
-                    <span class="text-sm text-white/60">{{ page.props.auth?.user?.name }}</span>
-                    <button type="button" class="text-sm font-medium text-white/80 hover:text-white" @click="logout">
-                        Salir
-                    </button>
-                </nav>
+                        <div class="relative">
+                            <button
+                                type="button"
+                                class="flex items-center gap-1 text-sm font-medium"
+                                :class="ajustesActivo || ajustesAbierto ? 'text-kredix-rojo' : 'text-white/80 hover:text-white'"
+                                @click="ajustesAbierto = !ajustesAbierto"
+                            >
+                                <Settings :size="16" />
+                                Ajustes
+                                <ChevronDown :size="14" />
+                            </button>
+                            <div v-if="ajustesAbierto" class="fixed inset-0 z-10" @click="ajustesAbierto = false"></div>
+                            <div v-if="ajustesAbierto" class="absolute right-0 top-full z-20 mt-2 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                                <Link
+                                    v-for="item in ajustesItems"
+                                    :key="item.href"
+                                    :href="item.href"
+                                    class="block px-4 py-2 text-sm text-kredix-negro hover:bg-gray-50"
+                                    @click="ajustesAbierto = false"
+                                >
+                                    {{ item.label }}
+                                </Link>
+                            </div>
+                        </div>
+                    </nav>
+
+                    <div class="ml-4 hidden items-center gap-3 border-l border-white/20 pl-4 md:flex">
+                        <div class="relative">
+                            <button
+                                type="button"
+                                class="rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white/80"
+                                :class="esAdmin ? 'hover:bg-white/20' : 'cursor-default'"
+                                @click="esAdmin && (tasaBadgeAbierto ? (tasaBadgeAbierto = false) : abrirEdicionTasa())"
+                            >
+                                BCV {{ page.props.tasaBcv }}
+                            </button>
+                            <div v-if="tasaBadgeAbierto" class="fixed inset-0 z-10" @click="tasaBadgeAbierto = false"></div>
+                            <div v-if="tasaBadgeAbierto" class="absolute right-0 top-full z-20 mt-2 w-48 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                                <label class="text-xs font-medium text-kredix-negro">Tasa BCV (manual)</label>
+                                <input
+                                    v-model="tasaForm.rate"
+                                    type="number"
+                                    step="0.0001"
+                                    min="0.0001"
+                                    class="mt-1 min-h-9 w-full rounded-lg border border-gray-300 px-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                                />
+                                <p v-if="tasaForm.errors.rate" class="mt-1 text-xs text-kredix-rojo">{{ tasaForm.errors.rate }}</p>
+                                <button
+                                    type="button"
+                                    class="mt-2 w-full rounded-lg bg-kredix-rojo py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                                    :disabled="tasaForm.processing"
+                                    @click="guardarTasa"
+                                >
+                                    Guardar
+                                </button>
+                            </div>
+                        </div>
+
+                        <span class="text-sm text-white/60">{{ page.props.auth?.user?.name }}</span>
+                        <button type="button" class="text-sm font-medium text-white/80 hover:text-white" @click="logout">
+                            Salir
+                        </button>
+                    </div>
+                </div>
+
                 <button type="button" class="text-white/80 md:hidden" aria-label="Salir" @click="logout">
                     <LogOut :size="22" />
                 </button>

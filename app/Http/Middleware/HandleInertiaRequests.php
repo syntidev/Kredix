@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\TasaBcvService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -37,6 +38,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'nuevaPassword' => fn () => $request->session()->get('nuevaPassword'),
             ],
+            'tasaBcv' => fn () => app(TasaBcvService::class)->getCurrentRate(),
         ];
     }
 }
