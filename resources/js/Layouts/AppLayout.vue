@@ -81,7 +81,7 @@ function logout() {
         <header class="bg-kredix-negro">
             <div class="mx-auto flex h-14 max-w-3xl items-center justify-between px-4 md:px-8">
                 <Link href="/home" class="shrink-0">
-                    <img src="/logo_menu.png" alt="Kredix" class="h-8 w-auto" />
+                    <img src="/logo_menu.png" alt="Kredix" class="h-11 w-auto" />
                 </Link>
 
                 <div class="flex items-center">
