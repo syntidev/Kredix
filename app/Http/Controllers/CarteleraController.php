@@ -18,6 +18,13 @@ class CarteleraController extends Controller
 
     public function index()
     {
+        return Inertia::render('Cartelera/Index', [
+            'eventos' => $this->calcularEventos(),
+        ]);
+    }
+
+    public function calcularEventos()
+    {
         $hoy = now()->startOfDay();
 
         $todos = MovimientoCuenta::with('planCuotas')->orderBy('fecha')->get();
@@ -174,16 +181,12 @@ class CarteleraController extends Controller
 
         $ordenColor = [self::ROJO => 0, self::NARANJA => 1, self::VERDE => 2];
 
-        $eventos = $eventos
+        return $eventos
             ->sortBy([
                 fn ($a, $b) => $ordenColor[$a['color']] <=> $ordenColor[$b['color']],
                 fn ($a, $b) => $b['severidad'] <=> $a['severidad'],
             ])
             ->values();
-
-        return Inertia::render('Cartelera/Index', [
-            'eventos' => $eventos,
-        ]);
     }
 
     private function evento(string $tipo, string $color, Cliente $cliente, string $mensaje, float $severidad): array

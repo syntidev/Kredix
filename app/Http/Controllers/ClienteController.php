@@ -262,8 +262,17 @@ class ClienteController extends Controller
             ];
         })->sortByDesc('saldoPendiente')->values();
 
+        // el monto agregado ("Cartera activa") es sensible, mismo dato que ya
+        // restringimos en KPI -- solo admin lo ve; no-admin ve un conteo operativo
+        // (clientes con al menos un evento activo en Cartelera) en su lugar
+        $esAdmin = (bool) auth()->user()?->es_admin;
+
         return Inertia::render('Cartera/Index', [
             'clientes' => $clientes,
+            'esAdmin' => $esAdmin,
+            'clientesRequierenSeguimiento' => $esAdmin
+                ? null
+                : (new CarteleraController())->calcularEventos()->pluck('cliente_id')->unique()->count(),
         ]);
     }
 

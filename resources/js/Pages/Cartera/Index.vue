@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
-import { Users, Wallet } from '@lucide/vue';
+import { UserCheck, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import StatCard from '../../Components/StatCard.vue';
 import { formatMoney } from '../../lib/formatMoney';
@@ -10,6 +10,8 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     clientes: { type: Array, required: true },
+    esAdmin: { type: Boolean, required: true },
+    clientesRequierenSeguimiento: { type: Number, default: null },
 });
 
 const totalCarteraActiva = computed(() => props.clientes.reduce((sum, c) => sum + Number(c.saldoPendiente), 0));
@@ -38,7 +40,8 @@ function colorDias(dias) {
         <p v-if="clientes.length === 0" class="text-sm text-kredix-gris">Todavia no hay clientes registrados.</p>
 
         <div v-if="clientes.length > 0" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <StatCard label="Cartera activa" :value="formatMoney(totalCarteraActiva)" :icon="Wallet" variant="rojo" />
+            <StatCard v-if="esAdmin" label="Cartera activa" :value="formatMoney(totalCarteraActiva)" :icon="Wallet" variant="rojo" />
+            <StatCard v-else label="Clientes que requieren seguimiento" :value="String(clientesRequierenSeguimiento)" :icon="UserCheck" variant="rojo" />
             <StatCard label="Clientes con saldo" :value="String(clientesConSaldo)" :icon="Users" variant="negro" />
         </div>
 
