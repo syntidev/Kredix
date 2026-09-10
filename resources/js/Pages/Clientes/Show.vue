@@ -4,6 +4,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { ImageOff } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
+import TasaBcvInput from '../../Components/TasaBcvInput.vue';
 import { formatMoney } from '../../lib/formatMoney';
 
 defineOptions({ layout: AppLayout });
@@ -16,15 +17,6 @@ const props = defineProps({
     reglas: { type: Array, required: true },
     mensajeWhatsapp: { type: String, default: '' },
     tasaBcv: { type: Object, default: null },
-});
-
-const manualTasaBcv = ref(false);
-
-const tasaBcvTexto = computed(() => {
-    if (!props.tasaBcv) return null;
-    const horas = (Date.now() - new Date(props.tasaBcv.fetchedAt.replace(' ', 'T')).getTime()) / 3600000;
-    const hace = horas < 1 ? 'hace menos de 1 hora' : horas < 24 ? `hace ${Math.floor(horas)}h` : `hace ${Math.floor(horas / 24)}d`;
-    return `Tasa BCV de hoy: ${props.tasaBcv.rate} (actualizada ${hace} — fuente: ${props.tasaBcv.source})`;
 });
 
 const waLink = computed(() => {
@@ -73,17 +65,10 @@ const cargoForm = useForm({
 });
 
 watch(() => cargoForm.modalidad_precio, (val) => {
-    if (val === 'bcv' && props.tasaBcv && !manualTasaBcv.value) {
-        cargoForm.tasa_cambio = props.tasaBcv.rate;
-    } else if (val === 'divisa') {
+    if (val === 'divisa') {
         cargoForm.tasa_cambio = '';
     }
 });
-
-function usarTasaAutomatica() {
-    manualTasaBcv.value = false;
-    cargoForm.tasa_cambio = props.tasaBcv ? props.tasaBcv.rate : '';
-}
 
 const faltaTasaBcv = computed(() => cargoForm.modalidad_precio === 'bcv' && !cargoForm.tasa_cambio);
 const faltaTasaBcvEdit = computed(() => editForm.modalidad_precio === 'bcv' && !editForm.tasa_cambio);
@@ -116,7 +101,6 @@ function submitCargo() {
             cargoForm.frecuencia_pago = 'mensual';
             cargoForm.modalidad_precio = 'divisa';
             plazoSugerido.value = null;
-            manualTasaBcv.value = false;
             formMode.value = null;
         },
     });
@@ -276,7 +260,6 @@ function cancelForms() {
     gestionForm.clearErrors();
     editForm.clearErrors();
     editingMovId.value = null;
-    manualTasaBcv.value = false;
     formMode.value = null;
 }
 </script>
@@ -393,18 +376,7 @@ function cancelForms() {
                 </select>
             </div>
 
-            <div v-if="cargoForm.modalidad_precio === 'bcv'" class="flex flex-col gap-1">
-                <template v-if="tasaBcvTexto && !manualTasaBcv">
-                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio</label>
-                    <div class="flex min-h-11 items-center rounded-lg bg-gray-100 px-3 text-sm text-kredix-negro">{{ tasaBcvTexto }}</div>
-                    <button type="button" class="self-start text-xs text-kredix-gris underline" @click="manualTasaBcv = true">cambiar manualmente</button>
-                </template>
-                <template v-else>
-                    <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
-                    <input v-model="cargoForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-                    <button v-if="tasaBcvTexto" type="button" class="self-start text-xs text-kredix-gris underline" @click="usarTasaAutomatica">usar tasa automatica</button>
-                </template>
-            </div>
+            <TasaBcvInput v-if="cargoForm.modalidad_precio === 'bcv'" v-model="cargoForm.tasa_cambio" :tasa-bcv="tasaBcv" />
             <p v-if="cargoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo md:col-span-2">{{ cargoForm.errors.tasa_cambio }}</p>
 
             <div class="flex flex-col gap-1 md:col-span-2">
@@ -444,10 +416,7 @@ function cancelForms() {
                 </select>
             </div>
 
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
-                <input v-model="abonoForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-            </div>
+            <TasaBcvInput v-model="abonoForm.tasa_cambio" :tasa-bcv="tasaBcv" />
             <p v-if="abonoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo md:col-span-2">{{ abonoForm.errors.tasa_cambio }}</p>
 
             <div class="flex flex-col gap-1 md:col-span-2">
