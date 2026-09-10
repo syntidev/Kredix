@@ -22,6 +22,7 @@ class MovimientoCuenta extends Model implements HasMedia
         'fecha',
         'tipo',
         'tipo_contacto',
+        'fecha_prometida',
         'descripcion',
         'cantidad',
         'plazo_meses',
@@ -38,6 +39,7 @@ class MovimientoCuenta extends Model implements HasMedia
 
     protected $casts = [
         'fecha' => 'date',
+        'fecha_prometida' => 'date',
         'cantidad' => 'decimal:2',
         'precio_unitario' => 'decimal:2',
         'monto' => 'decimal:2',

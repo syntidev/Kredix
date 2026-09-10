@@ -222,6 +222,7 @@ const gestionForm = useForm({
     cliente_id: props.cliente.id,
     tipo: 'gestion',
     fecha: today(),
+    fecha_prometida: '',
     descripcion: '',
     moneda: 'usd',
     tipo_contacto: 'llamada',
@@ -239,6 +240,7 @@ function submitGestion() {
             gestionForm.reset();
             gestionForm.tipo = 'gestion';
             gestionForm.fecha = today();
+            gestionForm.fecha_prometida = '';
             gestionForm.moneda = 'usd';
             gestionForm.tipo_contacto = 'llamada';
             formMode.value = null;
@@ -634,6 +636,12 @@ function cancelForms() {
                 <label class="text-sm font-medium text-kredix-negro">Comentario</label>
                 <textarea v-model="gestionForm.comentario" rows="2" placeholder="ej: cliente indico que paga la proxima semana" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
                 <p v-if="gestionForm.errors.comentario" class="text-sm text-kredix-rojo">{{ gestionForm.errors.comentario }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Fecha prometida <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                <input v-model="gestionForm.fecha_prometida" type="date" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <p v-if="gestionForm.errors.fecha_prometida" class="text-sm text-kredix-rojo">{{ gestionForm.errors.fecha_prometida }}</p>
             </div>
 
             <div class="mt-1 flex gap-2">

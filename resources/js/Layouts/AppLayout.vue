@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { BarChart3, Home, LogOut, Settings, UserCog, Users, Wallet } from '@lucide/vue';
+import { BarChart3, Bell, Home, LogOut, Settings, UserCog, Users, Wallet } from '@lucide/vue';
 import InstallPrompt from '../Components/InstallPrompt.vue';
 
 const page = usePage();
@@ -12,6 +12,7 @@ const links = computed(() => [
     { href: '/home', label: 'Inicio' },
     { href: '/clientes', label: 'Clientes' },
     { href: '/cartera', label: 'Cartera' },
+    { href: '/cartelera', label: 'Cartelera' },
     ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
     { href: '/configuracion', label: 'Configuracion' },
     ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),
@@ -21,6 +22,7 @@ const tabs = computed(() => [
     { href: '/home', label: 'Inicio', icon: Home },
     { href: '/clientes', label: 'Clientes', icon: Users },
     { href: '/cartera', label: 'Cartera', icon: Wallet },
+    { href: '/cartelera', label: 'Cartelera', icon: Bell },
     ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI', icon: BarChart3 }] : []),
     ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios', icon: UserCog }] : []),
     { href: '/profile', label: 'Sistema', icon: Settings },

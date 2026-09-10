@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CarteleraController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\HomeController;
@@ -26,6 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
     Route::get('/cartera', [ClienteController::class, 'cartera'])->name('cartera');
+    Route::get('/cartelera', [CarteleraController::class, 'index'])->name('cartelera');
     Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion.index');
     Route::put('/configuracion', [ConfiguracionController::class, 'update'])->name('configuracion.update');
     Route::put('/clientes/{cliente}', [ClienteController::class, 'update'])->name('clientes.update');
