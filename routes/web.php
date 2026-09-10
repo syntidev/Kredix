@@ -29,7 +29,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/cartera', [ClienteController::class, 'cartera'])->name('cartera');
     Route::get('/cartelera', [CarteleraController::class, 'index'])->name('cartelera');
     Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion.index');
-    Route::put('/configuracion', [ConfiguracionController::class, 'update'])->name('configuracion.update');
+    Route::put('/configuracion/whatsapp', [ConfiguracionController::class, 'updateWhatsapp'])->name('configuracion.whatsapp');
+    Route::put('/configuracion/estado-cuenta', [ConfiguracionController::class, 'updateEstadoCuenta'])->name('configuracion.estado-cuenta');
+    Route::put('/configuracion/empresa', [ConfiguracionController::class, 'updateEmpresa'])->name('configuracion.empresa');
     Route::put('/clientes/{cliente}', [ClienteController::class, 'update'])->name('clientes.update');
     Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
 
