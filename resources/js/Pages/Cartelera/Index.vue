@@ -68,7 +68,7 @@ const eventosFiltrados = computed(() =>
 
         <p v-if="eventos.length === 0" class="text-sm text-kredix-gris">Sin eventos por ahora — la cartera se ve normal.</p>
 
-        <div v-if="eventos.length > 0" class="flex gap-2 overflow-x-auto pb-1">
+        <div v-if="eventos.length > 0" class="flex flex-wrap gap-2">
             <button
                 type="button"
                 class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium"
