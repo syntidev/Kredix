@@ -8,7 +8,9 @@ use App\Models\MovimientoCuenta;
 use App\Models\PlanCuota;
 use App\Models\ReglaPlazo;
 use App\Services\TasaBcvService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Spatie\Activitylog\Models\Activity;
 
@@ -111,11 +113,64 @@ class ClienteController extends Controller
 
         $ultimaTasaBcv = $tasaBcvService->getLastUpdate();
 
-        // Compromisos de cuotas: RECONSTRUCCION VISUAL via FIFO, no un registro
-        // contable. Ningun abono queda vinculado a una cuota especifica en la BD --
-        // esto solo toma el total abonado desde la fecha del cargo y lo va aplicando
-        // en orden a las cuotas sugeridas, para mostrar un avance aproximado.
-        $compromisosCuotas = $movimientosRaw
+        return Inertia::render('Clientes/Show', [
+            'cliente' => $cliente,
+            'movimientos' => $movimientos,
+            'saldoPendiente' => $saldoPendiente,
+            'totalCobrado' => MovimientoCuenta::totalCobrado($cliente->id),
+            'reglas' => ReglaPlazo::orderBy('monto_min')->get(),
+            'compromisosCuotas' => $this->compromisosCuotas($movimientosRaw),
+            'mensajeWhatsapp' => $mensajeWhatsapp,
+            'tasaBcv' => $ultimaTasaBcv ? [
+                'rate' => $ultimaTasaBcv['rate'],
+                'source' => $ultimaTasaBcv['source'],
+                'fetchedAt' => $ultimaTasaBcv['fetched_at'],
+                'stale' => $tasaBcvService->isStale(),
+            ] : null,
+        ]);
+    }
+
+    public function estadoCuenta(Cliente $cliente)
+    {
+        $movimientosRaw = MovimientoCuenta::where('cliente_id', $cliente->id)
+            ->with('planCuotas')
+            ->orderBy('fecha')
+            ->orderBy('id')
+            ->get();
+
+        $saldo = 0;
+        $movimientos = $movimientosRaw->map(function (MovimientoCuenta $m) use (&$saldo) {
+            if ($m->tipo !== 'gestion') {
+                $saldo += $m->tipo === 'cargo' ? (float) $m->monto : -(float) $m->monto;
+            }
+
+            return [
+                'fecha' => $m->fecha->toDateString(),
+                'tipo' => $m->tipo,
+                'descripcion' => $m->descripcion,
+                'monto' => $m->tipo === 'gestion' ? null : (float) $m->monto,
+                'saldo_acumulado' => $saldo,
+            ];
+        });
+
+        $pdf = Pdf::loadView('pdf.estado-cuenta', [
+            'cliente' => $cliente,
+            'movimientos' => $movimientos,
+            'saldoPendiente' => MovimientoCuenta::saldoPendiente($cliente->id),
+            'compromisosCuotas' => $this->compromisosCuotas($movimientosRaw),
+            'fechaEmision' => now()->format('d/m/Y H:i'),
+        ]);
+
+        return $pdf->download('estado-cuenta-'.Str::slug($cliente->nombre).'.pdf');
+    }
+
+    // Compromisos de cuotas: RECONSTRUCCION VISUAL via FIFO, no un registro
+    // contable. Ningun abono queda vinculado a una cuota especifica en la BD --
+    // esto solo toma el total abonado desde la fecha del cargo y lo va aplicando
+    // en orden a las cuotas sugeridas, para mostrar un avance aproximado.
+    private function compromisosCuotas($movimientosRaw)
+    {
+        return $movimientosRaw
             ->where('tipo', 'cargo')
             ->filter(fn (MovimientoCuenta $m) => $m->planCuotas->isNotEmpty())
             ->map(function (MovimientoCuenta $cargo) use ($movimientosRaw) {
@@ -160,22 +215,6 @@ class ClienteController extends Controller
                 ];
             })
             ->values();
-
-        return Inertia::render('Clientes/Show', [
-            'cliente' => $cliente,
-            'movimientos' => $movimientos,
-            'saldoPendiente' => $saldoPendiente,
-            'totalCobrado' => MovimientoCuenta::totalCobrado($cliente->id),
-            'reglas' => ReglaPlazo::orderBy('monto_min')->get(),
-            'compromisosCuotas' => $compromisosCuotas,
-            'mensajeWhatsapp' => $mensajeWhatsapp,
-            'tasaBcv' => $ultimaTasaBcv ? [
-                'rate' => $ultimaTasaBcv['rate'],
-                'source' => $ultimaTasaBcv['source'],
-                'fetchedAt' => $ultimaTasaBcv['fetched_at'],
-                'stale' => $tasaBcvService->isStale(),
-            ] : null,
-        ]);
     }
 
     public function cartera()

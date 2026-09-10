@@ -353,6 +353,12 @@ function cancelForms() {
             >
                 Enviar recordatorio por WhatsApp
             </a>
+            <a
+                :href="`/clientes/${cliente.id}/estado-cuenta`"
+                class="mt-2 flex min-h-11 items-center justify-center rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100"
+            >
+                Generar estado de cuenta (PDF)
+            </a>
         </div>
 
         <div v-if="compromisosCuotas.length > 0" class="flex flex-col gap-3">
