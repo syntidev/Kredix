@@ -1,10 +1,13 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { BarChart3, Bell, ChevronDown, Home, LogOut, MoreHorizontal, Settings, Users, Wallet } from '@lucide/vue';
+import { BarChart3, Bell, ChevronDown, Home, MoreHorizontal, Settings, Users, Wallet } from '@lucide/vue';
 import InstallPrompt from '../Components/InstallPrompt.vue';
+import UserAvatar from '../Components/UserAvatar.vue';
 
 const page = usePage();
+
+const usuarioMobileAbierto = ref(false);
 
 const esAdmin = computed(() => !!page.props.auth?.user?.es_admin);
 
@@ -151,16 +154,28 @@ function logout() {
                             </div>
                         </div>
 
-                        <span class="text-sm text-white/60">{{ page.props.auth?.user?.name }}</span>
+                        <div class="flex items-center gap-2 rounded-full bg-white/10 py-1 pl-1 pr-3">
+                            <UserAvatar :nombre="page.props.auth?.user?.name ?? ''" size="sm" />
+                            <span class="text-sm font-medium text-white">{{ page.props.auth?.user?.name }}</span>
+                        </div>
                         <button type="button" class="text-sm font-medium text-white/80 hover:text-white" @click="logout">
                             Salir
                         </button>
                     </div>
                 </div>
 
-                <button type="button" class="text-white/80 md:hidden" aria-label="Salir" @click="logout">
-                    <LogOut :size="22" />
-                </button>
+                <div class="relative md:hidden">
+                    <button type="button" aria-label="Cuenta" @click="usuarioMobileAbierto = !usuarioMobileAbierto">
+                        <UserAvatar :nombre="page.props.auth?.user?.name ?? ''" size="sm" />
+                    </button>
+                    <div v-if="usuarioMobileAbierto" class="fixed inset-0 z-10" @click="usuarioMobileAbierto = false"></div>
+                    <div v-if="usuarioMobileAbierto" class="absolute right-0 top-full z-20 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
+                        <p class="px-4 py-1 text-sm font-medium text-kredix-negro">{{ page.props.auth?.user?.name }}</p>
+                        <button type="button" class="block w-full px-4 py-2 text-left text-sm text-kredix-rojo active:bg-gray-50" @click="logout">
+                            Salir
+                        </button>
+                    </div>
+                </div>
             </div>
         </header>
 
