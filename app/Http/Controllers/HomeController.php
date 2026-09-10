@@ -20,6 +20,7 @@ class HomeController extends Controller
         return Inertia::render('Home/Index', [
             'totalClientes' => Cliente::count(),
             'clientesConSaldo' => $clientesConSaldo,
+            'eventosUrgentes' => (new CarteleraController())->calcularEventos()->take(3)->values(),
         ]);
     }
 }
