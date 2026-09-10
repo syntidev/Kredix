@@ -44,18 +44,20 @@ class KpiController extends Controller
             ? round((($recuperadoMesActual - $recuperadoMesAnterior) / $recuperadoMesAnterior) * 100, 1)
             : null;
 
-        // 3. semanas del mes actual: otorgado (cargos) vs cobrado (abonos)
+        // 3. ultimas 4 semanas rodantes (no mes calendario): otorgado vs cobrado
         $movimientosMes = $todos->filter(fn (MovimientoCuenta $m) => $m->fecha->between($inicioMes, $finMes));
 
-        $semanasDelMes = $movimientosMes
-            ->groupBy(fn (MovimientoCuenta $m) => $m->fecha->copy()->startOfWeek(Carbon::MONDAY)->format('Y-m-d'))
-            ->sortKeys()
-            ->map(fn ($movs, $inicioSemanaKey) => [
-                'semana' => 'Sem '.Carbon::parse($inicioSemanaKey)->format('d/m'),
+        $semanasDelMes = collect(range(3, 0))->map(function (int $i) use ($hoy, $todos) {
+            $inicioSemana = $hoy->copy()->subWeeks($i)->startOfWeek(Carbon::MONDAY);
+            $finSemana = $inicioSemana->copy()->endOfWeek(Carbon::SUNDAY);
+            $movs = $todos->filter(fn (MovimientoCuenta $m) => $m->fecha->between($inicioSemana, $finSemana));
+
+            return [
+                'semana' => 'Sem '.$inicioSemana->format('d/m'),
                 'otorgado' => (float) $movs->where('tipo', 'cargo')->sum('monto'),
                 'cobrado' => (float) $movs->where('tipo', 'abono')->sum('monto'),
-            ])
-            ->values();
+            ];
+        })->values();
 
         // 4. actividad por cobrador (mes actual)
         $actividadCobradores = User::all()

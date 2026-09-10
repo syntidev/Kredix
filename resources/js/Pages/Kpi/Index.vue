@@ -73,7 +73,7 @@ const rangosCartera = computed(() => {
 
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <div class="mb-2 flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-kredix-negro">Otorgado vs cobrado</h2>
+                <h2 class="text-sm font-semibold text-kredix-negro">Otorgado vs cobrado - ultimas 4 semanas</h2>
                 <div class="flex rounded-lg border border-gray-300 text-xs font-medium">
                     <button
                         type="button"
@@ -81,7 +81,7 @@ const rangosCartera = computed(() => {
                         :class="vista === 'semana' ? 'bg-kredix-negro text-white' : 'text-kredix-gris'"
                         @click="vista = 'semana'"
                     >
-                        Esta semana
+                        4 semanas
                     </button>
                     <button
                         type="button"
