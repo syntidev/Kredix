@@ -33,6 +33,11 @@ class MovimientoCuentaController extends Controller
             'comentario' => [Rule::requiredIf(! $esCargo), 'nullable', 'string', 'max:1000'],
             'comprobante' => ['nullable', 'image', 'max:5120'],
             'foto_producto' => ['nullable', 'image', 'max:5120'],
+            'usa_plan_cuotas' => ['boolean'],
+            'cuotas' => [Rule::requiredIf($esCargo && $request->boolean('usa_plan_cuotas')), 'array'],
+            'cuotas.*.numero_cuota' => ['required_with:cuotas', 'integer', 'min:1'],
+            'cuotas.*.monto_sugerido' => ['required_with:cuotas', 'numeric', 'min:0.01'],
+            'cuotas.*.fecha_esperada' => ['required_with:cuotas', 'date'],
         ], [
             'comentario.required' => 'comentario requerido',
             'monto.required' => 'monto requerido',
@@ -42,6 +47,7 @@ class MovimientoCuentaController extends Controller
             'plazo_meses.required' => 'plazo requerido',
             'frecuencia_pago.required' => 'frecuencia de pago requerida',
             'tipo_contacto.required' => 'tipo de contacto requerido',
+            'cuotas.required' => 'plan de cuotas requerido',
         ]);
 
         $monto = $esCargo
@@ -73,6 +79,16 @@ class MovimientoCuentaController extends Controller
 
         if ($esCargo && $request->hasFile('foto_producto')) {
             $movimiento->addMediaFromRequest('foto_producto')->toMediaCollection('producto');
+        }
+
+        if ($esCargo && $request->boolean('usa_plan_cuotas')) {
+            foreach ($validated['cuotas'] as $cuota) {
+                $movimiento->planCuotas()->create([
+                    'numero_cuota' => $cuota['numero_cuota'],
+                    'monto_sugerido' => $cuota['monto_sugerido'],
+                    'fecha_esperada' => $cuota['fecha_esperada'],
+                ]);
+            }
         }
 
         return redirect()->route('clientes.show', $validated['cliente_id']);

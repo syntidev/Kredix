@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -51,6 +52,11 @@ class MovimientoCuenta extends Model implements HasMedia
     public function registradoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'registrado_por');
+    }
+
+    public function planCuotas(): HasMany
+    {
+        return $this->hasMany(PlanCuota::class)->orderBy('numero_cuota');
     }
 
     // Requiere `php artisan storage:link` corrido una vez en el servidor (crea

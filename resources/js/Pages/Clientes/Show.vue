@@ -15,6 +15,7 @@ const props = defineProps({
     saldoPendiente: { type: [Number, String], required: true },
     totalCobrado: { type: [Number, String], required: true },
     reglas: { type: Array, required: true },
+    compromisosCuotas: { type: Array, default: () => [] },
     mensajeWhatsapp: { type: String, default: '' },
     tasaBcv: { type: Object, default: null },
 });
@@ -62,6 +63,9 @@ const cargoForm = useForm({
     moneda: 'usd',
     tasa_cambio: '',
     foto_producto: null,
+    usa_plan_cuotas: false,
+    numero_cuotas: 3,
+    cuotas: [],
 });
 
 watch(() => cargoForm.modalidad_precio, (val) => {
@@ -89,6 +93,60 @@ function onFotoProductoChange(event) {
     cargoForm.foto_producto = event.target.files[0] ?? null;
 }
 
+const DIAS_POR_FRECUENCIA = { semanal: 7, quincenal: 15, mensual: 30 };
+
+function fechaCuota(numero) {
+    const base = new Date(`${cargoForm.fecha}T00:00:00`);
+    const dias = DIAS_POR_FRECUENCIA[cargoForm.frecuencia_pago] ?? 30;
+    base.setDate(base.getDate() + dias * numero);
+    return base.toISOString().slice(0, 10);
+}
+
+function generarCuotas() {
+    const n = Math.max(1, parseInt(cargoForm.numero_cuotas) || 1);
+    const total = montoCargo.value;
+    const base = Math.floor((total / n) * 100) / 100;
+    const filas = [];
+    let acumulado = 0;
+
+    for (let i = 1; i <= n; i++) {
+        const esUltima = i === n;
+        const monto = esUltima ? Math.round((total - acumulado) * 100) / 100 : base;
+        acumulado += monto;
+        filas.push({ numero_cuota: i, monto_sugerido: monto, fecha_esperada: fechaCuota(i), editado: false });
+    }
+
+    cargoForm.cuotas = filas;
+}
+
+function redistribuirCuotas(indexEditado) {
+    cargoForm.cuotas[indexEditado].editado = true;
+
+    const total = montoCargo.value;
+    const editadas = cargoForm.cuotas.filter((c) => c.editado);
+    const noEditadas = cargoForm.cuotas.filter((c) => !c.editado);
+    const sumaEditadas = editadas.reduce((s, c) => s + (parseFloat(c.monto_sugerido) || 0), 0);
+    const restante = total - sumaEditadas;
+
+    if (noEditadas.length === 0) return;
+
+    const base = Math.floor((restante / noEditadas.length) * 100) / 100;
+    let acumulado = 0;
+
+    noEditadas.forEach((c, i) => {
+        const esUltima = i === noEditadas.length - 1;
+        c.monto_sugerido = esUltima ? Math.round((restante - acumulado) * 100) / 100 : base;
+        acumulado += c.monto_sugerido;
+    });
+}
+
+watch(
+    [() => cargoForm.usa_plan_cuotas, () => cargoForm.numero_cuotas, () => cargoForm.fecha, () => cargoForm.frecuencia_pago, montoCargo],
+    () => {
+        if (cargoForm.usa_plan_cuotas) generarCuotas();
+    }
+);
+
 function submitCargo() {
     cargoForm.post('/movimientos', {
         forceFormData: true,
@@ -100,6 +158,9 @@ function submitCargo() {
             cargoForm.moneda = 'usd';
             cargoForm.frecuencia_pago = 'mensual';
             cargoForm.modalidad_precio = 'divisa';
+            cargoForm.usa_plan_cuotas = false;
+            cargoForm.numero_cuotas = 3;
+            cargoForm.cuotas = [];
             plazoSugerido.value = null;
             formMode.value = null;
         },
@@ -294,6 +355,33 @@ function cancelForms() {
             </a>
         </div>
 
+        <div v-if="compromisosCuotas.length > 0" class="flex flex-col gap-3">
+            <div>
+                <h2 class="text-lg font-semibold text-kredix-negro">Compromisos de cuotas</h2>
+                <p class="text-xs text-kredix-gris">
+                    Reconstruccion visual, no es un registro contable — ningun abono queda vinculado a una cuota especifica.
+                </p>
+            </div>
+            <div v-for="cargo in compromisosCuotas" :key="cargo.cargo_id" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+                <p class="text-sm font-medium text-kredix-negro">{{ cargo.descripcion }} — {{ formatMoney(cargo.monto_total) }} ({{ cargo.fecha }})</p>
+                <div class="mt-2 flex flex-col gap-1.5">
+                    <div v-for="cuota in cargo.cuotas" :key="cuota.numero_cuota" class="flex items-center justify-between gap-2 text-sm">
+                        <span class="text-kredix-negro">Cuota {{ cuota.numero_cuota }} — {{ formatMoney(cuota.monto_sugerido) }} — {{ cuota.fecha_esperada }}</span>
+                        <span
+                            class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+                            :class="{
+                                'bg-green-100 text-green-700': cuota.estado === 'cubierta',
+                                'bg-amber-100 text-amber-700': cuota.estado === 'parcial',
+                                'bg-gray-100 text-kredix-gris': cuota.estado === 'pendiente',
+                            }"
+                        >
+                            {{ cuota.estado }}<template v-if="cuota.estado === 'parcial'"> ({{ formatMoney(cuota.monto_aplicado) }} de {{ formatMoney(cuota.monto_sugerido) }})</template>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <h2 class="text-lg font-semibold text-kredix-negro">Movimientos</h2>
             <div v-if="!formMode" class="grid grid-cols-2 gap-2 md:flex md:flex-wrap">
@@ -384,6 +472,42 @@ function cancelForms() {
                 <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onFotoProductoChange" />
                 <p v-if="cargoForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ cargoForm.errors.foto_producto }}</p>
             </div>
+
+            <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro md:col-span-2">
+                <input v-model="cargoForm.usa_plan_cuotas" type="checkbox" class="h-4 w-4" />
+                Venta especial / plan de cuotas
+            </label>
+
+            <template v-if="cargoForm.usa_plan_cuotas">
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Numero de cuotas</label>
+                    <input v-model="cargoForm.numero_cuotas" type="number" min="1" max="24" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                </div>
+
+                <div class="flex flex-col gap-2 rounded-lg bg-gray-50 p-3 md:col-span-2">
+                    <p class="text-xs text-kredix-gris">
+                        Plan sugerido, editable — puramente informativo, no crea un vinculo real entre abonos y cuotas.
+                    </p>
+                    <div v-for="(cuota, i) in cargoForm.cuotas" :key="cuota.numero_cuota" class="grid grid-cols-2 gap-2">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-xs text-kredix-gris">Cuota {{ cuota.numero_cuota }} - monto</label>
+                            <input
+                                v-model="cuota.monto_sugerido"
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                                @input="redistribuirCuotas(i)"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-xs text-kredix-gris">Fecha esperada</label>
+                            <input v-model="cuota.fecha_esperada" type="date" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        </div>
+                    </div>
+                </div>
+                <p v-if="cargoForm.errors.cuotas" class="text-sm text-kredix-rojo md:col-span-2">{{ cargoForm.errors.cuotas }}</p>
+            </template>
 
             <div class="mt-1 flex gap-2 md:col-span-2">
                 <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>

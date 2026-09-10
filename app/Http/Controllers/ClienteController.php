@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cliente;
 use App\Models\Configuracion;
 use App\Models\MovimientoCuenta;
+use App\Models\PlanCuota;
 use App\Models\ReglaPlazo;
 use App\Services\TasaBcvService;
 use Illuminate\Http\Request;
@@ -53,7 +54,7 @@ class ClienteController extends Controller
     public function show(Cliente $cliente, TasaBcvService $tasaBcvService)
     {
         $movimientosRaw = MovimientoCuenta::where('cliente_id', $cliente->id)
-            ->with('registradoPor:id,name')
+            ->with(['registradoPor:id,name', 'planCuotas'])
             ->orderBy('fecha')
             ->orderBy('id')
             ->get();
@@ -110,12 +111,63 @@ class ClienteController extends Controller
 
         $ultimaTasaBcv = $tasaBcvService->getLastUpdate();
 
+        // Compromisos de cuotas: RECONSTRUCCION VISUAL via FIFO, no un registro
+        // contable. Ningun abono queda vinculado a una cuota especifica en la BD --
+        // esto solo toma el total abonado desde la fecha del cargo y lo va aplicando
+        // en orden a las cuotas sugeridas, para mostrar un avance aproximado.
+        $compromisosCuotas = $movimientosRaw
+            ->where('tipo', 'cargo')
+            ->filter(fn (MovimientoCuenta $m) => $m->planCuotas->isNotEmpty())
+            ->map(function (MovimientoCuenta $cargo) use ($movimientosRaw) {
+                $totalAbonadoDesde = $movimientosRaw
+                    ->where('tipo', 'abono')
+                    ->filter(fn (MovimientoCuenta $m) => $m->fecha->gte($cargo->fecha))
+                    ->sum(fn (MovimientoCuenta $m) => (float) $m->monto);
+
+                $restante = $totalAbonadoDesde;
+
+                $cuotas = $cargo->planCuotas->map(function (PlanCuota $cuota) use (&$restante) {
+                    $monto = (float) $cuota->monto_sugerido;
+
+                    if ($restante >= $monto) {
+                        $estado = 'cubierta';
+                        $montoAplicado = $monto;
+                        $restante -= $monto;
+                    } elseif ($restante > 0) {
+                        $estado = 'parcial';
+                        $montoAplicado = $restante;
+                        $restante = 0;
+                    } else {
+                        $estado = 'pendiente';
+                        $montoAplicado = 0;
+                    }
+
+                    return [
+                        'numero_cuota' => $cuota->numero_cuota,
+                        'monto_sugerido' => $monto,
+                        'fecha_esperada' => $cuota->fecha_esperada->toDateString(),
+                        'estado' => $estado,
+                        'monto_aplicado' => $montoAplicado,
+                    ];
+                })->values();
+
+                return [
+                    'cargo_id' => $cargo->id,
+                    'descripcion' => $cargo->descripcion,
+                    'fecha' => $cargo->fecha->toDateString(),
+                    'monto_total' => (float) $cargo->monto,
+                    'cuotas' => $cuotas,
+                ];
+            })
+            ->values();
+
         return Inertia::render('Clientes/Show', [
             'cliente' => $cliente,
             'movimientos' => $movimientos,
             'saldoPendiente' => $saldoPendiente,
             'totalCobrado' => MovimientoCuenta::totalCobrado($cliente->id),
             'reglas' => ReglaPlazo::orderBy('monto_min')->get(),
+            'compromisosCuotas' => $compromisosCuotas,
             'mensajeWhatsapp' => $mensajeWhatsapp,
             'tasaBcv' => $ultimaTasaBcv ? [
                 'rate' => $ultimaTasaBcv['rate'],
