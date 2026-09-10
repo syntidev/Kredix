@@ -48,4 +48,13 @@ class UsuarioController extends Controller
 
         return redirect()->route('usuarios.index');
     }
+
+    public function resetPassword(User $usuario)
+    {
+        $password = Str::password(16);
+
+        $usuario->update(['password' => Hash::make($password)]);
+
+        return redirect()->route('usuarios.index')->with('nuevaPassword', $password);
+    }
 }

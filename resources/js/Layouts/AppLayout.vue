@@ -16,6 +16,7 @@ const links = computed(() => [
     ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
     { href: '/configuracion', label: 'Configuracion' },
     ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),
+    { href: '/profile', label: 'Perfil' },
 ]);
 
 const tabs = computed(() => [

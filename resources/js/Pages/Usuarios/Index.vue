@@ -47,6 +47,26 @@ function submit() {
 function toggleActivo(usuario) {
     router.patch(`/usuarios/${usuario.id}/toggle-activo`, {}, { preserveScroll: true });
 }
+
+const reseteandoUsuario = ref(null);
+
+function confirmarReset(usuario) {
+    reseteandoUsuario.value = usuario;
+}
+
+function cancelarReset() {
+    reseteandoUsuario.value = null;
+}
+
+function confirmarYResetear() {
+    router.patch(`/usuarios/${reseteandoUsuario.value.id}/reset-password`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            passwordVisible.value = true;
+        },
+    });
+    reseteandoUsuario.value = null;
+}
 </script>
 
 <template>
@@ -125,15 +145,39 @@ function toggleActivo(usuario) {
                     </p>
                     <p class="text-sm text-kredix-gris">{{ usuario.email }}</p>
                 </div>
-                <button
-                    type="button"
-                    class="min-h-11 shrink-0 rounded-lg border border-gray-300 px-3 text-sm font-medium active:bg-gray-100"
-                    :class="usuario.activo ? 'text-kredix-rojo' : 'text-kredix-gris'"
-                    @click="toggleActivo(usuario)"
-                >
-                    {{ usuario.activo ? 'Desactivar' : 'Activar' }}
-                </button>
+                <div class="flex shrink-0 gap-1">
+                    <button
+                        type="button"
+                        class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"
+                        @click="confirmarReset(usuario)"
+                    >
+                        Resetear password
+                    </button>
+                    <button
+                        type="button"
+                        class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm font-medium active:bg-gray-100"
+                        :class="usuario.activo ? 'text-kredix-rojo' : 'text-kredix-gris'"
+                        @click="toggleActivo(usuario)"
+                    >
+                        {{ usuario.activo ? 'Desactivar' : 'Activar' }}
+                    </button>
+                </div>
             </li>
         </ul>
+
+        <div v-if="reseteandoUsuario" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
+            <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
+                <p class="font-medium text-kredix-negro">¿Resetear la password de {{ reseteandoUsuario.name }}?</p>
+                <p class="mt-1 text-sm text-kredix-gris">Esto invalida su password actual de inmediato. Se genera una nueva, solo visible esta vez.</p>
+                <div class="mt-4 flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelarReset">
+                        Cancelar
+                    </button>
+                    <button type="button" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white active:opacity-80" @click="confirmarYResetear">
+                        Resetear
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
