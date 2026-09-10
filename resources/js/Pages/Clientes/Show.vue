@@ -6,6 +6,7 @@ import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
 import { formatMoney } from '../../lib/formatMoney';
+import { formatPhoneDisplay } from '../../lib/formatPhone';
 
 defineOptions({ layout: AppLayout });
 
@@ -24,10 +25,8 @@ const waLink = computed(() => {
     if (!props.cliente.telefono) {
         return null;
     }
-    // ponytail: asume numero venezolano (0xxx -> 58xxx); ajustar si hay clientes de otros paises
-    const digitos = props.cliente.telefono.replace(/\D/g, '');
-    const telefonoInternacional = digitos.startsWith('0') ? '58' + digitos.slice(1) : digitos;
-    return `https://wa.me/${telefonoInternacional}?text=${encodeURIComponent(props.mensajeWhatsapp)}`;
+    // cliente.telefono siempre esta en E.164 (+584141234567) -- basta con quitar el "+"
+    return `https://wa.me/${props.cliente.telefono.replace('+', '')}?text=${encodeURIComponent(props.mensajeWhatsapp)}`;
 });
 
 const mensajePdfForm = useForm({
@@ -348,7 +347,7 @@ function cancelForms() {
 
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
-            <p class="text-sm text-kredix-gris">{{ cliente.telefono }}</p>
+            <p class="text-sm text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</p>
             <div class="mt-3 grid grid-cols-2 gap-2 text-center">
                 <div>
                     <p class="text-xs text-kredix-gris">Total cobrado</p>

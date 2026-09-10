@@ -2,6 +2,8 @@
 import { ref } from 'vue';
 import { useForm, Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
+import PhoneInput from '../../Components/PhoneInput.vue';
+import { formatPhoneDisplay } from '../../lib/formatPhone';
 
 defineOptions({ layout: AppLayout });
 
@@ -172,12 +174,7 @@ function doDelete() {
 
                 <div class="flex flex-col gap-1">
                     <label for="telefono" class="text-sm font-medium text-kredix-negro">Telefono</label>
-                    <input
-                        id="telefono"
-                        v-model="form.telefono"
-                        type="tel"
-                        class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
-                    />
+                    <PhoneInput v-model="form.telefono" />
                     <p v-if="form.errors.telefono" class="text-sm text-kredix-rojo">{{ form.errors.telefono }}</p>
                 </div>
 
@@ -238,7 +235,7 @@ function doDelete() {
 
                     <div class="flex flex-col gap-1">
                         <label class="text-sm font-medium text-kredix-negro">Telefono</label>
-                        <input v-model="editForm.telefono" type="tel" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        <PhoneInput v-model="editForm.telefono" />
                         <p v-if="editForm.errors.telefono" class="text-sm text-kredix-rojo">{{ editForm.errors.telefono }}</p>
                     </div>
 
@@ -263,7 +260,7 @@ function doDelete() {
                 <div v-else class="flex items-start justify-between gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                     <Link :href="`/clientes/${cliente.id}`" class="min-w-0 flex-1">
                         <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
-                        <p class="text-sm text-kredix-gris">{{ cliente.telefono }}</p>
+                        <p class="text-sm text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</p>
                         <p v-if="cliente.email" class="text-sm text-kredix-gris">{{ cliente.email }}</p>
                         <p v-if="cliente.cedula" class="text-sm text-kredix-gris">CI: {{ cliente.cedula }}</p>
                     </Link>
