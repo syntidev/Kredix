@@ -26,11 +26,31 @@
         .estado-pendiente { color: #666; }
         .mensajes { margin-top: 18px; border-top: 1px solid #ddd; padding-top: 10px; }
         .mensajes p { margin: 0 0 8px; white-space: pre-wrap; }
+        .encabezado { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .encabezado td { vertical-align: top; padding: 0; }
+        .encabezado .logo-cell { width: 70px; }
+        .encabezado img { max-width: 60px; max-height: 60px; }
+        .subtitulo { margin: 0 0 4px; font-size: 11px; color: #666; }
+        .empresa-info { margin: 0 0 2px; font-size: 10px; color: #666; }
     </style>
 </head>
 <body>
-    <h1>Kredix — Estado de cuenta</h1>
-    <p class="meta">Emitido: {{ $fechaEmision }}</p>
+    <table class="encabezado">
+        <tr>
+            @if ($empresa['logo_base64'])
+                <td class="logo-cell"><img src="{{ $empresa['logo_base64'] }}"></td>
+            @endif
+            <td>
+                <h1>{{ $empresa['razon_social'] ?: 'Kredix' }}</h1>
+                <p class="subtitulo">Estado de cuenta</p>
+                @php $infoEmpresa = array_filter([$empresa['rif'], $empresa['direccion'], $empresa['telefono'], $empresa['email']]); @endphp
+                @if (count($infoEmpresa) > 0)
+                    <p class="empresa-info">{{ implode(' - ', $infoEmpresa) }}</p>
+                @endif
+                <p class="meta">Emitido: {{ $fechaEmision }}</p>
+            </td>
+        </tr>
+    </table>
 
     <table class="cliente">
         <tr><td class="label">Cliente</td><td>{{ $cliente->nombre }}</td></tr>

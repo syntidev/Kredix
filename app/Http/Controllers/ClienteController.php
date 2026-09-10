@@ -153,6 +153,12 @@ class ClienteController extends Controller
             ];
         });
 
+        $logoHost = Configuracion::logoHost();
+        $logoMedia = $logoHost->getFirstMedia('logo_empresa');
+        $logoBase64 = $logoMedia && file_exists($logoMedia->getPath())
+            ? 'data:'.$logoMedia->mime_type.';base64,'.base64_encode(file_get_contents($logoMedia->getPath()))
+            : null;
+
         $pdf = Pdf::loadView('pdf.estado-cuenta', [
             'cliente' => $cliente,
             'movimientos' => $movimientos,
@@ -160,6 +166,14 @@ class ClienteController extends Controller
             'compromisosCuotas' => $this->compromisosCuotas($movimientosRaw),
             'mensajeGlobal' => Configuracion::valorDe('pdf_mensaje_global'),
             'mensajeCliente' => $cliente->mensaje_pdf,
+            'empresa' => [
+                'razon_social' => Configuracion::valorDe('empresa_razon_social'),
+                'rif' => Configuracion::valorDe('empresa_rif'),
+                'direccion' => Configuracion::valorDe('empresa_direccion'),
+                'telefono' => Configuracion::valorDe('empresa_telefono'),
+                'email' => Configuracion::valorDe('empresa_email'),
+                'logo_base64' => $logoBase64,
+            ],
             'fechaEmision' => now()->format('d/m/Y H:i'),
         ]);
 
