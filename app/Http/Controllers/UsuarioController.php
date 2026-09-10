@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class UsuarioController extends Controller
@@ -21,25 +22,24 @@ class UsuarioController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
             'es_admin' => ['boolean'],
         ], [
             'name.required' => 'nombre requerido',
             'email.required' => 'email requerido',
             'email.unique' => 'ya existe un usuario con este email',
-            'password.required' => 'password requerido',
-            'password.min' => 'password debe tener al menos 8 caracteres',
         ]);
+
+        $password = Str::password(16);
 
         User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'password' => Hash::make($password),
             'es_admin' => $validated['es_admin'] ?? false,
             'activo' => true,
         ]);
 
-        return redirect()->route('usuarios.index');
+        return redirect()->route('usuarios.index')->with('nuevaPassword', $password);
     }
 
     public function toggleActivo(User $usuario)

@@ -1,6 +1,7 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, useForm, router, usePage } from '@inertiajs/vue3';
+import { Copy } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -9,12 +10,26 @@ defineProps({
     usuarios: { type: Array, required: true },
 });
 
+const page = usePage();
+const passwordVisible = ref(true);
+const nuevaPassword = computed(() => (passwordVisible.value ? page.props.flash?.nuevaPassword : null));
+const copiado = ref(false);
+
+function copiarPassword() {
+    navigator.clipboard.writeText(nuevaPassword.value);
+    copiado.value = true;
+}
+
+function cerrarPassword() {
+    passwordVisible.value = false;
+    copiado.value = false;
+}
+
 const showForm = ref(false);
 
 const form = useForm({
     name: '',
     email: '',
-    password: '',
     es_admin: false,
 });
 
@@ -24,6 +39,7 @@ function submit() {
         onSuccess: () => {
             form.reset();
             showForm.value = false;
+            passwordVisible.value = true;
         },
     });
 }
@@ -37,6 +53,22 @@ function toggleActivo(usuario) {
     <Head title="Usuarios" />
 
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
+        <div v-if="nuevaPassword" class="rounded-lg border-2 border-kredix-rojo bg-white p-4 shadow-sm">
+            <p class="text-sm font-semibold text-kredix-negro">Usuario creado. Guarda esta password ahora — no se puede volver a ver.</p>
+            <div class="mt-2 flex items-center gap-2">
+                <code class="min-h-11 flex-1 overflow-x-auto rounded-lg bg-gray-100 px-3 py-2 text-base text-kredix-negro">{{ nuevaPassword }}</code>
+                <button
+                    type="button"
+                    class="flex min-h-11 items-center gap-1 rounded-lg bg-kredix-negro px-3 text-sm font-medium text-white active:opacity-80"
+                    @click="copiarPassword"
+                >
+                    <Copy :size="16" />
+                    {{ copiado ? 'Copiado' : 'Copiar' }}
+                </button>
+            </div>
+            <button type="button" class="mt-2 text-xs text-kredix-gris underline" @click="cerrarPassword">Ya la guarde, cerrar</button>
+        </div>
+
         <div class="flex items-center justify-between">
             <h1 class="text-xl font-semibold text-kredix-negro">Usuarios</h1>
             <button
@@ -66,11 +98,7 @@ function toggleActivo(usuario) {
                 <p v-if="form.errors.email" class="text-sm text-kredix-rojo">{{ form.errors.email }}</p>
             </div>
 
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Password temporal</label>
-                <input v-model="form.password" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-                <p v-if="form.errors.password" class="text-sm text-kredix-rojo">{{ form.errors.password }}</p>
-            </div>
+            <p class="text-xs text-kredix-gris">La password se genera automaticamente al guardar.</p>
 
             <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro">
                 <input v-model="form.es_admin" type="checkbox" class="h-4 w-4" />
