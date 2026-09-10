@@ -26,27 +26,30 @@
         .estado-pendiente { color: #666; }
         .mensajes { margin-top: 18px; border-top: 1px solid #ddd; padding-top: 10px; }
         .mensajes p { margin: 0 0 8px; white-space: pre-wrap; }
-        .encabezado { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .encabezado { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
         .encabezado td { vertical-align: top; padding: 0; }
-        .encabezado .logo-cell { width: 70px; }
-        .encabezado img { max-width: 60px; max-height: 60px; }
-        .subtitulo { margin: 0 0 4px; font-size: 11px; color: #666; }
-        .empresa-info { margin: 0 0 2px; font-size: 10px; color: #666; }
+        .encabezado .col-empresa { width: 60%; }
+        .encabezado .col-documento { width: 40%; text-align: right; }
+        .encabezado .logo-empresa { max-height: 80px; margin-bottom: 6px; }
+        .razon-social { margin: 0 0 3px; font-size: 13px; font-weight: bold; }
+        .empresa-linea { margin: 0 0 1px; font-size: 10px; color: #666; }
+        .titulo-documento { margin: 0 0 4px; font-size: 18px; font-weight: bold; text-transform: uppercase; }
     </style>
 </head>
 <body>
     <table class="encabezado">
         <tr>
-            @if ($empresa['logo_base64'])
-                <td class="logo-cell"><img src="{{ $empresa['logo_base64'] }}"></td>
-            @endif
-            <td>
-                <h1>{{ $empresa['razon_social'] ?: 'Kredix' }}</h1>
-                <p class="subtitulo">Estado de cuenta</p>
-                @php $infoEmpresa = array_filter([$empresa['rif'], $empresa['direccion'], $empresa['telefono'], $empresa['email']]); @endphp
-                @if (count($infoEmpresa) > 0)
-                    <p class="empresa-info">{{ implode(' - ', $infoEmpresa) }}</p>
+            <td class="col-empresa">
+                @if ($empresa['logo_base64'])
+                    <img class="logo-empresa" src="{{ $empresa['logo_base64'] }}">
                 @endif
+                <p class="razon-social">{{ $empresa['razon_social'] ?: 'Kredix' }}</p>
+                @foreach (array_filter([$empresa['rif'], $empresa['direccion'], $empresa['telefono'], $empresa['email']]) as $lineaEmpresa)
+                    <p class="empresa-linea">{{ $lineaEmpresa }}</p>
+                @endforeach
+            </td>
+            <td class="col-documento">
+                <p class="titulo-documento">Estado de cuenta</p>
                 <p class="meta">Emitido: {{ $fechaEmision }}</p>
             </td>
         </tr>

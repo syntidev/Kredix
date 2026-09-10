@@ -121,7 +121,7 @@ class ClienteController extends Controller
             'reglas' => ReglaPlazo::orderBy('monto_min')->get(),
             'compromisosCuotas' => $this->compromisosCuotas($movimientosRaw),
             'mensajeWhatsapp' => $mensajeWhatsapp,
-            'tasaBcv' => $ultimaTasaBcv ? [
+            'tasaBcvCargo' => $ultimaTasaBcv ? [
                 'rate' => $ultimaTasaBcv['rate'],
                 'source' => $ultimaTasaBcv['source'],
                 'fetchedAt' => $ultimaTasaBcv['fetched_at'],

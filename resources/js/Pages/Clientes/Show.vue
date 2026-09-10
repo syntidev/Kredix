@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { ImageOff } from '@lucide/vue';
+import { FileText, ImageOff, MessageCircle } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
@@ -18,7 +18,7 @@ const props = defineProps({
     reglas: { type: Array, required: true },
     compromisosCuotas: { type: Array, default: () => [] },
     mensajeWhatsapp: { type: String, default: '' },
-    tasaBcv: { type: Object, default: null },
+    tasaBcvCargo: { type: Object, default: null },
 });
 
 const waLink = computed(() => {
@@ -360,21 +360,25 @@ function cancelForms() {
                     <p class="tabular-nums text-3xl font-bold text-kredix-rojo">{{ formatMoney(saldoPendiente) }}</p>
                 </div>
             </div>
-            <a
-                v-if="waLink"
-                :href="waLink"
-                target="_blank"
-                rel="noopener"
-                class="mt-3 flex min-h-11 items-center justify-center rounded-lg border border-green-600 text-sm font-medium text-green-700 active:bg-green-50"
-            >
-                Enviar recordatorio por WhatsApp
-            </a>
-            <a
-                :href="`/clientes/${cliente.id}/estado-cuenta`"
-                class="mt-2 flex min-h-11 items-center justify-center rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100"
-            >
-                Generar estado de cuenta (PDF)
-            </a>
+            <div class="mt-3 grid grid-cols-2 gap-2 md:flex md:flex-row">
+                <a
+                    v-if="waLink"
+                    :href="waLink"
+                    target="_blank"
+                    rel="noopener"
+                    class="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-green-600 px-4 text-sm font-medium text-green-700 active:bg-green-50 md:w-fit"
+                >
+                    <MessageCircle :size="16" />
+                    WhatsApp
+                </a>
+                <a
+                    :href="`/clientes/${cliente.id}/estado-cuenta`"
+                    class="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100 md:w-fit"
+                >
+                    <FileText :size="16" />
+                    PDF
+                </a>
+            </div>
 
             <div class="mt-3 flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Mensaje personalizado para el PDF <span class="font-normal text-kredix-gris">(opcional)</span></label>
@@ -504,7 +508,7 @@ function cancelForms() {
                 </select>
             </div>
 
-            <TasaBcvInput v-if="cargoForm.modalidad_precio === 'bcv'" v-model="cargoForm.tasa_cambio" :tasa-bcv="tasaBcv" />
+            <TasaBcvInput v-if="cargoForm.modalidad_precio === 'bcv'" v-model="cargoForm.tasa_cambio" :tasa-bcv="tasaBcvCargo" />
             <p v-if="cargoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo md:col-span-2">{{ cargoForm.errors.tasa_cambio }}</p>
 
             <div class="flex flex-col gap-1 md:col-span-2">
@@ -580,7 +584,7 @@ function cancelForms() {
                 </select>
             </div>
 
-            <TasaBcvInput v-model="abonoForm.tasa_cambio" :tasa-bcv="tasaBcv" />
+            <TasaBcvInput v-model="abonoForm.tasa_cambio" :tasa-bcv="tasaBcvCargo" />
             <p v-if="abonoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo md:col-span-2">{{ abonoForm.errors.tasa_cambio }}</p>
 
             <div class="flex flex-col gap-1 md:col-span-2">
