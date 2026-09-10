@@ -42,6 +42,9 @@ const form = useForm({
     telefono: '',
     email: '',
     cedula: '',
+    notas: '',
+    contacto_alterno_nombre: '',
+    contacto_alterno_telefono: '',
 });
 
 function submit() {
@@ -73,6 +76,9 @@ const editForm = useForm({
     telefono: '',
     email: '',
     cedula: '',
+    notas: '',
+    contacto_alterno_nombre: '',
+    contacto_alterno_telefono: '',
 });
 
 function openEdit(cliente) {
@@ -82,6 +88,9 @@ function openEdit(cliente) {
     editForm.telefono = cliente.telefono;
     editForm.email = cliente.email ?? '';
     editForm.cedula = cliente.cedula ?? '';
+    editForm.notas = cliente.notas ?? '';
+    editForm.contacto_alterno_nombre = cliente.contacto_alterno_nombre ?? '';
+    editForm.contacto_alterno_telefono = cliente.contacto_alterno_telefono ?? '';
     editingId.value = cliente.id;
 }
 
@@ -200,6 +209,31 @@ function doDelete() {
                     <p v-if="form.errors.cedula" class="text-sm text-kredix-rojo">{{ form.errors.cedula }}</p>
                 </div>
 
+                <div class="flex flex-col gap-1">
+                    <label for="contacto_alterno_nombre" class="text-sm font-medium text-kredix-negro">Contacto alterno <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <input
+                        id="contacto_alterno_nombre"
+                        v-model="form.contacto_alterno_nombre"
+                        type="text"
+                        placeholder="Nombre"
+                        class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                    />
+                    <p v-if="form.errors.contacto_alterno_nombre" class="text-sm text-kredix-rojo">{{ form.errors.contacto_alterno_nombre }}</p>
+                    <PhoneInput v-model="form.contacto_alterno_telefono" />
+                    <p v-if="form.errors.contacto_alterno_telefono" class="text-sm text-kredix-rojo">{{ form.errors.contacto_alterno_telefono }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label for="notas" class="text-sm font-medium text-kredix-negro">Notas <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <textarea
+                        id="notas"
+                        v-model="form.notas"
+                        rows="2"
+                        class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                    ></textarea>
+                    <p v-if="form.errors.notas" class="text-sm text-kredix-rojo">{{ form.errors.notas }}</p>
+                </div>
+
                 <div class="mt-1 flex gap-2">
                     <button
                         type="button"
@@ -249,6 +283,20 @@ function doDelete() {
                         <label class="text-sm font-medium text-kredix-negro">Cedula</label>
                         <input v-model="editForm.cedula" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                         <p v-if="editForm.errors.cedula" class="text-sm text-kredix-rojo">{{ editForm.errors.cedula }}</p>
+                    </div>
+
+                    <div class="flex flex-col gap-1">
+                        <label class="text-sm font-medium text-kredix-negro">Contacto alterno <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                        <input v-model="editForm.contacto_alterno_nombre" type="text" placeholder="Nombre" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        <p v-if="editForm.errors.contacto_alterno_nombre" class="text-sm text-kredix-rojo">{{ editForm.errors.contacto_alterno_nombre }}</p>
+                        <PhoneInput v-model="editForm.contacto_alterno_telefono" />
+                        <p v-if="editForm.errors.contacto_alterno_telefono" class="text-sm text-kredix-rojo">{{ editForm.errors.contacto_alterno_telefono }}</p>
+                    </div>
+
+                    <div class="flex flex-col gap-1">
+                        <label class="text-sm font-medium text-kredix-negro">Notas <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                        <textarea v-model="editForm.notas" rows="2" class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
+                        <p v-if="editForm.errors.notas" class="text-sm text-kredix-rojo">{{ editForm.errors.notas }}</p>
                     </div>
 
                     <div class="mt-1 flex gap-2">

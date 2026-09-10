@@ -283,6 +283,9 @@ class ClienteController extends Controller
             'telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
             'email' => ['nullable', 'email', 'max:255'],
             'cedula' => ['nullable', 'string', 'max:20'],
+            'notas' => ['nullable', 'string'],
+            'contacto_alterno_nombre' => ['nullable', 'string', 'max:255'],
+            'contacto_alterno_telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
         ], [
             'nombre.required' => 'nombre requerido',
             'telefono.regex' => 'telefono invalido, selecciona el pais y completa el numero',
@@ -291,6 +294,9 @@ class ClienteController extends Controller
             'telefono.max' => 'telefono demasiado largo',
             'email.max' => 'email demasiado largo',
             'cedula.max' => 'cedula demasiado larga',
+            'contacto_alterno_nombre.max' => 'nombre de contacto alterno demasiado largo',
+            'contacto_alterno_telefono.regex' => 'telefono de contacto alterno invalido, selecciona el pais y completa el numero',
+            'contacto_alterno_telefono.max' => 'telefono de contacto alterno demasiado largo',
         ]);
 
         Cliente::create($validated);
@@ -305,6 +311,9 @@ class ClienteController extends Controller
             'telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
             'email' => ['nullable', 'email', 'max:255'],
             'cedula' => ['nullable', 'string', 'max:20'],
+            'notas' => ['nullable', 'string'],
+            'contacto_alterno_nombre' => ['nullable', 'string', 'max:255'],
+            'contacto_alterno_telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
         ], [
             'nombre.required' => 'nombre requerido',
             'telefono.regex' => 'telefono invalido, selecciona el pais y completa el numero',
@@ -313,6 +322,9 @@ class ClienteController extends Controller
             'telefono.max' => 'telefono demasiado largo',
             'email.max' => 'email demasiado largo',
             'cedula.max' => 'cedula demasiado larga',
+            'contacto_alterno_nombre.max' => 'nombre de contacto alterno demasiado largo',
+            'contacto_alterno_telefono.regex' => 'telefono de contacto alterno invalido, selecciona el pais y completa el numero',
+            'contacto_alterno_telefono.max' => 'telefono de contacto alterno demasiado largo',
         ]);
 
         $cliente->update($validated);

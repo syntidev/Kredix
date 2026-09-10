@@ -29,6 +29,13 @@ const waLink = computed(() => {
     return `https://wa.me/${props.cliente.telefono.replace('+', '')}?text=${encodeURIComponent(props.mensajeWhatsapp)}`;
 });
 
+const waLinkAlterno = computed(() => {
+    if (!props.cliente.contacto_alterno_telefono) {
+        return null;
+    }
+    return `https://wa.me/${props.cliente.contacto_alterno_telefono.replace('+', '')}?text=${encodeURIComponent(props.mensajeWhatsapp)}`;
+});
+
 const mensajePdfForm = useForm({
     mensaje_pdf: props.cliente.mensaje_pdf ?? '',
 });
@@ -396,6 +403,28 @@ function cancelForms() {
                         Borrar
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <div v-if="cliente.notas || cliente.contacto_alterno_nombre || cliente.contacto_alterno_telefono" class="rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-sm">
+            <div v-if="cliente.notas">
+                <p class="text-xs font-medium uppercase text-kredix-gris">Notas</p>
+                <p class="mt-0.5 whitespace-pre-wrap text-kredix-negro">{{ cliente.notas }}</p>
+            </div>
+            <div v-if="cliente.contacto_alterno_nombre || cliente.contacto_alterno_telefono" :class="cliente.notas ? 'mt-3' : ''">
+                <p class="text-xs font-medium uppercase text-kredix-gris">Contacto alterno</p>
+                <p v-if="cliente.contacto_alterno_nombre" class="mt-0.5 text-kredix-negro">{{ cliente.contacto_alterno_nombre }}</p>
+                <p v-if="cliente.contacto_alterno_telefono" class="text-kredix-gris">{{ formatPhoneDisplay(cliente.contacto_alterno_telefono) }}</p>
+                <a
+                    v-if="waLinkAlterno"
+                    :href="waLinkAlterno"
+                    target="_blank"
+                    rel="noopener"
+                    class="mt-1.5 flex min-h-9 w-fit items-center gap-1.5 rounded-lg border border-green-600 px-3 text-xs font-medium text-green-700 active:bg-green-50"
+                >
+                    <MessageCircle :size="14" />
+                    WhatsApp
+                </a>
             </div>
         </div>
 
