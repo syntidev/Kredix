@@ -24,6 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
         }
     })
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias([
+            'es_admin' => \App\Http\Middleware\EsAdmin::class,
+        ]);
+
         $middleware->web(append: [
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);

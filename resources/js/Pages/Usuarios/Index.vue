@@ -1,0 +1,111 @@
+<script setup>
+import { ref } from 'vue';
+import { Head, useForm, router } from '@inertiajs/vue3';
+import AppLayout from '../../Layouts/AppLayout.vue';
+
+defineOptions({ layout: AppLayout });
+
+defineProps({
+    usuarios: { type: Array, required: true },
+});
+
+const showForm = ref(false);
+
+const form = useForm({
+    name: '',
+    email: '',
+    password: '',
+    es_admin: false,
+});
+
+function submit() {
+    form.post('/usuarios', {
+        preserveScroll: true,
+        onSuccess: () => {
+            form.reset();
+            showForm.value = false;
+        },
+    });
+}
+
+function toggleActivo(usuario) {
+    router.patch(`/usuarios/${usuario.id}/toggle-activo`, {}, { preserveScroll: true });
+}
+</script>
+
+<template>
+    <Head title="Usuarios" />
+
+    <div class="mx-auto flex max-w-3xl flex-col gap-4">
+        <div class="flex items-center justify-between">
+            <h1 class="text-xl font-semibold text-kredix-negro">Usuarios</h1>
+            <button
+                v-if="!showForm"
+                type="button"
+                class="min-h-11 rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80"
+                @click="showForm = true"
+            >
+                + Nuevo usuario
+            </button>
+        </div>
+
+        <form
+            v-if="showForm"
+            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            @submit.prevent="submit"
+        >
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Nombre</label>
+                <input v-model="form.name" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <p v-if="form.errors.name" class="text-sm text-kredix-rojo">{{ form.errors.name }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Email</label>
+                <input v-model="form.email" type="email" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <p v-if="form.errors.email" class="text-sm text-kredix-rojo">{{ form.errors.email }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Password temporal</label>
+                <input v-model="form.password" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <p v-if="form.errors.password" class="text-sm text-kredix-rojo">{{ form.errors.password }}</p>
+            </div>
+
+            <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro">
+                <input v-model="form.es_admin" type="checkbox" class="h-4 w-4" />
+                Es administrador
+            </label>
+
+            <div class="mt-1 flex gap-2">
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="showForm = false">
+                    Cancelar
+                </button>
+                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="form.processing">
+                    Guardar
+                </button>
+            </div>
+        </form>
+
+        <ul class="flex flex-col gap-2">
+            <li v-for="usuario in usuarios" :key="usuario.id" class="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <div class="min-w-0">
+                    <p class="font-medium text-kredix-negro">
+                        {{ usuario.name }}
+                        <span v-if="usuario.es_admin" class="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-kredix-gris">admin</span>
+                        <span v-if="!usuario.activo" class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">inactivo</span>
+                    </p>
+                    <p class="text-sm text-kredix-gris">{{ usuario.email }}</p>
+                </div>
+                <button
+                    type="button"
+                    class="min-h-11 shrink-0 rounded-lg border border-gray-300 px-3 text-sm font-medium active:bg-gray-100"
+                    :class="usuario.activo ? 'text-kredix-rojo' : 'text-kredix-gris'"
+                    @click="toggleActivo(usuario)"
+                >
+                    {{ usuario.activo ? 'Desactivar' : 'Activar' }}
+                </button>
+            </li>
+        </ul>
+    </div>
+</template>
