@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { FileText, ImageOff, MessageCircle } from '@lucide/vue';
+import { ArrowLeftRight, FileText, ImageOff, MessageCircle } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
@@ -930,8 +930,8 @@ function cancelForms() {
                         <td class="tabular-nums break-words px-2 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}</td>
                         <td class="px-1 py-2 text-center" :title="m.tipo === 'gestion' ? '' : (m.tasa_cambio ? `Tasa: ${m.tasa_cambio}` : 'Tasa pendiente')">
                             <span v-if="m.tipo === 'gestion'" class="text-kredix-gris">-</span>
-                            <span v-else-if="m.tasa_cambio" class="text-kredix-negro">%</span>
-                            <span v-else class="text-amber-600">%</span>
+                            <ArrowLeftRight v-else-if="m.tasa_cambio" :size="14" class="inline text-kredix-negro" />
+                            <ArrowLeftRight v-else :size="14" class="inline text-amber-600" />
                         </td>
                         <td class="break-words px-2 py-2 text-kredix-gris">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</td>
                         <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
