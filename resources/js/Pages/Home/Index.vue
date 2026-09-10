@@ -1,5 +1,6 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { BarChart3, Settings, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 
@@ -10,12 +11,15 @@ const props = defineProps({
     clientesConSaldo: { type: Number, required: true },
 });
 
-const tiles = [
+const page = usePage();
+const esAdmin = computed(() => !!page.props.auth?.user?.es_admin);
+
+const tiles = computed(() => [
     { href: '/clientes', label: 'Clientes', icon: Users, stat: () => `${props.totalClientes} registrados` },
     { href: '/cartera', label: 'Cartera', icon: Wallet, stat: () => `${props.clientesConSaldo} con saldo` },
-    { href: '/kpi', label: 'KPI', icon: BarChart3, stat: null },
+    ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI', icon: BarChart3, stat: null }] : []),
     { href: '/configuracion', label: 'Configuracion', icon: Settings, stat: null },
-];
+]);
 </script>
 
 <template>

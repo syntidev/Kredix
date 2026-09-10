@@ -26,7 +26,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
     Route::get('/cartera', [ClienteController::class, 'cartera'])->name('cartera');
-    Route::get('/kpi', [KpiController::class, 'index'])->name('kpi');
     Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion.index');
     Route::put('/configuracion', [ConfiguracionController::class, 'update'])->name('configuracion.update');
     Route::put('/clientes/{cliente}', [ClienteController::class, 'update'])->name('clientes.update');
@@ -37,6 +36,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'update'])->name('movimientos.update');
 
     Route::middleware('es_admin')->group(function () {
+        Route::get('/kpi', [KpiController::class, 'index'])->name('kpi');
         Route::get('/usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
         Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
         Route::patch('/usuarios/{usuario}/toggle-activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.toggle-activo');

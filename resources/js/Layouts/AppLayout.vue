@@ -12,7 +12,7 @@ const links = computed(() => [
     { href: '/home', label: 'Inicio' },
     { href: '/clientes', label: 'Clientes' },
     { href: '/cartera', label: 'Cartera' },
-    { href: '/kpi', label: 'KPI' },
+    ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
     { href: '/configuracion', label: 'Configuracion' },
     ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),
 ]);
@@ -21,7 +21,7 @@ const tabs = computed(() => [
     { href: '/home', label: 'Inicio', icon: Home },
     { href: '/clientes', label: 'Clientes', icon: Users },
     { href: '/cartera', label: 'Cartera', icon: Wallet },
-    { href: '/kpi', label: 'KPI', icon: BarChart3 },
+    ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI', icon: BarChart3 }] : []),
     ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios', icon: UserCog }] : []),
     { href: '/profile', label: 'Sistema', icon: Settings },
 ]);
