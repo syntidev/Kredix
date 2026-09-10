@@ -48,6 +48,7 @@ function waLink(evento) {
             <p class="mt-0.5 text-sm text-kredix-gris">{{ evento.mensaje }}</p>
             <div class="mt-2 flex gap-2">
                 <a
+                    v-if="evento.telefono"
                     :href="waLink(evento)"
                     target="_blank"
                     rel="noopener"

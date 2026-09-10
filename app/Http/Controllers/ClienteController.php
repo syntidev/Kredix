@@ -280,12 +280,11 @@ class ClienteController extends Controller
     {
         $validated = $request->validate([
             'nombre' => ['required', 'string', 'max:255'],
-            'telefono' => ['required', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
+            'telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
             'email' => ['nullable', 'email', 'max:255'],
             'cedula' => ['nullable', 'string', 'max:20'],
         ], [
             'nombre.required' => 'nombre requerido',
-            'telefono.required' => 'telefono requerido',
             'telefono.regex' => 'telefono invalido, selecciona el pais y completa el numero',
             'email.email' => 'email invalido',
             'nombre.max' => 'nombre demasiado largo',
@@ -303,12 +302,11 @@ class ClienteController extends Controller
     {
         $validated = $request->validate([
             'nombre' => ['required', 'string', 'max:255'],
-            'telefono' => ['required', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
+            'telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
             'email' => ['nullable', 'email', 'max:255'],
             'cedula' => ['nullable', 'string', 'max:20'],
         ], [
             'nombre.required' => 'nombre requerido',
-            'telefono.required' => 'telefono requerido',
             'telefono.regex' => 'telefono invalido, selecciona el pais y completa el numero',
             'email.email' => 'email invalido',
             'nombre.max' => 'nombre demasiado largo',

@@ -596,6 +596,7 @@ function cancelForms() {
                     <option value="transferencia">Transferencia</option>
                     <option value="pago_movil">Pago Movil</option>
                     <option value="bancamiga_divisa">Bancamiga Divisa</option>
+                    <option value="punto_venta">Punto de Venta</option>
                 </select>
             </div>
 
