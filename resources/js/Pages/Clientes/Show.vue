@@ -30,6 +30,21 @@ const waLink = computed(() => {
     return `https://wa.me/${telefonoInternacional}?text=${encodeURIComponent(props.mensajeWhatsapp)}`;
 });
 
+const mensajePdfForm = useForm({
+    mensaje_pdf: props.cliente.mensaje_pdf ?? '',
+});
+
+function guardarMensajePdf() {
+    mensajePdfForm.transform((data) => ({ ...data, _method: 'patch' })).post(`/clientes/${props.cliente.id}/mensaje-pdf`, {
+        preserveScroll: true,
+    });
+}
+
+function borrarMensajePdf() {
+    mensajePdfForm.mensaje_pdf = '';
+    guardarMensajePdf();
+}
+
 function today() {
     return new Date().toISOString().slice(0, 10);
 }
@@ -359,6 +374,24 @@ function cancelForms() {
             >
                 Generar estado de cuenta (PDF)
             </a>
+
+            <div class="mt-3 flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Mensaje personalizado para el PDF <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                <textarea
+                    v-model="mensajePdfForm.mensaje_pdf"
+                    rows="2"
+                    class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                ></textarea>
+                <p v-if="mensajePdfForm.errors.mensaje_pdf" class="text-sm text-kredix-rojo">{{ mensajePdfForm.errors.mensaje_pdf }}</p>
+                <div class="flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="guardarMensajePdf">
+                        Guardar mensaje
+                    </button>
+                    <button v-if="mensajePdfForm.mensaje_pdf" type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="borrarMensajePdf">
+                        Borrar
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div v-if="compromisosCuotas.length > 0" class="flex flex-col gap-3">

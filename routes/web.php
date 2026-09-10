@@ -33,6 +33,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/clientes/{cliente}', [ClienteController::class, 'show'])->name('clientes.show');
     Route::get('/clientes/{cliente}/estado-cuenta', [ClienteController::class, 'estadoCuenta'])->name('clientes.estado-cuenta');
+    Route::patch('/clientes/{cliente}/mensaje-pdf', [ClienteController::class, 'actualizarMensajePdf'])->name('clientes.mensaje-pdf');
     Route::post('/movimientos', [MovimientoCuentaController::class, 'store'])->name('movimientos.store');
     Route::put('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'update'])->name('movimientos.update');
 

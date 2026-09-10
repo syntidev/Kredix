@@ -158,10 +158,23 @@ class ClienteController extends Controller
             'movimientos' => $movimientos,
             'saldoPendiente' => MovimientoCuenta::saldoPendiente($cliente->id),
             'compromisosCuotas' => $this->compromisosCuotas($movimientosRaw),
+            'mensajeGlobal' => Configuracion::valorDe('pdf_mensaje_global'),
+            'mensajeCliente' => $cliente->mensaje_pdf,
             'fechaEmision' => now()->format('d/m/Y H:i'),
         ]);
 
         return $pdf->download('estado-cuenta-'.Str::slug($cliente->nombre).'.pdf');
+    }
+
+    public function actualizarMensajePdf(Request $request, Cliente $cliente)
+    {
+        $validated = $request->validate([
+            'mensaje_pdf' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $cliente->update(['mensaje_pdf' => $validated['mensaje_pdf'] ?? null]);
+
+        return redirect()->route('clientes.show', $cliente->id);
     }
 
     // Compromisos de cuotas: RECONSTRUCCION VISUAL via FIFO, no un registro

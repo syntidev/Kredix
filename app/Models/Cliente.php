@@ -14,5 +14,6 @@ class Cliente extends Model
         'telefono',
         'email',
         'cedula',
+        'mensaje_pdf',
     ];
 }

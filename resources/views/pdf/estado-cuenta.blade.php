@@ -24,6 +24,8 @@
         .estado-cubierta { color: #15803d; }
         .estado-parcial { color: #b45309; }
         .estado-pendiente { color: #666; }
+        .mensajes { margin-top: 18px; border-top: 1px solid #ddd; padding-top: 10px; }
+        .mensajes p { margin: 0 0 8px; white-space: pre-wrap; }
     </style>
 </head>
 <body>
@@ -88,6 +90,17 @@
                 </table>
             </div>
         @endforeach
+    @endif
+
+    @if ($mensajeCliente || $mensajeGlobal)
+        <div class="mensajes">
+            @if ($mensajeCliente)
+                <p>{{ $mensajeCliente }}</p>
+            @endif
+            @if ($mensajeGlobal)
+                <p>{{ $mensajeGlobal }}</p>
+            @endif
+        </div>
     @endif
 </body>
 </html>

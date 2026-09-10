@@ -6,16 +6,23 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     whatsappIntro: { type: String, default: '' },
+    pdfMensajeGlobal: { type: String, default: null },
 });
 
 const form = useForm({
     whatsapp_intro: props.whatsappIntro ?? '',
+    pdf_mensaje_global: props.pdfMensajeGlobal ?? '',
 });
 
 function submit() {
     form.transform((data) => ({ ...data, _method: 'put' })).post('/configuracion', {
         preserveScroll: true,
     });
+}
+
+function borrarMensajeGlobal() {
+    form.pdf_mensaje_global = '';
+    submit();
 }
 </script>
 
@@ -33,6 +40,25 @@ function submit() {
                     class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                 ></textarea>
                 <p v-if="form.errors.whatsapp_intro" class="text-sm text-kredix-rojo">{{ form.errors.whatsapp_intro }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Mensaje global para PDF <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                <p class="text-xs text-kredix-gris">Aparece al pie de todos los estados de cuenta generados.</p>
+                <textarea
+                    v-model="form.pdf_mensaje_global"
+                    rows="3"
+                    class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                ></textarea>
+                <p v-if="form.errors.pdf_mensaje_global" class="text-sm text-kredix-rojo">{{ form.errors.pdf_mensaje_global }}</p>
+                <button
+                    v-if="form.pdf_mensaje_global"
+                    type="button"
+                    class="self-start text-xs text-kredix-gris underline"
+                    @click="borrarMensajeGlobal"
+                >
+                    Borrar
+                </button>
             </div>
 
             <button type="submit" class="min-h-11 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="form.processing">
