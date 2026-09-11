@@ -5,6 +5,7 @@ import { ArrowDown, ArrowLeftRight, ArrowUp, FileText, ImageOff, MessageCircle, 
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
+import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
 import { formatMoney } from '../../lib/formatMoney';
 import { formatPhoneDisplay } from '../../lib/formatPhone';
 
@@ -132,8 +133,17 @@ function actualizarSugerencia() {
     plazoSugerido.value = sugerido;
 }
 
-function onFotoProductoChange(event) {
-    cargoForm.foto_producto = event.target.files[0] ?? null;
+const fotoProductoHeicError = ref('');
+
+async function onFotoProductoChange(event) {
+    fotoProductoHeicError.value = '';
+    const archivo = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    if (archivo === null) {
+        fotoProductoHeicError.value = MENSAJE_HEIC_FALLO;
+        event.target.value = '';
+        return;
+    }
+    cargoForm.foto_producto = archivo;
 }
 
 const DIAS_POR_FRECUENCIA = { semanal: 7, quincenal: 15, mensual: 30 };
@@ -225,8 +235,17 @@ const abonoForm = useForm({
     comprobante: null,
 });
 
-function onFileChange(event) {
-    abonoForm.comprobante = event.target.files[0] ?? null;
+const comprobanteHeicError = ref('');
+
+async function onFileChange(event) {
+    comprobanteHeicError.value = '';
+    const archivo = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    if (archivo === null) {
+        comprobanteHeicError.value = MENSAJE_HEIC_FALLO;
+        event.target.value = '';
+        return;
+    }
+    abonoForm.comprobante = archivo;
 }
 
 function submitAbono() {
@@ -321,12 +340,29 @@ function openEditMov(m) {
     formMode.value = 'editar';
 }
 
-function onEditComprobanteChange(event) {
-    editForm.comprobante = event.target.files[0] ?? null;
+const editComprobanteHeicError = ref('');
+const editFotoProductoHeicError = ref('');
+
+async function onEditComprobanteChange(event) {
+    editComprobanteHeicError.value = '';
+    const archivo = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    if (archivo === null) {
+        editComprobanteHeicError.value = MENSAJE_HEIC_FALLO;
+        event.target.value = '';
+        return;
+    }
+    editForm.comprobante = archivo;
 }
 
-function onEditFotoProductoChange(event) {
-    editForm.foto_producto = event.target.files[0] ?? null;
+async function onEditFotoProductoChange(event) {
+    editFotoProductoHeicError.value = '';
+    const archivo = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    if (archivo === null) {
+        editFotoProductoHeicError.value = MENSAJE_HEIC_FALLO;
+        event.target.value = '';
+        return;
+    }
+    editForm.foto_producto = archivo;
 }
 
 function submitEditMov() {
@@ -588,6 +624,7 @@ function cancelForms() {
             <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional)</span></label>
                 <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onFotoProductoChange" />
+                <p v-if="fotoProductoHeicError" class="text-sm text-kredix-rojo">{{ fotoProductoHeicError }}</p>
                 <p v-if="cargoForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ cargoForm.errors.foto_producto }}</p>
             </div>
 
@@ -683,6 +720,7 @@ function cancelForms() {
             <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Foto de comprobante (opcional)</label>
                 <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onFileChange" />
+                <p v-if="comprobanteHeicError" class="text-sm text-kredix-rojo">{{ comprobanteHeicError }}</p>
                 <p v-if="abonoForm.errors.comprobante" class="text-sm text-kredix-rojo">{{ abonoForm.errors.comprobante }}</p>
             </div>
 
@@ -788,6 +826,7 @@ function cancelForms() {
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional, reemplaza la actual)</span></label>
                     <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onEditFotoProductoChange" />
+                    <p v-if="editFotoProductoHeicError" class="text-sm text-kredix-rojo">{{ editFotoProductoHeicError }}</p>
                     <p v-if="editForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ editForm.errors.foto_producto }}</p>
                 </div>
             </template>
@@ -816,6 +855,7 @@ function cancelForms() {
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Foto de comprobante <span class="font-normal text-kredix-gris">(opcional, reemplaza la actual)</span></label>
                     <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onEditComprobanteChange" />
+                    <p v-if="editComprobanteHeicError" class="text-sm text-kredix-rojo">{{ editComprobanteHeicError }}</p>
                     <p v-if="editForm.errors.comprobante" class="text-sm text-kredix-rojo">{{ editForm.errors.comprobante }}</p>
                 </div>
             </template>
