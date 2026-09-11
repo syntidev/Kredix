@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ArrowLeftRight, FileText, ImageOff, MessageCircle } from '@lucide/vue';
+import { ArrowDown, ArrowLeftRight, ArrowUp, FileText, ImageOff, MessageCircle, NotebookPen, Repeat } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
@@ -58,6 +58,19 @@ function guardarMensajePdf() {
 function borrarMensajePdf() {
     mensajePdfForm.mensaje_pdf = '';
     guardarMensajePdf();
+}
+
+const mostrarMensajePdf = ref(false);
+
+// rojo = urgencia/mora/deuda, verde = pago/bien -- nunca al reves
+const ESTILO_MOVIMIENTO = {
+    cargo: { signo: '+', color: 'text-orange-600', icono: ArrowUp },
+    abono: { signo: '-', color: 'text-green-600', icono: ArrowDown },
+    ajuste_devolucion: { signo: '-', color: 'text-green-600', icono: Repeat },
+};
+
+function estiloMovimiento(tipo) {
+    return ESTILO_MOVIMIENTO[tipo] ?? { signo: '', color: 'text-kredix-negro', icono: null };
 }
 
 function today() {
@@ -384,30 +397,42 @@ function cancelForms() {
                 </div>
                 <div>
                     <p class="text-xs text-kredix-gris">Saldo pendiente</p>
-                    <p class="tabular-nums text-3xl font-bold text-kredix-rojo">{{ formatMoney(saldoPendiente) }}</p>
+                    <p
+                        class="tabular-nums text-3xl font-bold"
+                        :class="saldoPendiente > 0 ? 'text-kredix-rojo' : (saldoPendiente < 0 ? 'text-green-600' : 'text-kredix-negro')"
+                    >
+                        {{ formatMoney(saldoPendiente) }}
+                    </p>
                 </div>
             </div>
-            <div class="mt-3 grid grid-cols-2 gap-2 md:flex md:flex-row">
+            <div class="mt-3 flex flex-wrap gap-2">
                 <a
                     v-if="waLink"
                     :href="waLink"
                     target="_blank"
                     rel="noopener"
-                    class="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-green-600 px-4 text-sm font-medium text-green-700 active:bg-green-50 md:w-fit"
+                    class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-lg border border-green-600 px-3 text-sm font-medium text-green-700 active:bg-green-50"
                 >
                     <MessageCircle :size="16" />
                     WhatsApp
                 </a>
                 <a
                     :href="`/clientes/${cliente.id}/estado-cuenta`"
-                    class="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100 md:w-fit"
+                    class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"
                 >
                     <FileText :size="16" />
                     PDF
                 </a>
             </div>
 
-            <div class="mt-3 flex flex-col gap-1">
+            <button
+                type="button"
+                class="mt-3 text-sm font-medium text-kredix-gris underline"
+                @click="mostrarMensajePdf = !mostrarMensajePdf"
+            >
+                Personalizar mensaje del PDF
+            </button>
+            <div v-if="mostrarMensajePdf" class="mt-1 flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Mensaje personalizado para el PDF <span class="font-normal text-kredix-gris">(opcional)</span></label>
                 <textarea
                     v-model="mensajePdfForm.mensaje_pdf"
@@ -426,26 +451,25 @@ function cancelForms() {
             </div>
         </div>
 
-        <div v-if="cliente.notas || cliente.contacto_alterno_nombre || cliente.contacto_alterno_telefono" class="rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-sm">
-            <div v-if="cliente.notas">
-                <p class="text-xs font-medium uppercase text-kredix-gris">Notas</p>
-                <p class="mt-0.5 whitespace-pre-wrap text-kredix-negro">{{ cliente.notas }}</p>
-            </div>
-            <div v-if="cliente.contacto_alterno_nombre || cliente.contacto_alterno_telefono" :class="cliente.notas ? 'mt-3' : ''">
-                <p class="text-xs font-medium uppercase text-kredix-gris">Contacto alterno</p>
-                <p v-if="cliente.contacto_alterno_nombre" class="mt-0.5 text-kredix-negro">{{ cliente.contacto_alterno_nombre }}</p>
-                <p v-if="cliente.contacto_alterno_telefono" class="text-kredix-gris">{{ formatPhoneDisplay(cliente.contacto_alterno_telefono) }}</p>
-                <a
-                    v-if="waLinkAlterno"
-                    :href="waLinkAlterno"
-                    target="_blank"
-                    rel="noopener"
-                    class="mt-1.5 flex min-h-9 w-fit items-center gap-1.5 rounded-lg border border-green-600 px-3 text-xs font-medium text-green-700 active:bg-green-50"
-                >
-                    <MessageCircle :size="14" />
-                    WhatsApp
-                </a>
-            </div>
+        <div v-if="cliente.notas" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            <p class="font-medium uppercase">Notas</p>
+            <p class="mt-0.5 whitespace-pre-wrap">{{ cliente.notas }}</p>
+        </div>
+
+        <div v-if="cliente.contacto_alterno_nombre || cliente.contacto_alterno_telefono" class="rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-sm">
+            <p class="text-xs font-medium uppercase text-kredix-gris">Contacto alterno</p>
+            <p v-if="cliente.contacto_alterno_nombre" class="mt-0.5 text-kredix-negro">{{ cliente.contacto_alterno_nombre }}</p>
+            <p v-if="cliente.contacto_alterno_telefono" class="text-kredix-gris">{{ formatPhoneDisplay(cliente.contacto_alterno_telefono) }}</p>
+            <a
+                v-if="waLinkAlterno"
+                :href="waLinkAlterno"
+                target="_blank"
+                rel="noopener"
+                class="mt-1.5 flex min-h-9 w-fit items-center gap-1.5 rounded-lg border border-green-600 px-3 text-xs font-medium text-green-700 active:bg-green-50"
+            >
+                <MessageCircle :size="14" />
+                WhatsApp
+            </a>
         </div>
 
         <div v-if="compromisosCuotas.length > 0" class="flex flex-col gap-3">
@@ -481,10 +505,11 @@ function cancelForms() {
                 <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'cargo'">
                     + Nuevo cargo
                 </button>
-                <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-kredix-rojo px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'abono'">
+                <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'abono'">
                     + Nuevo abono
                 </button>
-                <button type="button" class="col-span-2 flex min-h-11 items-center justify-center rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-gris active:bg-gray-100 md:col-span-1" @click="formMode = 'gestion'">
+                <button type="button" class="col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-gris active:bg-gray-100 md:col-span-1" @click="formMode = 'gestion'">
+                    <NotebookPen :size="16" />
                     Registrar contacto
                 </button>
             </div>
@@ -663,7 +688,7 @@ function cancelForms() {
 
             <div class="mt-1 flex gap-2 md:col-span-2">
                 <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
-                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="abonoForm.processing">Guardar abono</button>
+                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-green-600 text-sm font-semibold text-white disabled:opacity-60" :disabled="abonoForm.processing">Guardar abono</button>
             </div>
         </form>
 
@@ -818,7 +843,14 @@ function cancelForms() {
 
             <div class="mt-1 flex gap-2">
                 <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
-                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="editForm.processing">Guardar cambios</button>
+                <button
+                    type="submit"
+                    class="min-h-11 flex-1 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+                    :class="editTipo === 'cargo' ? 'bg-kredix-negro' : 'bg-green-600'"
+                    :disabled="editForm.processing"
+                >
+                    Guardar cambios
+                </button>
             </div>
         </form>
 
@@ -843,7 +875,11 @@ function cancelForms() {
                         </p>
                     </div>
                     <div class="flex shrink-0 flex-col items-end gap-0.5">
-                        <span class="tabular-nums text-sm font-semibold text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}</span>
+                        <span v-if="m.tipo === 'gestion'" class="tabular-nums text-sm font-semibold text-kredix-negro">-</span>
+                        <span v-else class="tabular-nums inline-flex items-center gap-0.5 text-sm font-semibold" :class="estiloMovimiento(m.tipo).color">
+                            <component :is="estiloMovimiento(m.tipo).icono" :size="12" />
+                            {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
+                        </span>
                         <span class="tabular-nums text-xs text-kredix-gris">saldo {{ formatMoney(m.saldoAcumulado) }}</span>
                     </div>
                 </button>
@@ -855,8 +891,8 @@ function cancelForms() {
                     </div>
                     <div class="flex justify-between">
                         <span class="text-kredix-gris">Tasa</span>
-                        <span :class="m.tipo !== 'gestion' && !m.tasa_cambio ? 'italic text-kredix-gris' : 'text-kredix-negro'">
-                            {{ m.tipo === 'gestion' ? '-' : (m.tasa_cambio ?? 'tasa pendiente') }}
+                        <span :class="m.tasa_cambio ? 'text-kredix-negro' : 'text-kredix-gris'">
+                            {{ m.tasa_cambio ?? '-' }}
                         </span>
                     </div>
                     <div class="flex justify-between">
@@ -891,13 +927,13 @@ function cancelForms() {
             <table class="w-full table-fixed text-left text-sm">
                 <colgroup>
                     <col class="w-[92px]" />
-                    <col class="w-[80px]" />
+                    <col class="w-[72px]" />
                     <col />
-                    <col class="w-[80px]" />
+                    <col class="w-[56px]" />
                     <col class="w-[104px]" />
-                    <col class="w-[28px]" />
-                    <col class="w-[80px]" />
-                    <col class="w-[104px]" />
+                    <col class="w-[52px]" />
+                    <col class="w-[112px]" />
+                    <col class="w-[100px]" />
                     <col class="w-[52px]" />
                 </colgroup>
                 <thead class="bg-gray-100 text-xs uppercase text-kredix-gris">
@@ -947,13 +983,18 @@ function cancelForms() {
                             <p v-if="motivoAbierto === m.id" class="mt-1 text-xs text-kredix-gris">Motivo: {{ m.motivo_edicion }}</p>
                         </td>
                         <td class="break-words px-2 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.cantidad ?? '-') }}</td>
-                        <td class="tabular-nums break-words px-2 py-2 text-right text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}</td>
-                        <td class="px-1 py-2 text-center" :title="m.tipo === 'gestion' ? '' : (m.tasa_cambio ? `Tasa: ${m.tasa_cambio}` : 'Tasa pendiente')">
-                            <span v-if="m.tipo === 'gestion'" class="text-kredix-gris">-</span>
-                            <ArrowLeftRight v-else-if="m.tasa_cambio" :size="14" class="inline text-kredix-negro" />
-                            <ArrowLeftRight v-else :size="14" class="inline text-amber-600" />
+                        <td class="tabular-nums whitespace-nowrap px-2 py-2 text-right" :class="m.tipo === 'gestion' ? 'text-kredix-negro' : estiloMovimiento(m.tipo).color">
+                            <span v-if="m.tipo === 'gestion'">-</span>
+                            <span v-else class="inline-flex items-center gap-0.5">
+                                <component :is="estiloMovimiento(m.tipo).icono" :size="12" />
+                                {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
+                            </span>
                         </td>
-                        <td class="break-words px-2 py-2 text-kredix-gris">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</td>
+                        <td class="px-1 py-2 text-center" :title="m.tasa_cambio ? `Tasa: ${m.tasa_cambio}` : ''">
+                            <ArrowLeftRight v-if="m.tipo !== 'gestion' && m.tasa_cambio" :size="14" class="inline text-kredix-negro" />
+                            <span v-else class="text-kredix-gris">-</span>
+                        </td>
+                        <td class="whitespace-nowrap px-2 py-2 text-kredix-gris">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</td>
                         <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
                         <td class="px-1 py-2 text-right">
                             <button v-if="m.tipo !== 'gestion'" type="button" class="text-xs font-medium text-kredix-gris underline not-italic" @click="openEditMov(m)">Editar</button>
