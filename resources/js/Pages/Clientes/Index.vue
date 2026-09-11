@@ -9,7 +9,7 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     clientes: {
-        type: Array,
+        type: Object,
         required: true,
     },
     productosMatch: {
@@ -20,19 +20,40 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    filtro: {
+        type: String,
+        default: 'todos',
+    },
 });
 
 const search = ref(props.q ?? '');
 let searchTimeout = null;
 
+const filtros = [
+    { valor: 'todos', etiqueta: 'Todos' },
+    { valor: 'con_saldo', etiqueta: 'Con saldo pendiente' },
+    { valor: 'sin_saldo', etiqueta: 'Sin saldo (al dia)' },
+    { valor: 'con_advertencia', etiqueta: 'Con advertencia de importacion' },
+];
+
+function irA(cambios) {
+    const params = { q: search.value || undefined, filtro: props.filtro, page: 1, ...cambios };
+    Object.keys(params).forEach((k) => (params[k] === null || params[k] === undefined || params[k] === 'todos') && delete params[k]);
+
+    router.get('/clientes', params, { preserveState: true, preserveScroll: true, replace: true });
+}
+
 function onSearchInput() {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        router.get('/clientes', search.value ? { q: search.value } : {}, {
-            preserveState: true,
-            replace: true,
-        });
-    }, 300);
+    searchTimeout = setTimeout(() => irA({}), 300);
+}
+
+function elegirFiltro(valor) {
+    irA({ filtro: valor });
+}
+
+function irAPagina(pagina) {
+    irA({ page: pagina });
 }
 
 const showForm = ref(false);
@@ -152,6 +173,19 @@ function doDelete() {
             @input="onSearchInput"
         />
 
+        <div class="flex flex-wrap gap-2">
+            <button
+                v-for="f in filtros"
+                :key="f.valor"
+                type="button"
+                class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium"
+                :class="filtro === f.valor ? 'border-kredix-negro bg-kredix-negro text-white' : 'border-gray-300 text-kredix-gris'"
+                @click="elegirFiltro(f.valor)"
+            >
+                {{ f.etiqueta }}
+            </button>
+        </div>
+
         <div v-if="productosMatch.length > 0" class="flex flex-col gap-2">
             <h2 class="text-sm font-semibold text-kredix-negro">Productos encontrados</h2>
             <Link
@@ -252,10 +286,10 @@ function doDelete() {
                 </div>
             </form>
 
-            <p v-if="clientes.length === 0" class="text-sm text-kredix-gris">Todavia no hay clientes registrados.</p>
+            <p v-if="clientes.data.length === 0" class="text-sm text-kredix-gris">Todavia no hay clientes registrados.</p>
 
         <ul v-else class="flex flex-col gap-2">
-            <li v-for="cliente in clientes" :key="cliente.id">
+            <li v-for="cliente in clientes.data" :key="cliente.id">
                 <form
                     v-if="editingId === cliente.id"
                     class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
@@ -323,6 +357,26 @@ function doDelete() {
                 </div>
             </li>
         </ul>
+
+        <div v-if="clientes.last_page > 1" class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3">
+            <button
+                type="button"
+                class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro disabled:opacity-40"
+                :disabled="clientes.current_page <= 1"
+                @click="irAPagina(clientes.current_page - 1)"
+            >
+                Anterior
+            </button>
+            <span class="text-sm text-kredix-gris">Pagina {{ clientes.current_page }} de {{ clientes.last_page }} — {{ clientes.total }} clientes</span>
+            <button
+                type="button"
+                class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro disabled:opacity-40"
+                :disabled="clientes.current_page >= clientes.last_page"
+                @click="irAPagina(clientes.current_page + 1)"
+            >
+                Siguiente
+            </button>
+        </div>
 
         <div v-if="deletingCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
             <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">

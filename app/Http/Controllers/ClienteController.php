@@ -10,6 +10,8 @@ use App\Models\ReglaPlazo;
 use App\Services\TasaBcvService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Spatie\Activitylog\Models\Activity;
@@ -19,16 +21,30 @@ class ClienteController extends Controller
     public function index(Request $request)
     {
         $q = $request->query('q');
+        $filtro = $request->query('filtro', 'todos');
+
+        // saldo por cliente calculado en SQL (subquery), no se cargan los 427
+        // clientes con todos sus movimientos a PHP solo para filtrar/paginar
+        $saldos = DB::table('movimientos_cuenta')
+            ->select('cliente_id', DB::raw("SUM(CASE WHEN tipo = 'cargo' THEN monto WHEN tipo IN ('abono', 'ajuste_devolucion') THEN -monto ELSE 0 END) as saldo"))
+            ->whereNull('deleted_at')
+            ->groupBy('cliente_id');
 
         $clientes = Cliente::query()
+            ->leftJoinSub($saldos, 'saldos', 'saldos.cliente_id', '=', 'clientes.id')
+            ->select('clientes.*', DB::raw('COALESCE(saldos.saldo, 0) as saldo_pendiente'))
             ->when($q, fn ($query) => $query->where(function ($query) use ($q) {
                 $query->where('nombre', 'like', "%{$q}%")
                     ->orWhere('cedula', 'like', "%{$q}%")
                     ->orWhere('telefono', 'like', "%{$q}%")
                     ->orWhere('email', 'like', "%{$q}%");
             }))
-            ->latest()
-            ->get();
+            ->when($filtro === 'con_saldo', fn ($query) => $query->where(DB::raw('COALESCE(saldos.saldo, 0)'), '>', 0))
+            ->when($filtro === 'sin_saldo', fn ($query) => $query->where(DB::raw('COALESCE(saldos.saldo, 0)'), '<=', 0))
+            ->when($filtro === 'con_advertencia', fn ($query) => $query->where('clientes.notas', 'like', '%IMPORTADO CON ADVERTENCIA%'))
+            ->latest('clientes.created_at')
+            ->paginate(25)
+            ->withQueryString();
 
         $productosMatch = $q
             ? MovimientoCuenta::where('tipo', 'cargo')
@@ -41,7 +57,7 @@ class ClienteController extends Controller
                     'cliente_id' => $m->cliente_id,
                     'cliente_nombre' => $m->cliente?->nombre,
                     'descripcion' => $m->descripcion,
-                    'fecha' => $m->fecha->toDateString(),
+                    'fecha' => $m->fecha?->toDateString(),
                     'monto' => $m->monto,
                 ])
             : [];
@@ -50,6 +66,7 @@ class ClienteController extends Controller
             'clientes' => $clientes,
             'productosMatch' => $productosMatch,
             'q' => $q,
+            'filtro' => $filtro,
         ]);
     }
 
@@ -57,7 +74,7 @@ class ClienteController extends Controller
     {
         $movimientosRaw = MovimientoCuenta::where('cliente_id', $cliente->id)
             ->with(['registradoPor:id,name', 'planCuotas'])
-            ->orderBy('fecha')
+            ->orderByRaw('fecha IS NULL, fecha')
             ->orderBy('id')
             ->get();
 
@@ -72,7 +89,7 @@ class ClienteController extends Controller
 
             return [
                 'id' => $m->id,
-                'fecha' => $m->fecha->toDateString(),
+                'fecha' => $m->fecha?->toDateString(),
                 'tipo' => $m->tipo,
                 'tipo_contacto' => $m->tipo_contacto,
                 'descripcion' => $m->descripcion,
@@ -97,7 +114,7 @@ class ClienteController extends Controller
         });
 
         $saldoPendiente = MovimientoCuenta::saldoPendiente($cliente->id);
-        $ultimoAbono = $movimientosRaw->where('tipo', 'abono')->last();
+        $ultimoAbono = $movimientosRaw->where('tipo', 'abono')->whereNotNull('fecha')->last();
         $diasSinAbonar = $ultimoAbono ? now()->startOfDay()->diffInDays($ultimoAbono->fecha, true) : null;
 
         $intro = str_replace(
@@ -134,7 +151,7 @@ class ClienteController extends Controller
     {
         $movimientosRaw = MovimientoCuenta::where('cliente_id', $cliente->id)
             ->with('planCuotas')
-            ->orderBy('fecha')
+            ->orderByRaw('fecha IS NULL, fecha')
             ->orderBy('id')
             ->get();
 
@@ -145,7 +162,7 @@ class ClienteController extends Controller
             }
 
             return [
-                'fecha' => $m->fecha->toDateString(),
+                'fecha' => $m->fecha?->toDateString(),
                 'tipo' => $m->tipo,
                 'descripcion' => $m->descripcion,
                 'monto' => $m->tipo === 'gestion' ? null : (float) $m->monto,
@@ -199,11 +216,13 @@ class ClienteController extends Controller
     {
         return $movimientosRaw
             ->where('tipo', 'cargo')
-            ->filter(fn (MovimientoCuenta $m) => $m->planCuotas->isNotEmpty())
+            // sin fecha propia el cargo no puede participar del FIFO por fecha --
+            // se excluye del reparto visual de cuotas, no rompe ni se adivina
+            ->filter(fn (MovimientoCuenta $m) => $m->fecha !== null && $m->planCuotas->isNotEmpty())
             ->map(function (MovimientoCuenta $cargo) use ($movimientosRaw) {
                 $totalAbonadoDesde = $movimientosRaw
                     ->where('tipo', 'abono')
-                    ->filter(fn (MovimientoCuenta $m) => $m->fecha->gte($cargo->fecha))
+                    ->filter(fn (MovimientoCuenta $m) => $m->fecha !== null && $m->fecha->gte($cargo->fecha))
                     ->sum(fn (MovimientoCuenta $m) => (float) $m->monto);
 
                 $restante = $totalAbonadoDesde;
@@ -244,14 +263,14 @@ class ClienteController extends Controller
             ->values();
     }
 
-    public function cartera()
+    public function cartera(Request $request)
     {
         $movimientos = MovimientoCuenta::orderBy('fecha')->get()->groupBy('cliente_id');
 
         $clientes = Cliente::all()->map(function (Cliente $c) use ($movimientos) {
             $movs = $movimientos->get($c->id, collect());
             $saldo = $movs->sum(fn (MovimientoCuenta $m) => $m->tipo === 'cargo' ? (float) $m->monto : -(float) $m->monto);
-            $ultimoAbono = $movs->where('tipo', 'abono')->last();
+            $ultimoAbono = $movs->where('tipo', 'abono')->whereNotNull('fecha')->last();
 
             return [
                 'id' => $c->id,
@@ -260,16 +279,31 @@ class ClienteController extends Controller
                 'ultimoAbonoFecha' => $ultimoAbono?->fecha->toDateString(),
                 'diasDesdeUltimoAbono' => $ultimoAbono ? now()->startOfDay()->diffInDays($ultimoAbono->fecha, true) : null,
             ];
-        })->sortByDesc('saldoPendiente')->values();
+        })
+            // orden de severidad: sin abono nunca (null) primero, luego mas dias sin abonar
+            ->sortByDesc(fn ($c) => $c['diasDesdeUltimoAbono'] ?? INF)
+            ->values();
 
         // el monto agregado ("Cartera activa") es sensible, mismo dato que ya
         // restringimos en KPI -- solo admin lo ve; no-admin ve un conteo operativo
         // (clientes con al menos un evento activo en Cartelera) en su lugar
         $esAdmin = (bool) auth()->user()?->es_admin;
 
+        $page = (int) $request->query('page', 1);
+        $porPagina = 25;
+        $paginador = new LengthAwarePaginator(
+            $clientes->forPage($page, $porPagina)->values(),
+            $clientes->count(),
+            $porPagina,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         return Inertia::render('Cartera/Index', [
-            'clientes' => $clientes,
+            'clientes' => $paginador->toArray(),
             'esAdmin' => $esAdmin,
+            'totalCarteraActiva' => $esAdmin ? (float) $clientes->sum('saldoPendiente') : null,
+            'clientesConSaldo' => $clientes->filter(fn ($c) => $c['saldoPendiente'] > 0)->count(),
             'clientesRequierenSeguimiento' => $esAdmin
                 ? null
                 : (new CarteleraController())->calcularEventos()->pluck('cliente_id')->unique()->count(),
