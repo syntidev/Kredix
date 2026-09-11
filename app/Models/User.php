@@ -24,6 +24,7 @@ class User extends Authenticatable
         'password',
         'es_admin',
         'activo',
+        'es_oculto',
     ];
 
     /**
@@ -48,6 +49,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'es_admin' => 'boolean',
             'activo' => 'boolean',
+            'es_oculto' => 'boolean',
         ];
     }
 }

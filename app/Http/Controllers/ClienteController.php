@@ -80,7 +80,7 @@ class ClienteController extends Controller
             'q' => $q,
             'filtro' => $filtro,
             'atendidoPor' => $atendidoPor,
-            'usuarios' => User::orderBy('name')->get(['id', 'name']),
+            'usuarios' => User::where('es_oculto', false)->orderBy('name')->get(['id', 'name']),
             'sinAsignarConSaldo' => $sinAsignarConSaldo,
         ]);
     }
@@ -147,7 +147,7 @@ class ClienteController extends Controller
 
         return Inertia::render('Clientes/Show', [
             'cliente' => $cliente,
-            'usuarios' => User::orderBy('name')->get(['id', 'name']),
+            'usuarios' => User::where('es_oculto', false)->orderBy('name')->get(['id', 'name']),
             'movimientos' => $movimientos,
             'saldoPendiente' => $saldoPendiente,
             'totalCobrado' => MovimientoCuenta::totalCobrado($cliente->id),

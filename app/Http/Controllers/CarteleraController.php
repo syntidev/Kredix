@@ -129,7 +129,7 @@ class CarteleraController extends Controller
             default => 0,
         });
 
-        $clientesConSaldo = Cliente::with('usuarioResponsable:id,name')->get()
+        $clientesConSaldo = Cliente::with('usuarioResponsable:id,name,es_oculto')->get()
             ->map(fn (Cliente $c) => ['cliente' => $c, 'movs' => $porCliente->get($c->id, collect())])
             ->map(fn ($x) => [...$x, 'saldo' => $saldoDe($x['movs'])])
             ->filter(fn ($x) => $x['saldo'] > 0)
@@ -311,7 +311,9 @@ class CarteleraController extends Controller
             'mensaje' => $mensaje,
             'severidad' => $severidad,
             'fecha_evento' => $fechaEvento,
-            'responsable' => $cliente->usuarioResponsable?->name ?? 'Sin asignar',
+            'responsable' => ($cliente->usuarioResponsable && ! $cliente->usuarioResponsable->es_oculto)
+                ? $cliente->usuarioResponsable->name
+                : 'Sin asignar',
         ];
     }
 }
