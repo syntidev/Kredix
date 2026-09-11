@@ -130,13 +130,20 @@ function submitEdit() {
 }
 
 const deletingCliente = ref(null);
+const deleteStep = ref(1);
 
 function confirmDelete(cliente) {
     deletingCliente.value = cliente;
+    deleteStep.value = 1;
+}
+
+function avanzarConfirmacion() {
+    deleteStep.value = 2;
 }
 
 function cancelDelete() {
     deletingCliente.value = null;
+    deleteStep.value = 1;
 }
 
 function doDelete() {
@@ -144,6 +151,7 @@ function doDelete() {
         preserveScroll: true,
         onSuccess: () => {
             deletingCliente.value = null;
+            deleteStep.value = 1;
         },
     });
 }
@@ -339,14 +347,14 @@ function doDelete() {
                     </div>
                 </form>
 
-                <div v-else class="flex items-start justify-between gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                    <Link :href="`/clientes/${cliente.id}`" class="min-w-0 flex-1">
+                <div v-else class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                    <Link :href="`/clientes/${cliente.id}`" class="block min-w-0">
                         <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
                         <p class="text-sm text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</p>
                         <p v-if="cliente.email" class="text-sm text-kredix-gris">{{ cliente.email }}</p>
                         <p v-if="cliente.cedula" class="text-sm text-kredix-gris">CI: {{ cliente.cedula }}</p>
                     </Link>
-                    <div class="flex shrink-0 gap-1">
+                    <div class="mt-3 flex justify-end gap-1 border-t border-gray-100 pt-3">
                         <button type="button" class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="openEdit(cliente)">
                             Editar
                         </button>
@@ -358,7 +366,7 @@ function doDelete() {
             </li>
         </ul>
 
-        <div v-if="clientes.last_page > 1" class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3">
+        <div v-if="clientes.last_page > 1" class="mt-2 flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3">
             <button
                 type="button"
                 class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro disabled:opacity-40"
@@ -379,9 +387,21 @@ function doDelete() {
         </div>
 
         <div v-if="deletingCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
-            <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
+            <div v-if="deleteStep === 1" class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
                 <p class="font-medium text-kredix-negro">¿Eliminar a {{ deletingCliente.nombre }}?</p>
                 <p class="mt-1 text-sm text-kredix-gris">El cliente dejara de aparecer en el listado. No se borra fisicamente.</p>
+                <div class="mt-4 flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelDelete">
+                        Cancelar
+                    </button>
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="avanzarConfirmacion">
+                        Continuar
+                    </button>
+                </div>
+            </div>
+            <div v-else class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
+                <p class="font-medium text-kredix-negro">Esta accion no se puede deshacer facilmente.</p>
+                <p class="mt-1 text-sm text-kredix-gris">¿Confirmas la eliminacion de {{ deletingCliente.nombre }}?</p>
                 <div class="mt-4 flex gap-2">
                     <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelDelete">
                         Cancelar

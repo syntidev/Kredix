@@ -42,7 +42,7 @@ class ClienteController extends Controller
             ->when($filtro === 'con_saldo', fn ($query) => $query->where(DB::raw('COALESCE(saldos.saldo, 0)'), '>', 0))
             ->when($filtro === 'sin_saldo', fn ($query) => $query->where(DB::raw('COALESCE(saldos.saldo, 0)'), '<=', 0))
             ->when($filtro === 'con_advertencia', fn ($query) => $query->where('clientes.notas', 'like', '%IMPORTADO CON ADVERTENCIA%'))
-            ->latest('clientes.created_at')
+            ->orderBy('clientes.nombre', 'asc')
             ->paginate(25)
             ->withQueryString();
 
@@ -333,6 +333,8 @@ class ClienteController extends Controller
             'contacto_alterno_telefono.max' => 'telefono de contacto alterno demasiado largo',
         ]);
 
+        $validated['nombre'] = mb_strtoupper($validated['nombre'], 'UTF-8');
+
         Cliente::create($validated);
 
         return redirect()->route('clientes.index');
@@ -360,6 +362,8 @@ class ClienteController extends Controller
             'contacto_alterno_telefono.regex' => 'telefono de contacto alterno invalido, selecciona el pais y completa el numero',
             'contacto_alterno_telefono.max' => 'telefono de contacto alterno demasiado largo',
         ]);
+
+        $validated['nombre'] = mb_strtoupper($validated['nombre'], 'UTF-8');
 
         $cliente->update($validated);
 
