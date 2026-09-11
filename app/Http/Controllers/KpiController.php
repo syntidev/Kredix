@@ -21,6 +21,10 @@ class KpiController extends Controller
 
         $todos = MovimientoCuenta::orderBy('fecha')->get();
         $porCliente = $todos->groupBy('cliente_id');
+        // saldo/totales historicos usan $todos completo (el dinero no deja de existir
+        // por no tener fecha); solo las metricas por rango de fecha excluyen los
+        // movimientos sin fecha -- no cuentan como "hoy" ni rompen el filtro
+        $todosConFecha = $todos->whereNotNull('fecha');
 
         $saldoDe = fn ($movs) => (float) $movs->sum(fn (MovimientoCuenta $m) => match ($m->tipo) {
             'cargo' => (float) $m->monto,
@@ -32,11 +36,11 @@ class KpiController extends Controller
         $dineroEnCalle = $porCliente->sum($saldoDe);
 
         // 2. recuperado mes actual vs mes anterior
-        $recuperadoMesActual = (float) $todos->filter(
+        $recuperadoMesActual = (float) $todosConFecha->filter(
             fn (MovimientoCuenta $m) => $m->tipo === 'abono' && $m->fecha->between($inicioMes, $finMes)
         )->sum('monto');
 
-        $recuperadoMesAnterior = (float) $todos->filter(
+        $recuperadoMesAnterior = (float) $todosConFecha->filter(
             fn (MovimientoCuenta $m) => $m->tipo === 'abono' && $m->fecha->between($inicioMesAnterior, $finMesAnterior)
         )->sum('monto');
 
@@ -45,12 +49,12 @@ class KpiController extends Controller
             : null;
 
         // 3. ultimas 4 semanas rodantes (no mes calendario): otorgado vs cobrado
-        $movimientosMes = $todos->filter(fn (MovimientoCuenta $m) => $m->fecha->between($inicioMes, $finMes));
+        $movimientosMes = $todosConFecha->filter(fn (MovimientoCuenta $m) => $m->fecha->between($inicioMes, $finMes));
 
-        $semanasDelMes = collect(range(3, 0))->map(function (int $i) use ($hoy, $todos) {
+        $semanasDelMes = collect(range(3, 0))->map(function (int $i) use ($hoy, $todosConFecha) {
             $inicioSemana = $hoy->copy()->subWeeks($i)->startOfWeek(Carbon::MONDAY);
             $finSemana = $inicioSemana->copy()->endOfWeek(Carbon::SUNDAY);
-            $movs = $todos->filter(fn (MovimientoCuenta $m) => $m->fecha->between($inicioSemana, $finSemana));
+            $movs = $todosConFecha->filter(fn (MovimientoCuenta $m) => $m->fecha->between($inicioSemana, $finSemana));
 
             return [
                 'semana' => 'Sem '.$inicioSemana->format('d/m'),
@@ -87,8 +91,14 @@ class KpiController extends Controller
                 continue;
             }
 
-            $ultimoAbono = $movs->where('tipo', 'abono')->last();
-            $referencia = $ultimoAbono?->fecha ?? $movs->where('tipo', 'cargo')->first()?->fecha ?? $hoy;
+            $ultimoAbono = $movs->where('tipo', 'abono')->whereNotNull('fecha')->last();
+            $referencia = $ultimoAbono?->fecha ?? $movs->where('tipo', 'cargo')->whereNotNull('fecha')->first()?->fecha;
+            if ($referencia === null) {
+                // sin ningun movimiento con fecha real no hay forma de saber la
+                // antiguedad -- se excluye del reparto por rango en vez de contarlo
+                // como "hoy" (que lo mostraria falsamente como cartera fresca)
+                continue;
+            }
             $dias = $hoy->copy()->startOfDay()->diffInDays($referencia, true);
 
             $rango = match (true) {
@@ -105,9 +115,9 @@ class KpiController extends Controller
         // actividad quedan en 0 en vez de ausentes
         $nombresMes = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-        $ultimos6Meses = collect(range(5, 0))->map(function (int $i) use ($hoy, $todos, $nombresMes) {
+        $ultimos6Meses = collect(range(5, 0))->map(function (int $i) use ($hoy, $todosConFecha, $nombresMes) {
             $mes = $hoy->copy()->subMonthsNoOverflow($i);
-            $movs = $todos->filter(fn (MovimientoCuenta $m) => $m->fecha->between($mes->copy()->startOfMonth(), $mes->copy()->endOfMonth()));
+            $movs = $todosConFecha->filter(fn (MovimientoCuenta $m) => $m->fecha->between($mes->copy()->startOfMonth(), $mes->copy()->endOfMonth()));
 
             return [
                 'mes' => $nombresMes[$mes->month - 1].' '.$mes->format('y'),
