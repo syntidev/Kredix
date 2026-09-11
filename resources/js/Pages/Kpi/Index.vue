@@ -1,7 +1,7 @@
 <script setup>
 import { computed, defineAsyncComponent, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import { ChevronDown, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
+import { ChevronDown, TrendingDown, TrendingUp, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import StatCard from '../../Components/StatCard.vue';
 import { formatMoney } from '../../lib/formatMoney';
@@ -17,6 +17,10 @@ const props = defineProps({
     ultimos6Meses: { type: Array, required: true },
     actividadCobradores: { type: Array, required: true },
     antiguedadCartera: { type: Object, required: true },
+    saludCartera: { type: Object, required: true },
+    totalClientesActivos: { type: Number, required: true },
+    clientesNuevosEsteMes: { type: Number, required: true },
+    crecimientoClientesPct: { type: Number, default: null },
 });
 
 const AYUDA_PERIODO =
@@ -64,6 +68,33 @@ const rangosCartera = computed(() => {
     const max = Math.max(...entries.map(([, v]) => v), 1);
     return entries.map(([rango, monto]) => ({ rango, monto, pct: (monto / max) * 100 }));
 });
+
+// suma exacta a 100%: los primeros 2 porcentajes se redondean, el tercero se
+// deriva por resta -- nunca 99% o 101% por acumulacion de redondeo independiente
+const totalSaludCartera = computed(() => props.saludCartera.al_dia + props.saludCartera.atrasados + props.saludCartera.fria);
+const pctAlDia = computed(() => (totalSaludCartera.value > 0 ? Math.round((props.saludCartera.al_dia / totalSaludCartera.value) * 100) : 0));
+const pctAtrasados = computed(() => (totalSaludCartera.value > 0 ? Math.round((props.saludCartera.atrasados / totalSaludCartera.value) * 100) : 0));
+const pctFria = computed(() => (totalSaludCartera.value > 0 ? 100 - pctAlDia.value - pctAtrasados.value : 0));
+
+const saludChartSeries = computed(() => [props.saludCartera.al_dia, props.saludCartera.atrasados, props.saludCartera.fria]);
+
+const saludChartOptions = computed(() => ({
+    chart: { type: 'donut', fontFamily: 'inherit' },
+    labels: ['Al dia', 'Atrasados', 'Cartera fria'],
+    colors: ['#101010', '#EA580C', '#FA0A0A'],
+    legend: { position: 'bottom' },
+    dataLabels: { formatter: (val) => `${Math.round(val)}%` },
+    plotOptions: {
+        pie: {
+            donut: {
+                labels: {
+                    show: true,
+                    total: { show: true, label: 'Con saldo', formatter: () => String(totalSaludCartera.value) },
+                },
+            },
+        },
+    },
+}));
 </script>
 
 <template>
@@ -89,6 +120,14 @@ const rangosCartera = computed(() => {
         </div>
 
         <StatCard label="Dinero en calle" :value="formatMoney(dineroEnCalle)" :icon="Wallet" variant="rojo" tamano="grande" />
+
+        <StatCard label="Total clientes" :value="String(totalClientesActivos)" :icon="crecimientoClientesPct !== null && crecimientoClientesPct < 0 ? TrendingDown : TrendingUp" :variant="crecimientoClientesPct !== null && crecimientoClientesPct < 0 ? 'rojo' : 'verde'">
+            <p class="mt-1 text-xs text-kredix-gris">{{ clientesNuevosEsteMes }} nuevos este mes</p>
+            <p v-if="crecimientoClientesPct !== null" class="mt-1 text-sm font-medium" :class="crecimientoClientesPct >= 0 ? 'text-green-600' : 'text-kredix-rojo'">
+                {{ crecimientoClientesPct >= 0 ? '▲' : '▼' }} {{ Math.abs(crecimientoClientesPct) }}% vs mes anterior
+            </p>
+            <p v-else class="mt-1 text-sm text-kredix-gris">sin datos del mes anterior</p>
+        </StatCard>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <StatCard v-for="s in seccionesPeriodo" :key="s.key" :label="s.etiqueta" :value="formatMoney(s.actual.cobrado)" :icon="s.actual.neto >= 0 ? TrendingUp : TrendingDown" :variant="s.actual.neto >= 0 ? 'verde' : 'rojo'" :ayuda="AYUDA_PERIODO">
@@ -154,6 +193,28 @@ const rangosCartera = computed(() => {
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <h2 class="mb-3 text-sm font-semibold text-kredix-negro">Salud de cartera</h2>
+            <p v-if="totalSaludCartera === 0" class="text-sm text-kredix-gris">Sin clientes con saldo activo.</p>
+            <template v-else>
+                <VueApexCharts type="donut" height="260" :options="saludChartOptions" :series="saludChartSeries" />
+                <div class="mt-3 flex flex-col gap-1.5 text-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="flex items-center gap-1.5 text-kredix-negro"><span class="h-2.5 w-2.5 rounded-full bg-kredix-negro"></span>Al dia (0-15 dias)</span>
+                        <span class="tabular-nums font-medium text-kredix-negro">{{ saludCartera.al_dia }} ({{ pctAlDia }}%)</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="flex items-center gap-1.5 text-kredix-negro"><span class="h-2.5 w-2.5 rounded-full bg-orange-600"></span>Atrasados (16-59 dias)</span>
+                        <span class="tabular-nums font-medium text-kredix-negro">{{ saludCartera.atrasados }} ({{ pctAtrasados }}%)</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="flex items-center gap-1.5 text-kredix-negro"><span class="h-2.5 w-2.5 rounded-full bg-kredix-rojo"></span>Cartera fria (60+ dias)</span>
+                        <span class="tabular-nums font-medium text-kredix-negro">{{ saludCartera.fria }} ({{ pctFria }}%)</span>
+                    </div>
+                </div>
+            </template>
         </div>
 
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">

@@ -180,6 +180,54 @@ class KpiController extends Controller
             ];
         })->values();
 
+        // 7. salud de cartera: 3 buckets sobre clientes con saldo activo, una sola
+        // base de "dias sin actividad" (ultimo abono o gestion, con fallback al
+        // primer cargo si nunca hubo ninguno) para los 3 -- mismo criterio que
+        // CarteleraController usa para cartera_fria (60+ dias sin NINGUN
+        // movimiento). Usar una sola base evita que un cliente quede sin bucket
+        // (lo que rompería la suma == 100% de clientes con saldo)
+        $saludCartera = ['al_dia' => 0, 'atrasados' => 0, 'fria' => 0];
+
+        foreach (Cliente::all() as $cliente) {
+            $movs = $porCliente->get($cliente->id, collect());
+            $saldo = $saldoDe($movs);
+
+            if ($saldo <= 0) {
+                continue;
+            }
+
+            $ultimaActividad = $movs->whereIn('tipo', ['abono', 'gestion'])->whereNotNull('fecha')->sortByDesc('fecha')->first();
+            $primerCargo = $movs->where('tipo', 'cargo')->whereNotNull('fecha')->sortBy('fecha')->first();
+            $fechaReferencia = $ultimaActividad?->fecha ?? $primerCargo?->fecha;
+
+            if ($fechaReferencia === null) {
+                // sin ninguna fecha real conocida -- se trata como el caso mas
+                // urgente, nunca como "al dia" por falta de dato
+                $saludCartera['fria']++;
+
+                continue;
+            }
+
+            $dias = $hoy->copy()->startOfDay()->diffInDays($fechaReferencia, true);
+
+            if ($dias <= 15) {
+                $saludCartera['al_dia']++;
+            } elseif ($dias < 60) {
+                $saludCartera['atrasados']++;
+            } else {
+                $saludCartera['fria']++;
+            }
+        }
+
+        // 8. crecimiento de clientes: nuevos este mes vs total acumulado hasta el
+        // mes anterior (no vs "nuevos del mes anterior" -- la base de comparacion
+        // es el tamaño de la cartera de clientes, no el ritmo de altas)
+        $clientesNuevosEsteMes = Cliente::whereBetween('created_at', [$inicioMes, $finMes])->count();
+        $totalClientesMesAnterior = Cliente::where('created_at', '<', $inicioMes)->count();
+        $crecimientoClientesPct = $totalClientesMesAnterior > 0
+            ? round(($clientesNuevosEsteMes / $totalClientesMesAnterior) * 100, 1)
+            : null;
+
         return Inertia::render('Kpi/Index', [
             'dineroEnCalle' => $dineroEnCalle,
             'periodos' => $periodos,
@@ -187,6 +235,10 @@ class KpiController extends Controller
             'ultimos6Meses' => $ultimos6Meses,
             'actividadCobradores' => $actividadCobradores,
             'antiguedadCartera' => $rangos,
+            'saludCartera' => $saludCartera,
+            'totalClientesActivos' => Cliente::count(),
+            'clientesNuevosEsteMes' => $clientesNuevosEsteMes,
+            'crecimientoClientesPct' => $crecimientoClientesPct,
         ]);
     }
 

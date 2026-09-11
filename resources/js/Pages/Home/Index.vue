@@ -4,6 +4,8 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { BarChart3, Settings, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import EventoCartelera from '../../Components/EventoCartelera.vue';
+import { formatMoney } from '../../lib/formatMoney';
+import { formatTiempoRelativo } from '../../lib/formatTiempoRelativo';
 
 defineOptions({ layout: AppLayout });
 
@@ -11,6 +13,7 @@ const props = defineProps({
     totalClientes: { type: Number, required: true },
     clientesConSaldo: { type: Number, required: true },
     eventosUrgentes: { type: Array, default: () => [] },
+    actividadReciente: { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -47,6 +50,22 @@ const tiles = computed(() => [
                 <Link href="/cartelera" class="text-sm font-medium text-kredix-rojo underline">Ver todos</Link>
             </div>
             <EventoCartelera v-for="evento in eventosUrgentes" :key="evento.cliente_id + evento.tipo" :evento="evento" />
+        </div>
+
+        <div v-if="actividadReciente.length > 0" class="flex flex-col gap-3">
+            <h2 class="text-lg font-semibold text-kredix-negro">Actividad reciente</h2>
+            <Link
+                v-for="a in actividadReciente"
+                :key="a.id"
+                :href="`/clientes/${a.clienteId}`"
+                class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3 shadow-sm active:bg-gray-50"
+            >
+                <div class="min-w-0">
+                    <p class="truncate text-sm text-kredix-negro">Abono de <span class="font-medium">{{ a.clienteNombre }}</span></p>
+                    <p class="text-xs text-kredix-gris">{{ formatTiempoRelativo(a.creadoEn) }}</p>
+                </div>
+                <span class="tabular-nums shrink-0 text-sm font-semibold text-green-600">{{ formatMoney(a.monto) }}</span>
+            </Link>
         </div>
     </div>
 </template>
