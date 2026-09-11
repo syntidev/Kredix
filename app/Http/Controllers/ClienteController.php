@@ -212,7 +212,12 @@ class ClienteController extends Controller
             'fechaEmision' => now()->format('d/m/Y H:i'),
         ]);
 
-        return $pdf->download('estado-cuenta-'.Str::slug($cliente->nombre).'.pdf');
+        // stream() (Content-Disposition: inline) en vez de download() (attachment) --
+        // attachment hace que iOS Safari descargue el archivo en silencio sin abrir
+        // su visor nativo de PDF, que es el que trae el boton de compartir en la
+        // barra superior. inline deja que el navegador (iOS/Android/desktop) haga
+        // su propio manejo nativo del PDF.
+        return $pdf->stream('estado-cuenta-'.Str::slug($cliente->nombre).'.pdf');
     }
 
     public function actualizarMensajePdf(Request $request, Cliente $cliente)
