@@ -544,9 +544,9 @@ function cancelForms() {
                 <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'abono'">
                     + Nuevo abono
                 </button>
-                <button type="button" class="col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100 md:col-span-1" @click="formMode = 'gestion'">
+                <button type="button" class="col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-[#1496BE] px-4 text-sm font-medium text-white active:bg-[#0F7A99] md:col-span-1" @click="formMode = 'gestion'">
                     <NotebookPen :size="16" />
-                    Registrar contacto
+                    Anotar gestión
                 </button>
             </div>
         </div>
@@ -731,7 +731,7 @@ function cancelForms() {
         </form>
 
         <form v-if="formMode === 'gestion'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitGestion">
-            <p class="text-sm font-medium text-kredix-negro">Registrar contacto</p>
+            <p class="text-sm font-medium text-kredix-negro">Anotar gestión</p>
 
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Fecha</label>
