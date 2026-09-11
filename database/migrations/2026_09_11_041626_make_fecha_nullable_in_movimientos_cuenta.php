@@ -7,11 +7,17 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement('ALTER TABLE movimientos_cuenta MODIFY fecha DATE NULL');
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement('ALTER TABLE movimientos_cuenta MODIFY fecha DATE NOT NULL');
     }
 };
