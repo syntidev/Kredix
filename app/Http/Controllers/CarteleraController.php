@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Models\MovimientoCuenta;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 
 class CarteleraController extends Controller
@@ -16,13 +19,103 @@ class CarteleraController extends Controller
 
     private const VERDE = 'verde';
 
-    public function index()
+    private const POR_PAGINA = 20;
+
+    private const DIAS_DEFAULT = 90;
+
+    public function index(Request $request)
     {
+        $tarjetas = $this->calcularEventos();
+
+        $tipo = $request->query('tipo', 'todos');
+        $severidad = $request->query('severidad'); // null | critico | atencion | informativo
+        $desde = $request->query('desde');
+        $hasta = $request->query('hasta');
+        $historico = $request->boolean('historico');
+        $usaDefault = ! $historico && $severidad === null && ! $desde && ! $hasta;
+
+        $colorPorSeveridad = ['critico' => self::ROJO, 'atencion' => self::NARANJA, 'informativo' => self::VERDE];
+
+        // rango de fecha efectivo: explicito (desde/hasta) manda sobre el default de
+        // 90 dias; "historico" quita cualquier limite de fecha
+        $fechaDesde = $desde ? Carbon::parse($desde)->startOfDay() : ($historico ? null : now()->subDays(self::DIAS_DEFAULT)->startOfDay());
+        $fechaHasta = $hasta ? Carbon::parse($hasta)->endOfDay() : null;
+
+        $conDateFiltro = $tarjetas->filter(function ($t) use ($fechaDesde, $fechaHasta) {
+            if ($fechaDesde === null && $fechaHasta === null) {
+                return true;
+            }
+            if ($t['fecha_evento'] === null) {
+                return false;
+            }
+            $fecha = Carbon::parse($t['fecha_evento']);
+
+            return (! $fechaDesde || $fecha->gte($fechaDesde)) && (! $fechaHasta || $fecha->lte($fechaHasta));
+        })->values();
+
+        // severidad: si el usuario no eligio nada y estamos en el default (sin
+        // historico ni fechas explicitas), solo critico+atencion -- si el usuario
+        // ya toco cualquier filtro, se respeta exactamente lo que pidio
+        $conSeveridadDefault = $usaDefault
+            ? $conDateFiltro->filter(fn ($t) => in_array($t['color'], [self::ROJO, self::NARANJA], true))->values()
+            : $conDateFiltro;
+
+        // conteos de tipo: sobre el set ya filtrado por fecha+severidad, para que
+        // los chips de tipo reflejen "un click de distancia" del estado actual
+        $conteosTipo = ['todos' => $conSeveridadDefault->count()];
+        foreach (['fuera_patron', 'sin_gestion', 'cuota_vencida', 'promesa_vencida', 'buen_comportamiento', 'cartera_fria'] as $t) {
+            $conteosTipo[$t] = $conSeveridadDefault->where('tipo', $t)->count();
+        }
+
+        $conTipoFiltro = $tipo === 'todos' ? $conSeveridadDefault : $conSeveridadDefault->where('tipo', $tipo)->values();
+
+        // conteos de severidad: sobre fecha+tipo (sin la severidad seleccionada),
+        // usando el set con default de severidad YA quitado para no auto-excluirse
+        $baseParaConteoSeveridad = $tipo === 'todos' ? $conDateFiltro : $conDateFiltro->where('tipo', $tipo)->values();
+        $conteosSeveridad = [
+            'todos' => $baseParaConteoSeveridad->count(),
+            'critico' => $baseParaConteoSeveridad->where('color', self::ROJO)->count(),
+            'atencion' => $baseParaConteoSeveridad->where('color', self::NARANJA)->count(),
+            'informativo' => $baseParaConteoSeveridad->where('color', self::VERDE)->count(),
+        ];
+
+        $resultado = $severidad && isset($colorPorSeveridad[$severidad])
+            ? $conTipoFiltro->where('color', $colorPorSeveridad[$severidad])->values()
+            : $conTipoFiltro;
+
+        $page = (int) $request->query('page', 1);
+        $paginador = new LengthAwarePaginator(
+            $resultado->forPage($page, self::POR_PAGINA)->values(),
+            $resultado->count(),
+            self::POR_PAGINA,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         return Inertia::render('Cartelera/Index', [
-            'eventos' => $this->calcularEventos(),
+            'tarjetas' => $paginador->toArray(),
+            'conteosTipo' => $conteosTipo,
+            'conteosSeveridad' => $conteosSeveridad,
+            'filtros' => [
+                'tipo' => $tipo,
+                'severidad' => $severidad,
+                'desde' => $desde,
+                'hasta' => $hasta,
+                'historico' => $historico,
+                'usaDefault' => $usaDefault,
+            ],
         ]);
     }
 
+    /**
+     * Devuelve UNA tarjeta por cliente (nunca varias): si un cliente dispara
+     * multiples eventos, la tarjeta principal es la mas severa (mismo orden
+     * color+severidad ya usado) y el resto queda en 'secundarios' como badges.
+     * 'fecha_evento' es la fecha de la ultima actividad real del cliente (abono,
+     * gestion o -- si nunca tuvo ninguna -- su primer cargo), usada para el
+     * filtro de rango de fechas; null si el cliente no tiene ningun movimiento
+     * con fecha real.
+     */
     public function calcularEventos()
     {
         $hoy = now()->startOfDay();
@@ -55,9 +148,18 @@ class CarteleraController extends Controller
             $movs = $item['movs'];
             $saldo = $item['saldo'];
 
-            $abonos = $movs->where('tipo', 'abono')->sortBy('fecha')->values();
-            $gestiones = $movs->where('tipo', 'gestion')->sortBy('fecha')->values();
-            $cargos = $movs->where('tipo', 'cargo')->sortBy('fecha')->values();
+            // movimientos sin fecha (importados del papel sin dato) se excluyen de
+            // todo calculo de antiguedad -- no cuentan como "hoy" ni rompen el
+            // calculo, simplemente no participan en el FIFO/promedios de fechas
+            $abonos = $movs->where('tipo', 'abono')->whereNotNull('fecha')->sortBy('fecha')->values();
+            $gestiones = $movs->where('tipo', 'gestion')->whereNotNull('fecha')->sortBy('fecha')->values();
+            $cargos = $movs->where('tipo', 'cargo')->whereNotNull('fecha')->sortBy('fecha')->values();
+
+            // fecha de referencia del cliente (ultima actividad real conocida),
+            // usada por el filtro de rango de fechas del feed -- se calcula una
+            // sola vez por cliente, no por evento
+            $ultimaActividad = $movs->whereIn('tipo', ['abono', 'gestion'])->whereNotNull('fecha')->sortByDesc('fecha')->first();
+            $fechaEvento = ($ultimaActividad?->fecha ?? $cargos->first()?->fecha)?->toDateString();
 
             $ultimoAbono = $abonos->last();
             $diasSinAbonar = $ultimoAbono ? $hoy->diffInDays($ultimoAbono->fecha, true) : null;
@@ -73,7 +175,7 @@ class CarteleraController extends Controller
                 $eventos->push($this->evento(
                     'fuera_patron', self::NARANJA, $cliente,
                     round($diasSinAbonar).' dias sin abonar, su promedio es '.round($promedioIntervalo),
-                    round($diasSinAbonar)
+                    round($diasSinAbonar), $fechaEvento
                 ));
             }
 
@@ -83,7 +185,7 @@ class CarteleraController extends Controller
                 $eventos->push($this->evento(
                     'sin_gestion', self::NARANJA, $cliente,
                     'Saldo de '.number_format($saldo, 2).' (top 25% de la cartera), sin gestion en 14 dias',
-                    $saldo
+                    $saldo, $fechaEvento
                 ));
             }
 
@@ -113,7 +215,7 @@ class CarteleraController extends Controller
                         $eventos->push($this->evento(
                             'cuota_vencida', self::ROJO, $cliente,
                             'Cuota '.$cuota->numero_cuota.' de "'.$cargo->descripcion.'" vencida hace '.round($diasAtraso).' dias',
-                            round($diasAtraso)
+                            round($diasAtraso), $fechaEvento
                         ));
                     }
                 }
@@ -132,7 +234,7 @@ class CarteleraController extends Controller
                     $eventos->push($this->evento(
                         'promesa_vencida', self::ROJO, $cliente,
                         'Prometio pagar el '.$ultimaGestionConPromesa->fecha_prometida->format('d/m/Y').', hace '.round($diasVencida).' dias, sin abono desde entonces',
-                        round($diasVencida)
+                        round($diasVencida), $fechaEvento
                     ));
                 }
             }
@@ -158,22 +260,19 @@ class CarteleraController extends Controller
                     $detalle = $masCompleto
                         ? 'Ultimo abono de '.number_format((float) $ultimo->monto, 2).', su promedio es '.number_format($promedioMontoPrevio, 2)
                         : 'Abono a los '.round($intervaloUltimo).' dias, su promedio es '.round($promedioIntervaloPrevio);
-                    $eventos->push($this->evento('buen_comportamiento', self::VERDE, $cliente, $detalle, 0));
+                    $eventos->push($this->evento('buen_comportamiento', self::VERDE, $cliente, $detalle, 0, $fechaEvento));
                 }
             }
 
             // 6. Cartera fria: 60+ dias sin abono NI gestion
-            $ultimaActividad = $movs->whereIn('tipo', ['abono', 'gestion'])->sortByDesc('fecha')->first();
-            $referencia = $ultimaActividad?->fecha ?? $cargos->first()?->fecha;
-
-            if ($referencia) {
-                $diasFrio = $hoy->diffInDays($referencia, true);
+            if ($fechaEvento) {
+                $diasFrio = $hoy->diffInDays(Carbon::parse($fechaEvento), true);
 
                 if ($diasFrio >= 60) {
                     $eventos->push($this->evento(
                         'cartera_fria', self::ROJO, $cliente,
                         round($diasFrio).' dias sin ningun movimiento (ni abono ni gestion)',
-                        round($diasFrio)
+                        round($diasFrio), $fechaEvento
                     ));
                 }
             }
@@ -186,10 +285,22 @@ class CarteleraController extends Controller
                 fn ($a, $b) => $ordenColor[$a['color']] <=> $ordenColor[$b['color']],
                 fn ($a, $b) => $b['severidad'] <=> $a['severidad'],
             ])
+            ->values()
+            ->groupBy('cliente_id')
+            ->map(function ($eventosCliente) {
+                // ya vienen ordenados por severidad -- el primero es el principal
+                $principal = $eventosCliente->first();
+                $secundarios = $eventosCliente->slice(1)->map(fn ($e) => [
+                    'tipo' => $e['tipo'],
+                    'color' => $e['color'],
+                ])->values();
+
+                return [...$principal, 'secundarios' => $secundarios];
+            })
             ->values();
     }
 
-    private function evento(string $tipo, string $color, Cliente $cliente, string $mensaje, float $severidad): array
+    private function evento(string $tipo, string $color, Cliente $cliente, string $mensaje, float $severidad, ?string $fechaEvento): array
     {
         return [
             'tipo' => $tipo,
@@ -199,6 +310,7 @@ class CarteleraController extends Controller
             'telefono' => $cliente->telefono,
             'mensaje' => $mensaje,
             'severidad' => $severidad,
+            'fecha_evento' => $fechaEvento,
         ];
     }
 }

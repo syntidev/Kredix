@@ -46,6 +46,16 @@ function waLink(evento) {
                 </span>
             </div>
             <p class="mt-0.5 text-sm text-kredix-gris">{{ evento.mensaje }}</p>
+            <div v-if="evento.secundarios && evento.secundarios.length > 0" class="mt-1.5 flex flex-wrap gap-1">
+                <span
+                    v-for="sec in evento.secundarios"
+                    :key="sec.tipo"
+                    class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                    :class="estilosColor[sec.color].badge"
+                >
+                    {{ titulos[sec.tipo] }}
+                </span>
+            </div>
             <div class="mt-2 flex gap-2">
                 <a
                     v-if="evento.telefono"
