@@ -1079,6 +1079,7 @@ function cancelForms() {
                         <span class="text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</span>
                     </div>
                     <p v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</p>
+                    <p v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion') && m.comentario" class="text-kredix-gris">{{ m.comentario }}</p>
                     <div v-if="m.comprobante_url || m.producto_url" class="flex gap-3">
                         <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="flex items-center gap-1 text-kredix-rojo underline">
                             <img v-if="!imgErrores[`mc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`mc${m.id}`)" />
@@ -1144,6 +1145,7 @@ function cancelForms() {
                             <template v-else>
                                 {{ m.descripcion }}
                                 <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="block text-xs text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
+                                <span v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion') && m.comentario" class="block text-xs text-kredix-gris">{{ m.comentario }}</span>
                                 <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="mt-1 flex items-center gap-1 text-xs text-kredix-rojo underline">
                                     <img v-if="!imgErrores[`dc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`dc${m.id}`)" />
                                     <ImageOff v-else :size="16" class="text-kredix-gris" />
