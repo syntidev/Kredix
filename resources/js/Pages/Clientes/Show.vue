@@ -16,6 +16,7 @@ const props = defineProps({
     movimientos: { type: Array, required: true },
     saldoPendiente: { type: [Number, String], required: true },
     totalCobrado: { type: [Number, String], required: true },
+    totalOtorgado: { type: [Number, String], required: true },
     reglas: { type: Array, required: true },
     compromisosCuotas: { type: Array, default: () => [] },
     mensajeWhatsapp: { type: String, default: '' },
@@ -30,6 +31,16 @@ function cambiarResponsable(event) {
         { preserveScroll: true }
     );
 }
+
+const porcentajeCobrado = computed(() => {
+    const otorgado = Number(props.totalOtorgado);
+    if (otorgado <= 0) {
+        return 0;
+    }
+    return Math.round((Number(props.totalCobrado) / otorgado) * 100);
+});
+
+const anchoBarraCobrado = computed(() => Math.min(100, Math.max(0, porcentajeCobrado.value)));
 
 const waLink = computed(() => {
     if (!props.cliente.telefono) {
@@ -413,34 +424,46 @@ function cancelForms() {
         <BackButton href="/clientes" label="Clientes" />
 
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
-            <p class="text-sm text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</p>
-            <div class="mt-2 flex items-center gap-2">
-                <label class="text-xs text-kredix-gris">Atendido por</label>
-                <select
-                    :value="cliente.usuario_responsable_id ?? ''"
-                    class="min-h-9 rounded-lg border border-gray-300 px-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none"
-                    @change="cambiarResponsable"
-                >
-                    <option value="">Sin asignar</option>
-                    <option v-for="u in usuarios" :key="u.id" :value="u.id">{{ u.name }}</option>
-                </select>
-            </div>
-            <div class="mt-3 grid grid-cols-2 gap-2 text-center">
+            <div class="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                    <p class="text-xs text-kredix-gris">Total cobrado</p>
-                    <p class="tabular-nums text-lg font-medium text-kredix-negro">{{ formatMoney(totalCobrado) }}</p>
+                    <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
+                    <p class="text-sm text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</p>
                 </div>
-                <div>
-                    <p class="text-xs text-kredix-gris">Saldo pendiente</p>
-                    <p
-                        class="tabular-nums text-3xl font-bold"
-                        :class="saldoPendiente > 0 ? 'text-kredix-rojo' : (saldoPendiente < 0 ? 'text-green-600' : 'text-kredix-negro')"
+                <div class="flex items-center gap-2">
+                    <label class="text-xs text-kredix-gris">Atendido por</label>
+                    <select
+                        :value="cliente.usuario_responsable_id ?? ''"
+                        class="min-h-9 rounded-lg border border-gray-300 px-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                        @change="cambiarResponsable"
                     >
-                        {{ formatMoney(saldoPendiente) }}
-                    </p>
+                        <option value="">Sin asignar</option>
+                        <option v-for="u in usuarios" :key="u.id" :value="u.id">{{ u.name }}</option>
+                    </select>
                 </div>
             </div>
+
+            <div class="mt-3">
+                <p class="text-xs text-kredix-gris">Saldo pendiente</p>
+                <p
+                    class="tabular-nums text-4xl font-bold"
+                    :class="saldoPendiente > 0 ? 'text-kredix-rojo' : (saldoPendiente < 0 ? 'text-green-600' : 'text-kredix-negro')"
+                >
+                    {{ formatMoney(saldoPendiente) }}
+                </p>
+                <p class="mt-0.5 text-sm text-kredix-gris">Total cobrado: <span class="tabular-nums font-medium text-kredix-negro">{{ formatMoney(totalCobrado) }}</span></p>
+            </div>
+
+            <div class="mt-3">
+                <p class="text-xs text-kredix-gris">
+                    Otorgado: <span class="font-medium text-kredix-negro">{{ formatMoney(totalOtorgado) }}</span>
+                    · Cobrado: <span class="font-medium text-green-600">{{ formatMoney(totalCobrado) }}</span>
+                    ({{ porcentajeCobrado }}%)
+                </p>
+                <div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                    <div class="h-full rounded-full bg-green-600" :style="{ width: anchoBarraCobrado + '%' }"></div>
+                </div>
+            </div>
+
             <div class="mt-3 flex flex-wrap gap-2">
                 <a
                     v-if="waLink"

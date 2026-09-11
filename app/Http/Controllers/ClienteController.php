@@ -151,6 +151,7 @@ class ClienteController extends Controller
             'movimientos' => $movimientos,
             'saldoPendiente' => $saldoPendiente,
             'totalCobrado' => MovimientoCuenta::totalCobrado($cliente->id),
+            'totalOtorgado' => (float) MovimientoCuenta::where('cliente_id', $cliente->id)->where('tipo', 'cargo')->sum('monto'),
             'reglas' => ReglaPlazo::orderBy('monto_min')->get(),
             'compromisosCuotas' => $this->compromisosCuotas($movimientosRaw),
             'mensajeWhatsapp' => $mensajeWhatsapp,
