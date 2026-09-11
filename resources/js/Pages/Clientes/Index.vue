@@ -348,20 +348,20 @@ function doDelete() {
                 </form>
 
                 <div v-else class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                    <Link :href="`/clientes/${cliente.id}`" class="block min-w-0">
-                        <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
-                        <p class="text-sm text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</p>
-                        <p v-if="cliente.email" class="text-sm text-kredix-gris">{{ cliente.email }}</p>
-                        <p v-if="cliente.cedula" class="text-sm text-kredix-gris">CI: {{ cliente.cedula }}</p>
-                    </Link>
-                    <div class="mt-3 flex justify-end gap-1 border-t border-gray-100 pt-3">
-                        <button type="button" class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="openEdit(cliente)">
-                            Editar
-                        </button>
-                        <button type="button" class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-rojo active:bg-gray-100" @click="confirmDelete(cliente)">
-                            Eliminar
-                        </button>
+                    <div class="flex items-center justify-between gap-2">
+                        <Link :href="`/clientes/${cliente.id}`" class="min-w-0 truncate font-medium text-kredix-negro">{{ cliente.nombre }}</Link>
+                        <div class="flex shrink-0 gap-1">
+                            <button type="button" class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="openEdit(cliente)">
+                                Editar
+                            </button>
+                            <button type="button" class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-rojo active:bg-gray-100" @click="confirmDelete(cliente)">
+                                Eliminar
+                            </button>
+                        </div>
                     </div>
+                    <Link :href="`/clientes/${cliente.id}`" class="block text-sm text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</Link>
+                    <Link v-if="cliente.email" :href="`/clientes/${cliente.id}`" class="block text-sm text-kredix-gris">{{ cliente.email }}</Link>
+                    <Link v-if="cliente.cedula" :href="`/clientes/${cliente.id}`" class="block text-sm text-kredix-gris">CI: {{ cliente.cedula }}</Link>
                 </div>
             </li>
         </ul>
