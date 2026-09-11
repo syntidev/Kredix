@@ -4,6 +4,7 @@ import { useForm, Head, Link, router } from '@inertiajs/vue3';
 import { Pencil, Trash2 } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
+import { formatFecha } from '../../lib/formatFecha';
 import { formatPhoneDisplay } from '../../lib/formatPhone';
 
 defineOptions({ layout: AppLayout });
@@ -253,7 +254,7 @@ function doDelete() {
                 class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm active:bg-gray-50"
             >
                 <p class="font-medium text-kredix-negro">{{ p.descripcion }}</p>
-                <p class="text-sm text-kredix-gris">{{ p.cliente_nombre }} — {{ p.fecha }} — {{ p.monto }}</p>
+                <p class="text-sm text-kredix-gris">{{ p.cliente_nombre }} — {{ formatFecha(p.fecha) }} — {{ p.monto }}</p>
             </Link>
         </div>
 

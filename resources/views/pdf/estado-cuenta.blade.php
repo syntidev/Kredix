@@ -48,6 +48,15 @@
                 return '$' . number_format((float) $valor, 2);
             }
         }
+        // equivalente de resources/js/lib/formatFecha.js -- AAAA-MM-DD almacenado, DD/MM/AAAA mostrado
+        if (! function_exists('formatFechaPdf')) {
+            function formatFechaPdf($fecha) {
+                if (! $fecha) {
+                    return '-';
+                }
+                return \Illuminate\Support\Carbon::parse($fecha)->format('d/m/Y');
+            }
+        }
     @endphp
     <table class="encabezado">
         <tr>
@@ -89,7 +98,7 @@
         <tbody>
             @forelse ($movimientos as $m)
                 <tr>
-                    <td>{{ $m['fecha'] ?? '-' }}</td>
+                    <td>{{ formatFechaPdf($m['fecha']) }}</td>
                     <td>{{ $m['tipo'] }}</td>
                     <td>{{ $m['descripcion'] }}</td>
                     <td class="monto {{ $m['tipo'] === 'abono' ? 'verde' : ($m['tipo'] === 'ajuste_devolucion' ? 'rojo' : '') }}">{{ $m['monto'] !== null ? formatMoneyPdf($m['monto']) : '-' }}</td>
@@ -107,13 +116,13 @@
 
         @foreach ($compromisosCuotas as $cargo)
             <div class="cargo-cuotas">
-                <p class="titulo">{{ $cargo['descripcion'] }} — {{ formatMoneyPdf($cargo['monto_total']) }} ({{ $cargo['fecha'] }})</p>
+                <p class="titulo">{{ $cargo['descripcion'] }} — {{ formatMoneyPdf($cargo['monto_total']) }} ({{ formatFechaPdf($cargo['fecha']) }})</p>
                 <table class="cuotas">
                     @foreach ($cargo['cuotas'] as $cuota)
                         <tr>
                             <td>Cuota {{ $cuota['numero_cuota'] }}</td>
                             <td class="monto">{{ formatMoneyPdf($cuota['monto_sugerido']) }}</td>
-                            <td>{{ $cuota['fecha_esperada'] }}</td>
+                            <td>{{ formatFechaPdf($cuota['fecha_esperada']) }}</td>
                             <td class="estado-{{ $cuota['estado'] }}">
                                 {{ $cuota['estado'] }}
                                 @if ($cuota['estado'] === 'parcial')

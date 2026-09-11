@@ -7,6 +7,7 @@ import BackButton from '../../Components/BackButton.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
 import UserAvatar from '../../Components/UserAvatar.vue';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
+import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
 import { formatPhoneDisplay } from '../../lib/formatPhone';
 
@@ -575,10 +576,10 @@ function cancelForms() {
                 </p>
             </div>
             <div v-for="cargo in compromisosCuotas" :key="cargo.cargo_id" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-                <p class="text-sm font-medium text-kredix-negro">{{ cargo.descripcion }} — <span class="tabular-nums">{{ formatMoney(cargo.monto_total) }}</span> ({{ cargo.fecha }})</p>
+                <p class="text-sm font-medium text-kredix-negro">{{ cargo.descripcion }} — <span class="tabular-nums">{{ formatMoney(cargo.monto_total) }}</span> ({{ formatFecha(cargo.fecha) }})</p>
                 <div class="mt-2 flex flex-col gap-1.5">
                     <div v-for="cuota in cargo.cuotas" :key="cuota.numero_cuota" class="flex items-center justify-between gap-2 text-sm">
-                        <span class="text-kredix-negro">Cuota {{ cuota.numero_cuota }} — <span class="tabular-nums">{{ formatMoney(cuota.monto_sugerido) }}</span> — {{ cuota.fecha_esperada }}</span>
+                        <span class="text-kredix-negro">Cuota {{ cuota.numero_cuota }} — <span class="tabular-nums">{{ formatMoney(cuota.monto_sugerido) }}</span> — {{ formatFecha(cuota.fecha_esperada) }}</span>
                         <span
                             class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
                             :class="{
@@ -984,7 +985,7 @@ function cancelForms() {
                 <button type="button" class="flex w-full items-start justify-between gap-3 text-left" @click="toggleDetalle(m.id)">
                     <div class="flex min-w-0 flex-col gap-0.5">
                         <div class="flex items-center gap-2">
-                            <span class="text-xs text-kredix-gris">{{ m.fecha ?? '-' }}</span>
+                            <span class="text-xs text-kredix-gris">{{ formatFecha(m.fecha) }}</span>
                             <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="badgeTipo(m.tipo)">{{ m.tipo }}</span>
                         </div>
                         <p class="break-words text-sm text-kredix-negro">
@@ -1066,7 +1067,7 @@ function cancelForms() {
                         class="border-t border-gray-100 align-top"
                         :class="[idx % 2 === 1 ? 'bg-gray-50' : 'bg-white', m.tipo === 'gestion' ? 'italic' : '']"
                     >
-                        <td class="whitespace-nowrap px-2 py-2 text-kredix-negro">{{ m.fecha ?? '-' }}</td>
+                        <td class="whitespace-nowrap px-2 py-2 text-kredix-negro">{{ formatFecha(m.fecha) }}</td>
                         <td class="px-2 py-2">
                             <span class="rounded-full px-2 py-0.5 text-xs font-medium not-italic" :class="badgeTipo(m.tipo)">{{ m.tipo }}</span>
                         </td>

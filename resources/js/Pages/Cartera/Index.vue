@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { UserCheck, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import StatCard from '../../Components/StatCard.vue';
+import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
 
 defineOptions({ layout: AppLayout });
@@ -64,7 +65,7 @@ function colorDias(dias) {
                             <Link :href="`/clientes/${c.id}`" class="text-kredix-negro underline">{{ c.nombre }}</Link>
                         </td>
                         <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-rojo">{{ formatMoney(c.saldoPendiente) }}</td>
-                        <td class="break-words px-2 py-2 text-kredix-gris">{{ c.ultimoAbonoFecha ?? 'nunca' }}</td>
+                        <td class="break-words px-2 py-2 text-kredix-gris">{{ c.ultimoAbonoFecha ? formatFecha(c.ultimoAbonoFecha) : 'nunca' }}</td>
                         <td class="break-words px-2 py-2 text-right font-medium" :class="colorDias(c.diasDesdeUltimoAbono)">{{ c.diasDesdeUltimoAbono ?? 'nunca' }}</td>
                     </tr>
                 </tbody>
