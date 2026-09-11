@@ -14,7 +14,9 @@
         table.movimientos th { background: #f2f1ee; text-transform: uppercase; font-size: 9px; color: #666; }
         table.movimientos td.monto, table.movimientos th.monto { text-align: right; }
         .saldo-final { font-weight: bold; }
-        .saldo-final .rojo { color: #c00000; }
+        .rojo { color: #c00000; }
+        .verde { color: #15803d; }
+        .saldo-grande { font-size: 22px; font-weight: bold; }
         h2 { font-size: 13px; margin: 16px 0 6px; }
         .nota { color: #666; font-size: 9px; margin-bottom: 8px; }
         .cargo-cuotas { margin-bottom: 10px; }
@@ -37,6 +39,16 @@
     </style>
 </head>
 <body>
+    @php
+        // dompdf no ejecuta JS -- equivalente de resources/js/lib/formatMoney.js
+        // function_exists() evita "Cannot redeclare" si el mismo worker PHP
+        // renderiza esta vista mas de una vez (ej. 2 descargas seguidas)
+        if (! function_exists('formatMoneyPdf')) {
+            function formatMoneyPdf($valor) {
+                return '$' . number_format((float) $valor, 2);
+            }
+        }
+    @endphp
     <table class="encabezado">
         <tr>
             <td class="col-empresa">
@@ -61,7 +73,7 @@
         @if ($cliente->cedula)
             <tr><td class="label">Cedula</td><td>{{ $cliente->cedula }}</td></tr>
         @endif
-        <tr><td class="label">Saldo pendiente</td><td><strong>{{ number_format($saldoPendiente, 2) }}</strong></td></tr>
+        <tr><td class="label">Saldo pendiente</td><td class="saldo-grande {{ $saldoPendiente > 0 ? 'rojo' : ($saldoPendiente < 0 ? 'verde' : '') }}">{{ formatMoneyPdf($saldoPendiente) }}</td></tr>
     </table>
 
     <table class="movimientos">
@@ -77,11 +89,11 @@
         <tbody>
             @forelse ($movimientos as $m)
                 <tr>
-                    <td>{{ $m['fecha'] }}</td>
+                    <td>{{ $m['fecha'] ?? '-' }}</td>
                     <td>{{ $m['tipo'] }}</td>
                     <td>{{ $m['descripcion'] }}</td>
-                    <td class="monto">{{ $m['monto'] !== null ? number_format($m['monto'], 2) : '-' }}</td>
-                    <td class="monto">{{ number_format($m['saldo_acumulado'], 2) }}</td>
+                    <td class="monto {{ $m['tipo'] === 'abono' ? 'verde' : ($m['tipo'] === 'ajuste_devolucion' ? 'rojo' : '') }}">{{ $m['monto'] !== null ? formatMoneyPdf($m['monto']) : '-' }}</td>
+                    <td class="monto">{{ formatMoneyPdf($m['saldo_acumulado']) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="5">Sin movimientos registrados.</td></tr>
@@ -95,17 +107,17 @@
 
         @foreach ($compromisosCuotas as $cargo)
             <div class="cargo-cuotas">
-                <p class="titulo">{{ $cargo['descripcion'] }} — {{ number_format($cargo['monto_total'], 2) }} ({{ $cargo['fecha'] }})</p>
+                <p class="titulo">{{ $cargo['descripcion'] }} — {{ formatMoneyPdf($cargo['monto_total']) }} ({{ $cargo['fecha'] }})</p>
                 <table class="cuotas">
                     @foreach ($cargo['cuotas'] as $cuota)
                         <tr>
                             <td>Cuota {{ $cuota['numero_cuota'] }}</td>
-                            <td class="monto">{{ number_format($cuota['monto_sugerido'], 2) }}</td>
+                            <td class="monto">{{ formatMoneyPdf($cuota['monto_sugerido']) }}</td>
                             <td>{{ $cuota['fecha_esperada'] }}</td>
                             <td class="estado-{{ $cuota['estado'] }}">
                                 {{ $cuota['estado'] }}
                                 @if ($cuota['estado'] === 'parcial')
-                                    ({{ number_format($cuota['monto_aplicado'], 2) }} de {{ number_format($cuota['monto_sugerido'], 2) }})
+                                    ({{ formatMoneyPdf($cuota['monto_aplicado']) }} de {{ formatMoneyPdf($cuota['monto_sugerido']) }})
                                 @endif
                             </td>
                         </tr>
