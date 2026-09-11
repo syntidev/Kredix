@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Configuracion;
+use App\Services\ImagenUploadService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ConfiguracionController extends Controller
 {
     private const CLAVES_EMPRESA = ['empresa_razon_social', 'empresa_rif', 'empresa_direccion', 'empresa_telefono', 'empresa_email'];
+
+    public function __construct(private ImagenUploadService $imagenUploadService)
+    {
+    }
 
     public function index()
     {
@@ -69,7 +74,11 @@ class ConfiguracionController extends Controller
         }
 
         if ($request->hasFile('logo')) {
-            Configuracion::logoHost()->addMediaFromRequest('logo')->toMediaCollection('logo_empresa');
+            $rutaComprimida = $this->imagenUploadService->comprimir($request->file('logo'));
+
+            Configuracion::logoHost()->addMedia($rutaComprimida)
+                ->usingFileName($request->file('logo')->getClientOriginalName())
+                ->toMediaCollection('logo_empresa');
         }
 
         return redirect()->route('configuracion.index');

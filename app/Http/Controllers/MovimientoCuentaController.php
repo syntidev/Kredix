@@ -3,11 +3,26 @@
 namespace App\Http\Controllers;
 
 use App\Models\MovimientoCuenta;
+use App\Services\ImagenUploadService;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 
 class MovimientoCuentaController extends Controller
 {
+    public function __construct(private ImagenUploadService $imagenUploadService)
+    {
+    }
+
+    private function adjuntarComprimida(MovimientoCuenta $movimiento, UploadedFile $file, string $coleccion): void
+    {
+        $rutaComprimida = $this->imagenUploadService->comprimir($file);
+
+        $movimiento->addMedia($rutaComprimida)
+            ->usingFileName($file->getClientOriginalName())
+            ->toMediaCollection($coleccion);
+    }
+
     public function store(Request $request)
     {
         $tipo = $request->input('tipo');
@@ -76,11 +91,11 @@ class MovimientoCuentaController extends Controller
         ]);
 
         if ($request->hasFile('comprobante')) {
-            $movimiento->addMediaFromRequest('comprobante')->toMediaCollection('comprobantes');
+            $this->adjuntarComprimida($movimiento, $request->file('comprobante'), 'comprobantes');
         }
 
         if ($esCargo && $request->hasFile('foto_producto')) {
-            $movimiento->addMediaFromRequest('foto_producto')->toMediaCollection('producto');
+            $this->adjuntarComprimida($movimiento, $request->file('foto_producto'), 'producto');
         }
 
         if ($esCargo && $request->boolean('usa_plan_cuotas')) {
@@ -152,11 +167,11 @@ class MovimientoCuentaController extends Controller
         ]);
 
         if ($request->hasFile('comprobante')) {
-            $movimiento->addMediaFromRequest('comprobante')->toMediaCollection('comprobantes');
+            $this->adjuntarComprimida($movimiento, $request->file('comprobante'), 'comprobantes');
         }
 
         if ($esCargo && $request->hasFile('foto_producto')) {
-            $movimiento->addMediaFromRequest('foto_producto')->toMediaCollection('producto');
+            $this->adjuntarComprimida($movimiento, $request->file('foto_producto'), 'producto');
         }
 
         activity()
