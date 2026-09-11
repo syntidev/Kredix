@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ArrowDown, ArrowUp, FileText, ImageOff, MessageCircle, NotebookPen, Pencil, Repeat, Search, Trash2 } from '@lucide/vue';
+import { ArrowDown, ArrowUp, FileText, ImageOff, MessageCircle, NotebookPen, Pencil, Repeat, Search, Trash2, X } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
@@ -230,6 +230,10 @@ const cargoForm = useForm({
 watch(() => cargoForm.modalidad_precio, (val) => {
     if (val === 'divisa') {
         cargoForm.tasa_cambio = '';
+    } else if (val === 'bcv') {
+        // sin input visible en el formulario -- se autocompleta con la tasa BCV
+        // del dia igual que hacia TasaBcvInput, editable solo desde Editar
+        cargoForm.tasa_cambio = props.tasaBcvCargo?.rate ?? '';
     }
 });
 
@@ -344,7 +348,10 @@ const abonoForm = useForm({
     descripcion: '',
     monto: '',
     moneda: 'usd',
-    tasa_cambio: '',
+    // sin input visible en el formulario -- se autocompleta con la tasa BCV del
+    // dia (mismo valor que TasaBcvInput usaba automaticamente), editable solo
+    // desde el modal de Editar si hace falta corregirla despues
+    tasa_cambio: props.tasaBcvCargo?.rate ?? '',
     metodo_pago: 'efectivo',
     comentario: '',
     comprobante: null,
@@ -696,7 +703,15 @@ function cancelForms() {
             </div>
         </div>
 
-        <form v-if="formMode === 'cargo'" class="mx-auto grid w-full grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" @submit.prevent="submitCargo">
+        <div v-if="formMode === 'cargo'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="cancelForms">
+        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" @submit.prevent="submitCargo">
+            <div class="flex items-center justify-between md:col-span-2">
+                <h2 class="font-medium text-kredix-negro">Nuevo cargo</h2>
+                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="cancelForms">
+                    <X :size="18" />
+                </button>
+            </div>
+
             <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Descripcion</label>
                 <input v-model="cargoForm.descripcion" type="text" placeholder="ej: Bicicleta Factor Monza" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
@@ -755,9 +770,6 @@ function cancelForms() {
                 </select>
             </div>
 
-            <TasaBcvInput v-if="cargoForm.modalidad_precio === 'bcv'" v-model="cargoForm.tasa_cambio" :tasa-bcv="tasaBcvCargo" />
-            <p v-if="cargoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo md:col-span-2">{{ cargoForm.errors.tasa_cambio }}</p>
-
             <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional)</span></label>
                 <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onFotoProductoChange" />
@@ -806,8 +818,17 @@ function cancelForms() {
                 <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="cargoForm.processing">Guardar cargo</button>
             </div>
         </form>
+        </div>
 
-        <form v-if="formMode === 'abono'" class="mx-auto grid w-full grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
+        <div v-if="formMode === 'abono'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="cancelForms">
+        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
+            <div class="flex items-center justify-between md:col-span-2">
+                <h2 class="font-medium text-kredix-negro">Nuevo abono</h2>
+                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="cancelForms">
+                    <X :size="18" />
+                </button>
+            </div>
+
             <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro md:col-span-2">
                 <input v-model="esAjuste" type="checkbox" class="h-4 w-4" />
                 Es ajuste / devolucion (no cuenta como dinero cobrado)
@@ -823,9 +844,6 @@ function cancelForms() {
                 <input v-model="abonoForm.monto" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 <p v-if="abonoForm.errors.monto" class="text-sm text-kredix-rojo">{{ abonoForm.errors.monto }}</p>
             </div>
-
-            <TasaBcvInput v-model="abonoForm.tasa_cambio" :tasa-bcv="tasaBcvCargo" />
-            <p v-if="abonoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo md:col-span-2">{{ abonoForm.errors.tasa_cambio }}</p>
 
             <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Metodo de pago</label>
@@ -858,6 +876,7 @@ function cancelForms() {
                 <button type="submit" class="min-h-11 flex-1 rounded-lg bg-green-600 text-sm font-semibold text-white disabled:opacity-60" :disabled="abonoForm.processing">Guardar abono</button>
             </div>
         </form>
+        </div>
 
         <form v-if="formMode === 'gestion'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitGestion">
             <p class="text-sm font-medium text-kredix-negro">Anotar gestión</p>
