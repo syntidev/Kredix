@@ -136,7 +136,7 @@ function confirmarYResetear() {
         </form>
 
         <ul class="flex flex-col gap-2">
-            <li v-for="usuario in usuarios" :key="usuario.id" class="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <li v-for="usuario in usuarios" :key="usuario.id" class="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                 <div class="min-w-0">
                     <p class="font-medium text-kredix-negro">
                         {{ usuario.name }}
@@ -145,7 +145,7 @@ function confirmarYResetear() {
                     </p>
                     <p class="text-sm text-kredix-gris">{{ usuario.email }}</p>
                 </div>
-                <div class="flex shrink-0 gap-1">
+                <div class="flex gap-1 sm:shrink-0">
                     <button
                         type="button"
                         class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"

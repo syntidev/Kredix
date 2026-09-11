@@ -46,8 +46,8 @@ const mostrarAyuda = ref(false);
                 <component :is="icon" :size="20" :class="classesFor(variant).icon" />
             </div>
             <p
-                class="tabular-nums text-kredix-negro"
-                :class="tamano === 'grande' ? 'text-5xl font-bold' : 'text-3xl font-semibold'"
+                class="min-w-0 tabular-nums text-kredix-negro"
+                :class="tamano === 'grande' ? 'text-3xl font-bold sm:text-5xl' : 'text-2xl font-semibold sm:text-3xl'"
             >
                 {{ value }}
             </p>

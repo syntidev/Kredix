@@ -1,7 +1,7 @@
 <script setup>
 import { computed, defineAsyncComponent, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import { ChevronDown, TrendingUp, Wallet } from '@lucide/vue';
+import { ChevronDown, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import StatCard from '../../Components/StatCard.vue';
 import { formatMoney } from '../../lib/formatMoney';
@@ -91,7 +91,7 @@ const rangosCartera = computed(() => {
         <StatCard label="Dinero en calle" :value="formatMoney(dineroEnCalle)" :icon="Wallet" variant="rojo" tamano="grande" />
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <StatCard v-for="s in seccionesPeriodo" :key="s.key" :label="s.etiqueta" :value="formatMoney(s.actual.cobrado)" :icon="TrendingUp" variant="verde" :ayuda="AYUDA_PERIODO">
+            <StatCard v-for="s in seccionesPeriodo" :key="s.key" :label="s.etiqueta" :value="formatMoney(s.actual.cobrado)" :icon="s.actual.neto >= 0 ? TrendingUp : TrendingDown" :variant="s.actual.neto >= 0 ? 'verde' : 'rojo'" :ayuda="AYUDA_PERIODO">
                 <p class="mt-1 text-xs text-kredix-gris">
                     Otorgado: <span class="font-medium text-kredix-negro">{{ formatMoney(s.actual.otorgado) }}</span>
                     · Neto: <span class="font-medium" :class="s.actual.neto >= 0 ? 'text-green-600' : 'text-kredix-rojo'">{{ formatMoney(s.actual.neto) }}</span>
