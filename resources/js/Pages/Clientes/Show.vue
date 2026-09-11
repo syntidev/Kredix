@@ -867,7 +867,7 @@ function cancelForms() {
                     <div class="flex min-w-0 flex-col gap-0.5">
                         <div class="flex items-center gap-2">
                             <span class="text-xs text-kredix-gris">{{ m.fecha ?? '-' }}</span>
-                            <span class="text-xs font-medium text-kredix-negro" :class="m.tipo === 'gestion' ? 'italic' : ''">{{ m.tipo }}</span>
+                            <span class="text-xs font-medium" :class="[estiloMovimiento(m.tipo).color, m.tipo === 'gestion' ? 'italic' : '']">{{ m.tipo }}</span>
                         </div>
                         <p class="break-words text-sm text-kredix-negro">
                             <template v-if="m.tipo === 'gestion'">{{ tipoContactoLabel[m.tipo_contacto] ?? m.tipo_contacto }} — {{ m.comentario }}</template>
@@ -952,7 +952,7 @@ function cancelForms() {
                 <tbody>
                     <tr v-for="m in movimientosConSaldo" :key="m.id" class="border-t border-gray-100 align-top" :class="m.tipo === 'gestion' ? 'bg-gray-50 italic' : ''">
                         <td class="whitespace-nowrap px-2 py-2 text-kredix-negro">{{ m.fecha ?? '-' }}</td>
-                        <td class="break-words px-2 py-2 text-kredix-gris">{{ m.tipo }}</td>
+                        <td class="break-words px-2 py-2" :class="m.tipo === 'gestion' ? 'text-kredix-gris' : estiloMovimiento(m.tipo).color">{{ m.tipo }}</td>
                         <td class="break-words px-2 py-2 text-kredix-negro">
                             <template v-if="m.tipo === 'gestion'">
                                 {{ tipoContactoLabel[m.tipo_contacto] ?? m.tipo_contacto }} — {{ m.comentario }}
