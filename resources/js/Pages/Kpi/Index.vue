@@ -12,16 +12,19 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     dineroEnCalle: { type: Number, required: true },
-    recuperadoMesActual: { type: Number, required: true },
-    recuperadoMesAnterior: { type: Number, required: true },
-    cambioPorcentaje: { type: [Number, null], default: null },
+    periodos: { type: Object, required: true },
     semanasDelMes: { type: Array, required: true },
     ultimos6Meses: { type: Array, required: true },
-    totalOtorgadoHistorico: { type: Number, required: true },
-    totalCobradoHistorico: { type: Number, required: true },
     actividadCobradores: { type: Array, required: true },
     antiguedadCartera: { type: Object, required: true },
 });
+
+const seccionesPeriodo = computed(() => [
+    { key: 'mes', ...props.periodos.mes },
+    { key: 'trimestre', ...props.periodos.trimestre },
+    { key: 'anio', ...props.periodos.anio },
+    { key: 'historico', ...props.periodos.historico },
+]);
 
 const vista = ref('semana');
 const datosVista = computed(() => (vista.value === 'semana' ? props.semanasDelMes : props.ultimos6Meses));
@@ -61,19 +64,19 @@ const rangosCartera = computed(() => {
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <h1 class="text-xl font-semibold text-kredix-negro">KPI</h1>
 
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <StatCard label="Dinero en calle" :value="formatMoney(dineroEnCalle)" :icon="Wallet" variant="rojo" tamano="grande" />
-            <StatCard label="Recuperado este mes" :value="formatMoney(recuperadoMesActual)" :icon="TrendingUp" variant="verde">
-                <p v-if="cambioPorcentaje !== null" class="mt-1 text-sm font-medium" :class="cambioPorcentaje >= 0 ? 'text-green-600' : 'text-kredix-rojo'">
-                    {{ cambioPorcentaje >= 0 ? '▲' : '▼' }} {{ Math.abs(cambioPorcentaje) }}% vs mes anterior
-                </p>
-                <p v-else class="mt-1 text-sm text-kredix-gris">sin datos del mes anterior</p>
-            </StatCard>
-        </div>
+        <StatCard label="Dinero en calle" :value="formatMoney(dineroEnCalle)" :icon="Wallet" variant="rojo" tamano="grande" />
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <StatCard label="Total otorgado (historico)" :value="formatMoney(totalOtorgadoHistorico)" :icon="Wallet" variant="negro" />
-            <StatCard label="Total cobrado (historico)" :value="formatMoney(totalCobradoHistorico)" :icon="TrendingUp" variant="verde" />
+            <StatCard v-for="s in seccionesPeriodo" :key="s.key" :label="s.etiqueta" :value="formatMoney(s.actual.cobrado)" :icon="TrendingUp" variant="verde">
+                <p class="mt-1 text-xs text-kredix-gris">
+                    Otorgado: <span class="font-medium text-kredix-negro">{{ formatMoney(s.actual.otorgado) }}</span>
+                    · Neto: <span class="font-medium" :class="s.actual.neto >= 0 ? 'text-green-600' : 'text-kredix-rojo'">{{ formatMoney(s.actual.neto) }}</span>
+                </p>
+                <p v-if="s.variacion !== null" class="mt-1 text-sm font-medium" :class="s.variacion >= 0 ? 'text-green-600' : 'text-kredix-rojo'">
+                    {{ s.variacion >= 0 ? '▲' : '▼' }} {{ Math.abs(s.variacion) }}% vs {{ s.etiquetaAnterior }}
+                </p>
+                <p v-else-if="s.etiquetaAnterior" class="mt-1 text-sm text-kredix-gris">sin datos de {{ s.etiquetaAnterior }}</p>
+            </StatCard>
         </div>
 
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">

@@ -10,6 +10,10 @@ use Inertia\Inertia;
 
 class KpiController extends Controller
 {
+    // piso donde empieza el volumen real del negocio -- sin techo de año, asi el
+    // sistema sigue funcionando correcto en 2027, 2028, etc. sin tocar este filtro
+    private const PISO_FECHA_KPI = '2025-01-01';
+
     public function index()
     {
         $hoy = now();
@@ -35,18 +39,62 @@ class KpiController extends Controller
         // 1. dinero en calle: suma de saldo pendiente de toda la cartera
         $dineroEnCalle = $porCliente->sum($saldoDe);
 
-        // 2. recuperado mes actual vs mes anterior
-        $recuperadoMesActual = (float) $todosConFecha->filter(
-            fn (MovimientoCuenta $m) => $m->tipo === 'abono' && $m->fecha->between($inicioMes, $finMes)
-        )->sum('monto');
+        // 2. KPI segmentado por periodo -- solo movimientos desde PISO_FECHA_KPI en
+        // adelante (asi los 12 movimientos aislados pre-2025 y los sin fecha nunca
+        // entran a ninguna de estas 4 secciones, permanentemente, sin techo de año)
+        $movsDesdePiso = $todosConFecha->filter(fn (MovimientoCuenta $m) => $m->fecha->gte(self::PISO_FECHA_KPI));
 
-        $recuperadoMesAnterior = (float) $todosConFecha->filter(
-            fn (MovimientoCuenta $m) => $m->tipo === 'abono' && $m->fecha->between($inicioMesAnterior, $finMesAnterior)
-        )->sum('monto');
+        $inicioTrimestre = $hoy->copy()->startOfQuarter();
+        $finTrimestre = $hoy->copy()->endOfQuarter();
+        $inicioTrimestreAnterior = $hoy->copy()->subMonthsNoOverflow(3)->startOfQuarter();
+        $finTrimestreAnterior = $hoy->copy()->subMonthsNoOverflow(3)->endOfQuarter();
 
-        $cambioPorcentaje = $recuperadoMesAnterior > 0
-            ? round((($recuperadoMesActual - $recuperadoMesAnterior) / $recuperadoMesAnterior) * 100, 1)
-            : null;
+        $inicioAnio = $hoy->copy()->startOfYear();
+        $inicioAnioAnterior = $hoy->copy()->subYearNoOverflow()->startOfYear();
+        $finAnioAnterior = $hoy->copy()->subYearNoOverflow();
+
+        $resumenMes = $this->resumenPeriodo($movsDesdePiso, $inicioMes, $finMes);
+        $resumenMesAnterior = $this->resumenPeriodo($movsDesdePiso, $inicioMesAnterior, $finMesAnterior);
+        $resumenTrimestre = $this->resumenPeriodo($movsDesdePiso, $inicioTrimestre, $finTrimestre);
+        $resumenTrimestreAnterior = $this->resumenPeriodo($movsDesdePiso, $inicioTrimestreAnterior, $finTrimestreAnterior);
+        $resumenAnio = $this->resumenPeriodo($movsDesdePiso, $inicioAnio, $hoy);
+        $resumenAnioAnterior = $this->resumenPeriodo($movsDesdePiso, $inicioAnioAnterior, $finAnioAnterior);
+        $resumenHistorico = [
+            'otorgado' => (float) $movsDesdePiso->where('tipo', 'cargo')->sum('monto'),
+            'cobrado' => (float) $movsDesdePiso->where('tipo', 'abono')->sum('monto'),
+        ];
+        $resumenHistorico['neto'] = $resumenHistorico['cobrado'] - $resumenHistorico['otorgado'];
+
+        $periodos = [
+            'mes' => [
+                'etiqueta' => 'Este mes',
+                'etiquetaAnterior' => 'Mes anterior',
+                'actual' => $resumenMes,
+                'anterior' => $resumenMesAnterior,
+                'variacion' => $this->variacionPorcentaje($resumenMes['cobrado'], $resumenMesAnterior['cobrado']),
+            ],
+            'trimestre' => [
+                'etiqueta' => 'Este trimestre',
+                'etiquetaAnterior' => 'Trimestre anterior',
+                'actual' => $resumenTrimestre,
+                'anterior' => $resumenTrimestreAnterior,
+                'variacion' => $this->variacionPorcentaje($resumenTrimestre['cobrado'], $resumenTrimestreAnterior['cobrado']),
+            ],
+            'anio' => [
+                'etiqueta' => 'Este año (YTD)',
+                'etiquetaAnterior' => 'Mismo periodo año anterior',
+                'actual' => $resumenAnio,
+                'anterior' => $resumenAnioAnterior,
+                'variacion' => $this->variacionPorcentaje($resumenAnio['cobrado'], $resumenAnioAnterior['cobrado']),
+            ],
+            'historico' => [
+                'etiqueta' => 'Historico (desde '.self::PISO_FECHA_KPI.')',
+                'etiquetaAnterior' => null,
+                'actual' => $resumenHistorico,
+                'anterior' => null,
+                'variacion' => null,
+            ],
+        ];
 
         // 3. ultimas 4 semanas rodantes (no mes calendario): otorgado vs cobrado
         $movimientosMes = $todosConFecha->filter(fn (MovimientoCuenta $m) => $m->fecha->between($inicioMes, $finMes));
@@ -126,21 +174,31 @@ class KpiController extends Controller
             ];
         })->values();
 
-        // 7. totales acumulados desde el inicio del sistema (sin filtro de fecha)
-        $totalOtorgadoHistorico = (float) $todos->where('tipo', 'cargo')->sum('monto');
-        $totalCobradoHistorico = (float) $todos->where('tipo', 'abono')->sum('monto');
-
         return Inertia::render('Kpi/Index', [
             'dineroEnCalle' => $dineroEnCalle,
-            'recuperadoMesActual' => $recuperadoMesActual,
-            'recuperadoMesAnterior' => $recuperadoMesAnterior,
-            'cambioPorcentaje' => $cambioPorcentaje,
+            'periodos' => $periodos,
             'semanasDelMes' => $semanasDelMes,
             'ultimos6Meses' => $ultimos6Meses,
-            'totalOtorgadoHistorico' => $totalOtorgadoHistorico,
-            'totalCobradoHistorico' => $totalCobradoHistorico,
             'actividadCobradores' => $actividadCobradores,
             'antiguedadCartera' => $rangos,
         ]);
+    }
+
+    /**
+     * Otorgado (cargos), cobrado (abonos) y neto (cobrado - otorgado) de $movs
+     * dentro de [$desde, $hasta].
+     */
+    private function resumenPeriodo($movs, $desde, $hasta): array
+    {
+        $enRango = $movs->filter(fn (MovimientoCuenta $m) => $m->fecha->between($desde, $hasta));
+        $otorgado = (float) $enRango->where('tipo', 'cargo')->sum('monto');
+        $cobrado = (float) $enRango->where('tipo', 'abono')->sum('monto');
+
+        return ['otorgado' => $otorgado, 'cobrado' => $cobrado, 'neto' => $cobrado - $otorgado];
+    }
+
+    private function variacionPorcentaje(float $actual, float $anterior): ?float
+    {
+        return $anterior > 0 ? round((($actual - $anterior) / $anterior) * 100, 1) : null;
     }
 }
