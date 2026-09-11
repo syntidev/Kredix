@@ -25,7 +25,7 @@ let searchTimeout = null;
 const filtrosDias = [
     { valor: 'reciente', etiqueta: 'Con abono reciente' },
     { valor: 'sin_reciente', etiqueta: 'Sin abono reciente' },
-    { valor: 'fria', etiqueta: 'Cartera fria' },
+    { valor: 'fria', etiqueta: '90+ dias sin abonar' },
     { valor: 'nunca', etiqueta: 'Nunca abonaron' },
 ];
 
