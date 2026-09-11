@@ -1,10 +1,11 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ArrowDown, ArrowLeftRight, ArrowUp, FileText, ImageOff, MessageCircle, NotebookPen, Repeat } from '@lucide/vue';
+import { ArrowDown, ArrowLeftRight, ArrowUp, FileText, ImageOff, MessageCircle, NotebookPen, Repeat, Search } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
+import UserAvatar from '../../Components/UserAvatar.vue';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
 import { formatMoney } from '../../lib/formatMoney';
 import { formatPhoneDisplay } from '../../lib/formatPhone';
@@ -85,6 +86,17 @@ function estiloMovimiento(tipo) {
     return ESTILO_MOVIMIENTO[tipo] ?? { signo: '', color: 'text-kredix-negro', icono: null };
 }
 
+const BADGE_TIPO = {
+    cargo: 'bg-orange-100 text-orange-700',
+    abono: 'bg-green-100 text-green-700',
+    ajuste_devolucion: 'bg-green-100 text-green-700',
+    gestion: 'bg-gray-100 text-kredix-gris',
+};
+
+function badgeTipo(tipo) {
+    return BADGE_TIPO[tipo] ?? 'bg-gray-100 text-kredix-gris';
+}
+
 function today() {
     return new Date().toISOString().slice(0, 10);
 }
@@ -98,6 +110,19 @@ const movimientosConSaldo = computed(() => {
         const monto = parseFloat(m.monto) || 0;
         saldo += m.tipo === 'cargo' ? monto : -monto;
         return { ...m, saldoAcumulado: saldo };
+    });
+});
+
+const busquedaMovimientos = ref('');
+
+const movimientosFiltrados = computed(() => {
+    const q = busquedaMovimientos.value.trim().toLowerCase();
+    if (!q) return movimientosConSaldo.value;
+    return movimientosConSaldo.value.filter((m) => {
+        const descripcion = (m.descripcion ?? '').toLowerCase();
+        const comentario = (m.comentario ?? '').toLowerCase();
+        const fecha = (m.fecha ?? '').toLowerCase();
+        return descripcion.includes(q) || comentario.includes(q) || fecha.includes(q);
     });
 });
 
@@ -425,9 +450,12 @@ function cancelForms() {
 
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                    <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
-                    <p class="text-sm text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</p>
+                <div class="flex items-center gap-3">
+                    <UserAvatar :nombre="cliente.nombre" size="md" />
+                    <div>
+                        <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
+                        <p class="text-sm text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</p>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <label class="text-xs text-kredix-gris">Atendido por</label>
@@ -919,18 +947,30 @@ function cancelForms() {
 
         <p v-if="movimientos.length === 0" class="text-sm text-kredix-gris">Todavia no hay movimientos registrados.</p>
 
-        <div v-if="movimientos.length > 0" class="flex flex-col gap-2 md:hidden">
+        <div v-if="movimientos.length > 0" class="relative">
+            <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-kredix-gris" />
+            <input
+                v-model="busquedaMovimientos"
+                type="text"
+                placeholder="Buscar por descripcion o fecha..."
+                class="min-h-11 w-full rounded-lg border border-gray-300 pl-9 pr-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+            />
+        </div>
+
+        <p v-if="movimientos.length > 0 && movimientosFiltrados.length === 0" class="text-sm text-kredix-gris">Sin resultados para "{{ busquedaMovimientos }}".</p>
+
+        <div v-if="movimientosFiltrados.length > 0" class="flex flex-col gap-2 md:hidden">
             <div
-                v-for="m in movimientosConSaldo"
+                v-for="(m, idx) in movimientosFiltrados"
                 :key="m.id"
-                class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm"
-                :class="m.tipo === 'gestion' ? 'bg-gray-50' : ''"
+                class="rounded-lg border border-gray-200 p-3 shadow-sm"
+                :class="idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'"
             >
                 <button type="button" class="flex w-full items-start justify-between gap-3 text-left" @click="toggleDetalle(m.id)">
                     <div class="flex min-w-0 flex-col gap-0.5">
                         <div class="flex items-center gap-2">
                             <span class="text-xs text-kredix-gris">{{ m.fecha ?? '-' }}</span>
-                            <span class="text-xs font-medium" :class="[estiloMovimiento(m.tipo).color, m.tipo === 'gestion' ? 'italic' : '']">{{ m.tipo }}</span>
+                            <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="badgeTipo(m.tipo)">{{ m.tipo }}</span>
                         </div>
                         <p class="break-words text-sm text-kredix-negro">
                             <template v-if="m.tipo === 'gestion'">{{ tipoContactoLabel[m.tipo_contacto] ?? m.tipo_contacto }} — {{ m.comentario }}</template>
@@ -986,7 +1026,7 @@ function cancelForms() {
             </div>
         </div>
 
-        <div v-if="movimientos.length > 0" class="hidden rounded-lg border border-gray-200 bg-white shadow-sm md:block">
+        <div v-if="movimientosFiltrados.length > 0" class="hidden rounded-lg border border-gray-200 bg-white shadow-sm md:block">
             <table class="w-full table-fixed text-left text-sm">
                 <colgroup>
                     <col class="w-[92px]" />
@@ -1013,9 +1053,16 @@ function cancelForms() {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="m in movimientosConSaldo" :key="m.id" class="border-t border-gray-100 align-top" :class="m.tipo === 'gestion' ? 'bg-gray-50 italic' : ''">
+                    <tr
+                        v-for="(m, idx) in movimientosFiltrados"
+                        :key="m.id"
+                        class="border-t border-gray-100 align-top"
+                        :class="[idx % 2 === 1 ? 'bg-gray-50' : 'bg-white', m.tipo === 'gestion' ? 'italic' : '']"
+                    >
                         <td class="whitespace-nowrap px-2 py-2 text-kredix-negro">{{ m.fecha ?? '-' }}</td>
-                        <td class="break-words px-2 py-2" :class="m.tipo === 'gestion' ? 'text-kredix-gris' : estiloMovimiento(m.tipo).color">{{ m.tipo }}</td>
+                        <td class="px-2 py-2">
+                            <span class="rounded-full px-2 py-0.5 text-xs font-medium not-italic" :class="badgeTipo(m.tipo)">{{ m.tipo }}</span>
+                        </td>
                         <td class="break-words px-2 py-2 text-kredix-negro">
                             <template v-if="m.tipo === 'gestion'">
                                 {{ tipoContactoLabel[m.tipo_contacto] ?? m.tipo_contacto }} — {{ m.comentario }}
