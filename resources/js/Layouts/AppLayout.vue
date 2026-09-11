@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { BarChart3, Bell, ChevronDown, Home, MoreHorizontal, Settings, Users, Wallet } from '@lucide/vue';
+import { BarChart3, Bell, ChevronDown, Home, LogOut, MoreHorizontal, Settings, Users, Wallet } from '@lucide/vue';
 import InstallPrompt from '../Components/InstallPrompt.vue';
 import UserAvatar from '../Components/UserAvatar.vue';
 
@@ -225,6 +225,14 @@ function logout() {
             >
                 {{ item.label }}
             </Link>
+            <button
+                type="button"
+                class="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-3 text-left text-sm font-medium text-kredix-rojo active:bg-gray-50"
+                @click="masAbierto = false; logout()"
+            >
+                <LogOut :size="16" />
+                Salir
+            </button>
         </div>
     </div>
 </template>
