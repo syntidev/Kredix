@@ -128,6 +128,7 @@ function cancelEdit() {
 function submitEdit() {
     editForm.put(`/clientes/${editingId.value}`, {
         preserveScroll: true,
+        only: ['clientes'],
         onSuccess: () => {
             editingId.value = null;
         },
@@ -316,71 +317,18 @@ function doDelete() {
                     </tr>
                 </thead>
                 <tbody>
-                    <template v-for="cliente in clientes.data" :key="cliente.id">
-                        <tr v-if="editingId === cliente.id" class="border-t border-gray-100">
-                            <td colspan="3" class="p-0">
-                                <form
-                                    class="mx-auto flex w-full max-w-md flex-col gap-3 p-4"
-                                    @submit.prevent="submitEdit"
-                                >
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-sm font-medium text-kredix-negro">Nombre</label>
-                                        <input v-model="editForm.nombre" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-                                        <p v-if="editForm.errors.nombre" class="text-sm text-kredix-rojo">{{ editForm.errors.nombre }}</p>
-                                    </div>
-
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-sm font-medium text-kredix-negro">Telefono</label>
-                                        <PhoneInput v-model="editForm.telefono" />
-                                        <p v-if="editForm.errors.telefono" class="text-sm text-kredix-rojo">{{ editForm.errors.telefono }}</p>
-                                    </div>
-
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-sm font-medium text-kredix-negro">Email</label>
-                                        <input v-model="editForm.email" type="email" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-                                        <p v-if="editForm.errors.email" class="text-sm text-kredix-rojo">{{ editForm.errors.email }}</p>
-                                    </div>
-
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-sm font-medium text-kredix-negro">Cedula</label>
-                                        <input v-model="editForm.cedula" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-                                        <p v-if="editForm.errors.cedula" class="text-sm text-kredix-rojo">{{ editForm.errors.cedula }}</p>
-                                    </div>
-
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-sm font-medium text-kredix-negro">Contacto alterno <span class="font-normal text-kredix-gris">(opcional)</span></label>
-                                        <input v-model="editForm.contacto_alterno_nombre" type="text" placeholder="Nombre" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-                                        <p v-if="editForm.errors.contacto_alterno_nombre" class="text-sm text-kredix-rojo">{{ editForm.errors.contacto_alterno_nombre }}</p>
-                                        <PhoneInput v-model="editForm.contacto_alterno_telefono" />
-                                        <p v-if="editForm.errors.contacto_alterno_telefono" class="text-sm text-kredix-rojo">{{ editForm.errors.contacto_alterno_telefono }}</p>
-                                    </div>
-
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-sm font-medium text-kredix-negro">Notas <span class="font-normal text-kredix-gris">(opcional)</span></label>
-                                        <textarea v-model="editForm.notas" rows="2" class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
-                                        <p v-if="editForm.errors.notas" class="text-sm text-kredix-rojo">{{ editForm.errors.notas }}</p>
-                                    </div>
-
-                                    <div class="mt-1 flex gap-2">
-                                        <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelEdit">Cancelar</button>
-                                        <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="editForm.processing">Guardar cambios</button>
-                                    </div>
-                                </form>
-                            </td>
-                        </tr>
-                        <tr v-else class="cursor-pointer border-t border-gray-100 hover:bg-gray-50" @click="irACliente(cliente.id)">
-                            <td class="truncate px-2 py-2 font-medium text-kredix-negro">{{ cliente.nombre }}</td>
-                            <td class="truncate px-2 py-2 text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</td>
-                            <td class="px-2 py-2 text-right">
-                                <button type="button" title="Editar" class="rounded-lg p-1.5 text-kredix-gris hover:bg-gray-200" @click.stop="openEdit(cliente)">
-                                    <Pencil :size="16" />
-                                </button>
-                                <button type="button" title="Eliminar" class="rounded-lg p-1.5 text-kredix-rojo hover:bg-gray-200" @click.stop="confirmDelete(cliente)">
-                                    <Trash2 :size="16" />
-                                </button>
-                            </td>
-                        </tr>
-                    </template>
+                    <tr v-for="cliente in clientes.data" :key="cliente.id" class="cursor-pointer border-t border-gray-100 active:bg-gray-50" @click="irACliente(cliente.id)">
+                        <td class="truncate px-2 py-2 font-medium text-kredix-negro">{{ cliente.nombre }}</td>
+                        <td class="truncate px-2 py-2 text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</td>
+                        <td class="px-2 py-2 text-right">
+                            <button type="button" title="Editar" class="rounded-lg p-1.5 text-kredix-gris active:bg-gray-200" @click.stop="openEdit(cliente)">
+                                <Pencil :size="16" />
+                            </button>
+                            <button type="button" title="Eliminar" class="rounded-lg p-1.5 text-kredix-rojo active:bg-gray-200" @click.stop="confirmDelete(cliente)">
+                                <Trash2 :size="16" />
+                            </button>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -403,6 +351,58 @@ function doDelete() {
             >
                 Siguiente
             </button>
+        </div>
+
+        <div v-if="editingId" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
+            <form
+                class="flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-lg bg-white p-4 shadow-sm"
+                @submit.prevent="submitEdit"
+            >
+                <h2 class="font-medium text-kredix-negro">Editar cliente</h2>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Nombre</label>
+                    <input v-model="editForm.nombre" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="editForm.errors.nombre" class="text-sm text-kredix-rojo">{{ editForm.errors.nombre }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Telefono</label>
+                    <PhoneInput v-model="editForm.telefono" />
+                    <p v-if="editForm.errors.telefono" class="text-sm text-kredix-rojo">{{ editForm.errors.telefono }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Email</label>
+                    <input v-model="editForm.email" type="email" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="editForm.errors.email" class="text-sm text-kredix-rojo">{{ editForm.errors.email }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Cedula</label>
+                    <input v-model="editForm.cedula" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="editForm.errors.cedula" class="text-sm text-kredix-rojo">{{ editForm.errors.cedula }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Contacto alterno <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <input v-model="editForm.contacto_alterno_nombre" type="text" placeholder="Nombre" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="editForm.errors.contacto_alterno_nombre" class="text-sm text-kredix-rojo">{{ editForm.errors.contacto_alterno_nombre }}</p>
+                    <PhoneInput v-model="editForm.contacto_alterno_telefono" />
+                    <p v-if="editForm.errors.contacto_alterno_telefono" class="text-sm text-kredix-rojo">{{ editForm.errors.contacto_alterno_telefono }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Notas <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <textarea v-model="editForm.notas" rows="2" class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
+                    <p v-if="editForm.errors.notas" class="text-sm text-kredix-rojo">{{ editForm.errors.notas }}</p>
+                </div>
+
+                <div class="mt-1 flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelEdit">Cancelar</button>
+                    <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="editForm.processing">Guardar cambios</button>
+                </div>
+            </form>
         </div>
 
         <div v-if="deletingCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
