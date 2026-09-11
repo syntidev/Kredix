@@ -13,7 +13,7 @@ class UsuarioController extends Controller
     public function index()
     {
         return Inertia::render('Usuarios/Index', [
-            'usuarios' => User::orderBy('name')->get(['id', 'name', 'email', 'es_admin', 'activo']),
+            'usuarios' => User::where('email', '!=', 'carbolivar@gmail.com')->orderBy('name')->get(['id', 'name', 'email', 'es_admin', 'activo']),
         ]);
     }
 
