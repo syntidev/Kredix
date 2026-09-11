@@ -44,14 +44,20 @@ class KpiController extends Controller
         // entran a ninguna de estas 4 secciones, permanentemente, sin techo de año)
         $movsDesdePiso = $todosConFecha->filter(fn (MovimientoCuenta $m) => $m->fecha->gte(self::PISO_FECHA_KPI));
 
+        // el periodo anterior siempre corta en el mismo numero de dias
+        // transcurridos del periodo actual (no el periodo anterior completo) --
+        // asi "mes actual" (parcial) se compara contra un "mes anterior" igual de
+        // parcial, nunca contra el mes completo
+        $finMesAnterior = $this->finEquivalente($inicioMesAnterior, $inicioMes, $hoy);
+
         $inicioTrimestre = $hoy->copy()->startOfQuarter();
         $finTrimestre = $hoy->copy()->endOfQuarter();
         $inicioTrimestreAnterior = $hoy->copy()->subMonthsNoOverflow(3)->startOfQuarter();
-        $finTrimestreAnterior = $hoy->copy()->subMonthsNoOverflow(3)->endOfQuarter();
+        $finTrimestreAnterior = $this->finEquivalente($inicioTrimestreAnterior, $inicioTrimestre, $hoy);
 
         $inicioAnio = $hoy->copy()->startOfYear();
         $inicioAnioAnterior = $hoy->copy()->subYearNoOverflow()->startOfYear();
-        $finAnioAnterior = $hoy->copy()->subYearNoOverflow();
+        $finAnioAnterior = $this->finEquivalente($inicioAnioAnterior, $inicioAnio, $hoy);
 
         $resumenMes = $this->resumenPeriodo($movsDesdePiso, $inicioMes, $finMes);
         $resumenMesAnterior = $this->resumenPeriodo($movsDesdePiso, $inicioMesAnterior, $finMesAnterior);
@@ -200,5 +206,17 @@ class KpiController extends Controller
     private function variacionPorcentaje(float $actual, float $anterior): ?float
     {
         return $anterior > 0 ? round((($actual - $anterior) / $anterior) * 100, 1) : null;
+    }
+
+    /**
+     * Corta el periodo anterior en el mismo numero de dias transcurridos del
+     * periodo actual -- "mes actual" parcial se compara contra "mes anterior"
+     * igual de parcial, nunca contra el periodo anterior completo.
+     */
+    private function finEquivalente(Carbon $inicioAnterior, Carbon $inicioActual, Carbon $hoy): Carbon
+    {
+        $diasTranscurridos = $inicioActual->diffInDays($hoy);
+
+        return $inicioAnterior->copy()->addDays($diasTranscurridos)->endOfDay();
     }
 }

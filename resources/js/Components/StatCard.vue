@@ -1,10 +1,14 @@
 <script setup>
+import { ref } from 'vue';
+import { CircleHelp } from '@lucide/vue';
+
 defineProps({
     label: { type: String, required: true },
     value: { type: String, required: true },
     icon: { type: [Object, Function], required: true },
     variant: { type: String, default: 'negro' }, // 'rojo' | 'negro' | 'verde'
     tamano: { type: String, default: 'normal' }, // 'normal' | 'grande' -- el numero principal de la pantalla usa 'grande'
+    ayuda: { type: String, default: null }, // texto del tooltip "?" -- omitir para no mostrar el icono
 });
 
 const VARIANTS = {
@@ -16,11 +20,27 @@ const VARIANTS = {
 function classesFor(variant) {
     return VARIANTS[variant] ?? VARIANTS.negro;
 }
+
+const mostrarAyuda = ref(false);
 </script>
 
 <template>
-    <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <p class="text-xs uppercase text-kredix-gris">{{ label }}</p>
+    <div class="relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="flex items-center gap-1">
+            <p class="text-xs uppercase text-kredix-gris">{{ label }}</p>
+            <button
+                v-if="ayuda"
+                type="button"
+                class="text-kredix-gris"
+                :aria-expanded="mostrarAyuda"
+                @click="mostrarAyuda = !mostrarAyuda"
+            >
+                <CircleHelp :size="14" />
+            </button>
+        </div>
+        <div v-if="ayuda && mostrarAyuda" class="absolute left-4 right-4 top-9 z-10 rounded-lg border border-gray-200 bg-white p-3 text-xs text-kredix-negro shadow-lg">
+            {{ ayuda }}
+        </div>
         <div class="mt-2 flex items-center gap-3">
             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" :class="classesFor(variant).bg">
                 <component :is="icon" :size="20" :class="classesFor(variant).icon" />

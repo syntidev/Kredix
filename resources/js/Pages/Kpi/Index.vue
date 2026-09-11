@@ -1,7 +1,7 @@
 <script setup>
 import { computed, defineAsyncComponent, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import { TrendingUp, Wallet } from '@lucide/vue';
+import { ChevronDown, TrendingUp, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import StatCard from '../../Components/StatCard.vue';
 import { formatMoney } from '../../lib/formatMoney';
@@ -19,12 +19,20 @@ const props = defineProps({
     antiguedadCartera: { type: Object, required: true },
 });
 
+const AYUDA_PERIODO =
+    'Cobrado: dinero que efectivamente entro este periodo. ' +
+    'Otorgado: nuevo credito entregado este periodo. ' +
+    'Neto: Cobrado menos Otorgado — positivo significa que recuperaste mas de lo que prestaste. ' +
+    'Flecha verde/roja: comparado contra el mismo numero de dias del periodo anterior, no el periodo completo.';
+
 const seccionesPeriodo = computed(() => [
     { key: 'mes', ...props.periodos.mes },
     { key: 'trimestre', ...props.periodos.trimestre },
     { key: 'anio', ...props.periodos.anio },
     { key: 'historico', ...props.periodos.historico },
 ]);
+
+const mostrarGuia = ref(false);
 
 const vista = ref('semana');
 const datosVista = computed(() => (vista.value === 'semana' ? props.semanasDelMes : props.ultimos6Meses));
@@ -64,10 +72,26 @@ const rangosCartera = computed(() => {
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <h1 class="text-xl font-semibold text-kredix-negro">KPI</h1>
 
+        <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <button
+                type="button"
+                class="flex min-h-11 w-full items-center justify-between px-4 text-sm font-medium text-kredix-negro"
+                :aria-expanded="mostrarGuia"
+                @click="mostrarGuia = !mostrarGuia"
+            >
+                ¿Como leer este KPI?
+                <ChevronDown :size="16" class="transition-transform" :class="mostrarGuia ? 'rotate-180' : ''" />
+            </button>
+            <div v-if="mostrarGuia" class="border-t border-gray-100 px-4 py-3 text-sm text-kredix-gris">
+                <p>Cada seccion (Mes, Trimestre, Año, Historico) muestra tres cifras: <strong class="text-kredix-negro">Cobrado</strong> es el dinero que efectivamente entro en ese periodo; <strong class="text-kredix-negro">Otorgado</strong> es el nuevo credito entregado en ese mismo periodo; <strong class="text-kredix-negro">Neto</strong> es Cobrado menos Otorgado — si es positivo, recuperaste mas de lo que prestaste.</p>
+                <p class="mt-2">La flecha verde o roja compara el periodo actual contra el mismo numero de dias transcurridos del periodo anterior (no el periodo anterior completo) — asi un mes a medio andar nunca se compara injustamente contra un mes ya cerrado.</p>
+            </div>
+        </div>
+
         <StatCard label="Dinero en calle" :value="formatMoney(dineroEnCalle)" :icon="Wallet" variant="rojo" tamano="grande" />
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <StatCard v-for="s in seccionesPeriodo" :key="s.key" :label="s.etiqueta" :value="formatMoney(s.actual.cobrado)" :icon="TrendingUp" variant="verde">
+            <StatCard v-for="s in seccionesPeriodo" :key="s.key" :label="s.etiqueta" :value="formatMoney(s.actual.cobrado)" :icon="TrendingUp" variant="verde" :ayuda="AYUDA_PERIODO">
                 <p class="mt-1 text-xs text-kredix-gris">
                     Otorgado: <span class="font-medium text-kredix-negro">{{ formatMoney(s.actual.otorgado) }}</span>
                     · Neto: <span class="font-medium" :class="s.actual.neto >= 0 ? 'text-green-600' : 'text-kredix-rojo'">{{ formatMoney(s.actual.neto) }}</span>
