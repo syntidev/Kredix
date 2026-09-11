@@ -59,7 +59,7 @@ function colorDias(dias) {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="c in clientes.data" :key="c.id" class="border-t border-gray-100">
+                    <tr v-for="(c, idx) in clientes.data" :key="c.id" class="border-t border-gray-100" :class="idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'">
                         <td class="break-words px-2 py-2">
                             <Link :href="`/clientes/${c.id}`" class="text-kredix-negro underline">{{ c.nombre }}</Link>
                         </td>

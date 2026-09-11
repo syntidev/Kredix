@@ -362,7 +362,13 @@ function doDelete() {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="cliente in clientes.data" :key="cliente.id" class="cursor-pointer border-t border-gray-100 active:bg-gray-50" @click="irACliente(cliente.id)">
+                    <tr
+                        v-for="(cliente, idx) in clientes.data"
+                        :key="cliente.id"
+                        class="cursor-pointer border-t border-gray-100 active:bg-gray-100"
+                        :class="idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'"
+                        @click="irACliente(cliente.id)"
+                    >
                         <td class="truncate px-2 py-2 font-medium text-kredix-negro">{{ cliente.nombre }}</td>
                         <td class="truncate px-2 py-2 text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</td>
                         <td class="px-2 py-2 text-right">
