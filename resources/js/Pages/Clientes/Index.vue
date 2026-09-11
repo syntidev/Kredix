@@ -25,6 +25,18 @@ const props = defineProps({
         type: String,
         default: 'todos',
     },
+    atendidoPor: {
+        type: String,
+        default: null,
+    },
+    usuarios: {
+        type: Array,
+        default: () => [],
+    },
+    sinAsignarConSaldo: {
+        type: Number,
+        default: 0,
+    },
 });
 
 const search = ref(props.q ?? '');
@@ -38,7 +50,13 @@ const filtros = [
 ];
 
 function irA(cambios) {
-    const params = { q: search.value || undefined, filtro: props.filtro, page: 1, ...cambios };
+    const params = {
+        q: search.value || undefined,
+        filtro: props.filtro,
+        atendido_por: props.atendidoPor || undefined,
+        page: 1,
+        ...cambios,
+    };
     Object.keys(params).forEach((k) => (params[k] === null || params[k] === undefined || params[k] === 'todos') && delete params[k]);
 
     router.get('/clientes', params, { preserveState: true, preserveScroll: true, replace: true });
@@ -51,6 +69,14 @@ function onSearchInput() {
 
 function elegirFiltro(valor) {
     irA({ filtro: valor });
+}
+
+function elegirAtendidoPor(event) {
+    irA({ atendido_por: event.target.value || undefined });
+}
+
+function elegirSinAsignarConSaldo() {
+    irA({ filtro: 'con_saldo', atendido_por: 'sin_asignar' });
 }
 
 function irAPagina(pagina) {
@@ -198,7 +224,25 @@ function doDelete() {
             >
                 {{ f.etiqueta }}
             </button>
+            <button
+                type="button"
+                class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium"
+                :class="atendidoPor === 'sin_asignar' ? 'border-kredix-rojo bg-kredix-rojo text-white' : 'border-gray-300 text-kredix-gris'"
+                @click="elegirSinAsignarConSaldo"
+            >
+                Sin asignar ({{ sinAsignarConSaldo }})
+            </button>
         </div>
+
+        <select
+            :value="atendidoPor ?? ''"
+            class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+            @change="elegirAtendidoPor"
+        >
+            <option value="">Atendido por: todos</option>
+            <option v-for="u in usuarios" :key="u.id" :value="u.id">{{ u.name }}</option>
+            <option value="sin_asignar">Sin asignar</option>
+        </select>
 
         <div v-if="productosMatch.length > 0" class="flex flex-col gap-2">
             <h2 class="text-sm font-semibold text-kredix-negro">Productos encontrados</h2>

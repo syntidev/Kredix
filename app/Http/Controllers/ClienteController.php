@@ -7,6 +7,7 @@ use App\Models\Configuracion;
 use App\Models\MovimientoCuenta;
 use App\Models\PlanCuota;
 use App\Models\ReglaPlazo;
+use App\Models\User;
 use App\Services\TasaBcvService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class ClienteController extends Controller
     {
         $q = $request->query('q');
         $filtro = $request->query('filtro', 'todos');
+        $atendidoPor = $request->query('atendido_por'); // null (todos) | id de usuario | 'sin_asignar'
 
         // saldo por cliente calculado en SQL (subquery), no se cargan los 427
         // clientes con todos sus movimientos a PHP solo para filtrar/paginar
@@ -42,9 +44,19 @@ class ClienteController extends Controller
             ->when($filtro === 'con_saldo', fn ($query) => $query->where(DB::raw('COALESCE(saldos.saldo, 0)'), '>', 0))
             ->when($filtro === 'sin_saldo', fn ($query) => $query->where(DB::raw('COALESCE(saldos.saldo, 0)'), '<=', 0))
             ->when($filtro === 'con_advertencia', fn ($query) => $query->where('clientes.notas', 'like', '%IMPORTADO CON ADVERTENCIA%'))
+            ->when($atendidoPor === 'sin_asignar', fn ($query) => $query->whereNull('clientes.usuario_responsable_id'))
+            ->when(is_numeric($atendidoPor), fn ($query) => $query->where('clientes.usuario_responsable_id', $atendidoPor))
             ->orderBy('clientes.nombre', 'asc')
             ->paginate(25)
             ->withQueryString();
+
+        // cobertura: cuantos clientes con saldo activo no tienen responsable --
+        // conteo independiente de los filtros actuales, siempre visible como chip
+        $sinAsignarConSaldo = Cliente::query()
+            ->leftJoinSub($saldos, 'saldos', 'saldos.cliente_id', '=', 'clientes.id')
+            ->whereNull('clientes.usuario_responsable_id')
+            ->where(DB::raw('COALESCE(saldos.saldo, 0)'), '>', 0)
+            ->count();
 
         $productosMatch = $q
             ? MovimientoCuenta::where('tipo', 'cargo')
@@ -67,6 +79,9 @@ class ClienteController extends Controller
             'productosMatch' => $productosMatch,
             'q' => $q,
             'filtro' => $filtro,
+            'atendidoPor' => $atendidoPor,
+            'usuarios' => User::orderBy('name')->get(['id', 'name']),
+            'sinAsignarConSaldo' => $sinAsignarConSaldo,
         ]);
     }
 
@@ -132,6 +147,7 @@ class ClienteController extends Controller
 
         return Inertia::render('Clientes/Show', [
             'cliente' => $cliente,
+            'usuarios' => User::orderBy('name')->get(['id', 'name']),
             'movimientos' => $movimientos,
             'saldoPendiente' => $saldoPendiente,
             'totalCobrado' => MovimientoCuenta::totalCobrado($cliente->id),
@@ -204,6 +220,17 @@ class ClienteController extends Controller
         ]);
 
         $cliente->update(['mensaje_pdf' => $validated['mensaje_pdf'] ?? null]);
+
+        return redirect()->route('clientes.show', $cliente->id);
+    }
+
+    public function actualizarResponsable(Request $request, Cliente $cliente)
+    {
+        $validated = $request->validate([
+            'usuario_responsable_id' => ['nullable', 'exists:users,id'],
+        ]);
+
+        $cliente->update(['usuario_responsable_id' => $validated['usuario_responsable_id'] ?? null]);
 
         return redirect()->route('clientes.show', $cliente->id);
     }

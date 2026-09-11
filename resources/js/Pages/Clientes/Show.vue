@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { ArrowLeftRight, FileText, ImageOff, MessageCircle } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
@@ -19,7 +19,16 @@ const props = defineProps({
     compromisosCuotas: { type: Array, default: () => [] },
     mensajeWhatsapp: { type: String, default: '' },
     tasaBcvCargo: { type: Object, default: null },
+    usuarios: { type: Array, default: () => [] },
 });
+
+function cambiarResponsable(event) {
+    router.patch(
+        `/clientes/${props.cliente.id}/responsable`,
+        { usuario_responsable_id: event.target.value || null },
+        { preserveScroll: true }
+    );
+}
 
 const waLink = computed(() => {
     if (!props.cliente.telefono) {
@@ -357,6 +366,17 @@ function cancelForms() {
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
             <p class="text-sm text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</p>
+            <div class="mt-2 flex items-center gap-2">
+                <label class="text-xs text-kredix-gris">Atendido por</label>
+                <select
+                    :value="cliente.usuario_responsable_id ?? ''"
+                    class="min-h-9 rounded-lg border border-gray-300 px-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                    @change="cambiarResponsable"
+                >
+                    <option value="">Sin asignar</option>
+                    <option v-for="u in usuarios" :key="u.id" :value="u.id">{{ u.name }}</option>
+                </select>
+            </div>
             <div class="mt-3 grid grid-cols-2 gap-2 text-center">
                 <div>
                     <p class="text-xs text-kredix-gris">Total cobrado</p>
@@ -814,7 +834,7 @@ function cancelForms() {
                 <button type="button" class="flex w-full items-start justify-between gap-3 text-left" @click="toggleDetalle(m.id)">
                     <div class="flex min-w-0 flex-col gap-0.5">
                         <div class="flex items-center gap-2">
-                            <span class="text-xs text-kredix-gris">{{ m.fecha }}</span>
+                            <span class="text-xs text-kredix-gris">{{ m.fecha ?? '-' }}</span>
                             <span class="text-xs font-medium text-kredix-negro" :class="m.tipo === 'gestion' ? 'italic' : ''">{{ m.tipo }}</span>
                         </div>
                         <p class="break-words text-sm text-kredix-negro">
@@ -895,7 +915,7 @@ function cancelForms() {
                 </thead>
                 <tbody>
                     <tr v-for="m in movimientosConSaldo" :key="m.id" class="border-t border-gray-100 align-top" :class="m.tipo === 'gestion' ? 'bg-gray-50 italic' : ''">
-                        <td class="whitespace-nowrap px-2 py-2 text-kredix-negro">{{ m.fecha }}</td>
+                        <td class="whitespace-nowrap px-2 py-2 text-kredix-negro">{{ m.fecha ?? '-' }}</td>
                         <td class="break-words px-2 py-2 text-kredix-gris">{{ m.tipo }}</td>
                         <td class="break-words px-2 py-2 text-kredix-negro">
                             <template v-if="m.tipo === 'gestion'">

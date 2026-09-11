@@ -46,6 +46,7 @@ function waLink(evento) {
                 </span>
             </div>
             <p class="mt-0.5 text-sm text-kredix-gris">{{ evento.mensaje }}</p>
+            <p class="mt-0.5 text-xs text-kredix-gris">Atendido por: {{ evento.responsable }}</p>
             <div v-if="evento.secundarios && evento.secundarios.length > 0" class="mt-1.5 flex flex-wrap gap-1">
                 <span
                     v-for="sec in evento.secundarios"

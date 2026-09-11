@@ -18,5 +18,11 @@ class Cliente extends Model
         'notas',
         'contacto_alterno_nombre',
         'contacto_alterno_telefono',
+        'usuario_responsable_id',
     ];
+
+    public function usuarioResponsable()
+    {
+        return $this->belongsTo(User::class, 'usuario_responsable_id');
+    }
 }
