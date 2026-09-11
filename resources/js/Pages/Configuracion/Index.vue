@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -74,6 +74,8 @@ function onLogoChange(event) {
 </script>
 
 <template>
+    <Head title="Configuracion" />
+
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <h1 class="text-xl font-semibold text-kredix-negro">Configuracion</h1>
 
