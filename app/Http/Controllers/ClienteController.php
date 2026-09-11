@@ -316,7 +316,7 @@ class ClienteController extends Controller
             'nombre' => ['required', 'string', 'max:255'],
             'telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
             'email' => ['nullable', 'email', 'max:255'],
-            'cedula' => ['nullable', 'string', 'max:20'],
+            'cedula' => ['nullable', 'string', 'max:20', $this->validarFormatoCedula()],
             'notas' => ['nullable', 'string'],
             'contacto_alterno_nombre' => ['nullable', 'string', 'max:255'],
             'contacto_alterno_telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
@@ -346,7 +346,7 @@ class ClienteController extends Controller
             'nombre' => ['required', 'string', 'max:255'],
             'telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
             'email' => ['nullable', 'email', 'max:255'],
-            'cedula' => ['nullable', 'string', 'max:20'],
+            'cedula' => ['nullable', 'string', 'max:20', $this->validarFormatoCedula()],
             'notas' => ['nullable', 'string'],
             'contacto_alterno_nombre' => ['nullable', 'string', 'max:255'],
             'contacto_alterno_telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
@@ -368,6 +368,27 @@ class ClienteController extends Controller
         $cliente->update($validated);
 
         return redirect()->route('clientes.index');
+    }
+
+    private function validarFormatoCedula(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) {
+            if (str_contains($value, '.') || str_contains($value, ' ')) {
+                $fail('La cedula no debe contener puntos ni espacios.');
+
+                return;
+            }
+
+            if (! ctype_digit($value)) {
+                $fail('La cedula solo debe contener numeros.');
+
+                return;
+            }
+
+            if ($value[0] === '0') {
+                $fail('La cedula no debe empezar con cero.');
+            }
+        };
     }
 
     public function destroy(Cliente $cliente)

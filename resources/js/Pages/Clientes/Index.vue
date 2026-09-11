@@ -252,6 +252,7 @@ function doDelete() {
                         id="cedula"
                         v-model="form.cedula"
                         type="text"
+                        placeholder="Ej: 8390140, sin puntos"
                         class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                     />
                     <p v-if="form.errors.cedula" class="text-sm text-kredix-rojo">{{ form.errors.cedula }}</p>
@@ -380,7 +381,7 @@ function doDelete() {
 
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Cedula</label>
-                    <input v-model="editForm.cedula" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <input v-model="editForm.cedula" type="text" placeholder="Ej: 8390140, sin puntos" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                     <p v-if="editForm.errors.cedula" class="text-sm text-kredix-rojo">{{ editForm.errors.cedula }}</p>
                 </div>
 
