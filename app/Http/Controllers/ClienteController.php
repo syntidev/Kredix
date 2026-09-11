@@ -419,7 +419,9 @@ class ClienteController extends Controller
 
         $cliente->update($validated);
 
-        return redirect()->route('clientes.index');
+        // vuelve a donde se disparo la edicion (listado o ficha individual),
+        // nunca fuerza salir de la ficha al guardar
+        return redirect()->back();
     }
 
     private function validarFormatoCedula(): \Closure

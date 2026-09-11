@@ -1,9 +1,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ArrowDown, ArrowUp, FileText, ImageOff, MessageCircle, NotebookPen, Repeat, Search } from '@lucide/vue';
+import { ArrowDown, ArrowUp, FileText, ImageOff, MessageCircle, NotebookPen, Pencil, Repeat, Search, Trash2 } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
+import PhoneInput from '../../Components/PhoneInput.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
 import UserAvatar from '../../Components/UserAvatar.vue';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
@@ -32,6 +33,65 @@ function cambiarResponsable(event) {
         { usuario_responsable_id: event.target.value || null },
         { preserveScroll: true }
     );
+}
+
+const editandoCliente = ref(false);
+
+const editClienteForm = useForm({
+    nombre: props.cliente.nombre,
+    telefono: props.cliente.telefono,
+    email: props.cliente.email ?? '',
+    cedula: props.cliente.cedula ?? '',
+    notas: props.cliente.notas ?? '',
+    contacto_alterno_nombre: props.cliente.contacto_alterno_nombre ?? '',
+    contacto_alterno_telefono: props.cliente.contacto_alterno_telefono ?? '',
+});
+
+function abrirEditarCliente() {
+    editClienteForm.clearErrors();
+    editClienteForm.nombre = props.cliente.nombre;
+    editClienteForm.telefono = props.cliente.telefono;
+    editClienteForm.email = props.cliente.email ?? '';
+    editClienteForm.cedula = props.cliente.cedula ?? '';
+    editClienteForm.notas = props.cliente.notas ?? '';
+    editClienteForm.contacto_alterno_nombre = props.cliente.contacto_alterno_nombre ?? '';
+    editClienteForm.contacto_alterno_telefono = props.cliente.contacto_alterno_telefono ?? '';
+    editandoCliente.value = true;
+}
+
+function cancelarEditarCliente() {
+    editClienteForm.clearErrors();
+    editandoCliente.value = false;
+}
+
+function submitEditarCliente() {
+    editClienteForm.put(`/clientes/${props.cliente.id}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            editandoCliente.value = false;
+        },
+    });
+}
+
+const eliminandoCliente = ref(false);
+const eliminarPaso = ref(1);
+
+function confirmarEliminarCliente() {
+    eliminandoCliente.value = true;
+    eliminarPaso.value = 1;
+}
+
+function avanzarEliminarCliente() {
+    eliminarPaso.value = 2;
+}
+
+function cancelarEliminarCliente() {
+    eliminandoCliente.value = false;
+    eliminarPaso.value = 1;
+}
+
+function doEliminarCliente() {
+    router.delete(`/clientes/${props.cliente.id}`, { preserveScroll: true });
 }
 
 const porcentajeCobrado = computed(() => {
@@ -476,6 +536,12 @@ function cancelForms() {
                         <option value="">Sin asignar</option>
                         <option v-for="u in usuarios" :key="u.id" :value="u.id">{{ u.name }}</option>
                     </select>
+                    <button type="button" title="Editar cliente" class="rounded-lg p-1.5 text-kredix-gris active:bg-gray-100" @click="abrirEditarCliente">
+                        <Pencil :size="16" />
+                    </button>
+                    <button type="button" title="Eliminar cliente" class="rounded-lg p-1.5 text-kredix-rojo active:bg-gray-100" @click="confirmarEliminarCliente">
+                        <Trash2 :size="16" />
+                    </button>
                 </div>
             </div>
 
@@ -1116,6 +1182,85 @@ function cancelForms() {
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <div v-if="editandoCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
+            <form
+                class="flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-lg bg-white p-4 shadow-sm"
+                @submit.prevent="submitEditarCliente"
+            >
+                <h2 class="font-medium text-kredix-negro">Editar cliente</h2>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Nombre</label>
+                    <input v-model="editClienteForm.nombre" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="editClienteForm.errors.nombre" class="text-sm text-kredix-rojo">{{ editClienteForm.errors.nombre }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Telefono</label>
+                    <PhoneInput v-model="editClienteForm.telefono" />
+                    <p v-if="editClienteForm.errors.telefono" class="text-sm text-kredix-rojo">{{ editClienteForm.errors.telefono }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Email</label>
+                    <input v-model="editClienteForm.email" type="email" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="editClienteForm.errors.email" class="text-sm text-kredix-rojo">{{ editClienteForm.errors.email }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Cedula</label>
+                    <input v-model="editClienteForm.cedula" type="text" placeholder="Ej: 8390140, sin puntos" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="editClienteForm.errors.cedula" class="text-sm text-kredix-rojo">{{ editClienteForm.errors.cedula }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Contacto alterno <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <input v-model="editClienteForm.contacto_alterno_nombre" type="text" placeholder="Nombre" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="editClienteForm.errors.contacto_alterno_nombre" class="text-sm text-kredix-rojo">{{ editClienteForm.errors.contacto_alterno_nombre }}</p>
+                    <PhoneInput v-model="editClienteForm.contacto_alterno_telefono" />
+                    <p v-if="editClienteForm.errors.contacto_alterno_telefono" class="text-sm text-kredix-rojo">{{ editClienteForm.errors.contacto_alterno_telefono }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Notas <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <textarea v-model="editClienteForm.notas" rows="2" class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
+                    <p v-if="editClienteForm.errors.notas" class="text-sm text-kredix-rojo">{{ editClienteForm.errors.notas }}</p>
+                </div>
+
+                <div class="mt-1 flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelarEditarCliente">Cancelar</button>
+                    <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="editClienteForm.processing">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+
+        <div v-if="eliminandoCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
+            <div v-if="eliminarPaso === 1" class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
+                <p class="font-medium text-kredix-negro">¿Eliminar a {{ cliente.nombre }}?</p>
+                <p class="mt-1 text-sm text-kredix-gris">El cliente dejara de aparecer en el listado. No se borra fisicamente.</p>
+                <div class="mt-4 flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelarEliminarCliente">
+                        Cancelar
+                    </button>
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="avanzarEliminarCliente">
+                        Continuar
+                    </button>
+                </div>
+            </div>
+            <div v-else class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
+                <p class="font-medium text-kredix-negro">Esta accion no se puede deshacer facilmente.</p>
+                <p class="mt-1 text-sm text-kredix-gris">¿Confirmas la eliminacion de {{ cliente.nombre }}?</p>
+                <div class="mt-4 flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelarEliminarCliente">
+                        Cancelar
+                    </button>
+                    <button type="button" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white active:opacity-80" @click="doEliminarCliente">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>
