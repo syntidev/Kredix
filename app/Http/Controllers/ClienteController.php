@@ -293,6 +293,9 @@ class ClienteController extends Controller
 
     public function cartera(Request $request)
     {
+        $q = $request->query('q');
+        $filtroDias = $request->query('filtro_dias'); // reciente | sin_reciente | fria | nunca
+
         $movimientos = MovimientoCuenta::orderBy('fecha')->get()->groupBy('cliente_id');
 
         $clientes = Cliente::all()->map(function (Cliente $c) use ($movimientos) {
@@ -303,6 +306,8 @@ class ClienteController extends Controller
             return [
                 'id' => $c->id,
                 'nombre' => $c->nombre,
+                'cedula' => $c->cedula,
+                'telefono' => $c->telefono,
                 'saldoPendiente' => $saldo,
                 'ultimoAbonoFecha' => $ultimoAbono?->fecha->toDateString(),
                 'diasDesdeUltimoAbono' => $ultimoAbono ? now()->startOfDay()->diffInDays($ultimoAbono->fecha, true) : null,
@@ -317,11 +322,28 @@ class ClienteController extends Controller
         // (clientes con al menos un evento activo en Cartelera) en su lugar
         $esAdmin = (bool) auth()->user()?->es_admin;
 
+        // busqueda y filtros de dias operan sobre la tabla paginada -- los
+        // agregados (Cartera activa, Clientes con saldo) siempre reflejan el
+        // universo completo, mismo patron que sinAsignarConSaldo en Clientes/Index
+        $clientesFiltrados = $clientes
+            ->when($q, fn ($coll) => $coll->filter(function ($c) use ($q) {
+                $needle = mb_strtolower($q);
+
+                return str_contains(mb_strtolower($c['nombre'] ?? ''), $needle)
+                    || str_contains(mb_strtolower($c['cedula'] ?? ''), $needle)
+                    || str_contains(mb_strtolower($c['telefono'] ?? ''), $needle);
+            }))
+            ->when($filtroDias === 'reciente', fn ($coll) => $coll->filter(fn ($c) => $c['diasDesdeUltimoAbono'] !== null && $c['diasDesdeUltimoAbono'] <= 30))
+            ->when($filtroDias === 'sin_reciente', fn ($coll) => $coll->filter(fn ($c) => $c['diasDesdeUltimoAbono'] !== null && $c['diasDesdeUltimoAbono'] > 30 && $c['diasDesdeUltimoAbono'] <= 90))
+            ->when($filtroDias === 'fria', fn ($coll) => $coll->filter(fn ($c) => $c['diasDesdeUltimoAbono'] !== null && $c['diasDesdeUltimoAbono'] > 90))
+            ->when($filtroDias === 'nunca', fn ($coll) => $coll->filter(fn ($c) => $c['diasDesdeUltimoAbono'] === null))
+            ->values();
+
         $page = (int) $request->query('page', 1);
         $porPagina = 25;
         $paginador = new LengthAwarePaginator(
-            $clientes->forPage($page, $porPagina)->values(),
-            $clientes->count(),
+            $clientesFiltrados->forPage($page, $porPagina)->values(),
+            $clientesFiltrados->count(),
             $porPagina,
             $page,
             ['path' => $request->url(), 'query' => $request->query()]
@@ -330,6 +352,8 @@ class ClienteController extends Controller
         return Inertia::render('Cartera/Index', [
             'clientes' => $paginador->toArray(),
             'esAdmin' => $esAdmin,
+            'q' => $q,
+            'filtroDias' => $filtroDias,
             'totalCarteraActiva' => $esAdmin ? (float) $clientes->sum('saldoPendiente') : null,
             'clientesConSaldo' => $clientes->filter(fn ($c) => $c['saldoPendiente'] > 0)->count(),
             'clientesRequierenSeguimiento' => $esAdmin

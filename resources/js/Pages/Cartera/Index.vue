@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { UserCheck, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
@@ -11,13 +12,46 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
     clientes: { type: Object, required: true },
     esAdmin: { type: Boolean, required: true },
+    q: { type: String, default: '' },
+    filtroDias: { type: String, default: null },
     totalCarteraActiva: { type: Number, default: null },
     clientesConSaldo: { type: Number, required: true },
     clientesRequierenSeguimiento: { type: Number, default: null },
 });
 
+const search = ref(props.q ?? '');
+let searchTimeout = null;
+
+const filtrosDias = [
+    { valor: 'reciente', etiqueta: 'Con abono reciente' },
+    { valor: 'sin_reciente', etiqueta: 'Sin abono reciente' },
+    { valor: 'fria', etiqueta: 'Cartera fria' },
+    { valor: 'nunca', etiqueta: 'Nunca abonaron' },
+];
+
+function irA(cambios) {
+    const params = {
+        q: search.value || undefined,
+        filtro_dias: props.filtroDias || undefined,
+        page: 1,
+        ...cambios,
+    };
+    Object.keys(params).forEach((k) => (params[k] === null || params[k] === undefined) && delete params[k]);
+
+    router.get('/cartera', params, { preserveState: true, preserveScroll: true, replace: true });
+}
+
+function onSearchInput() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => irA({}), 300);
+}
+
+function elegirFiltroDias(valor) {
+    irA({ filtro_dias: props.filtroDias === valor ? undefined : valor });
+}
+
 function irAPagina(pagina) {
-    router.get('/cartera', { page: pagina }, { preserveState: true, preserveScroll: true, replace: true });
+    irA({ page: pagina });
 }
 
 function colorDias(dias) {
@@ -35,7 +69,28 @@ function colorDias(dias) {
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <h1 class="text-xl font-semibold text-kredix-negro">Cartera general</h1>
 
-        <p v-if="clientes.total === 0" class="text-sm text-kredix-gris">Todavia no hay clientes registrados.</p>
+        <input
+            v-model="search"
+            type="search"
+            placeholder="Buscar por nombre, cedula o telefono..."
+            class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+            @input="onSearchInput"
+        />
+
+        <div class="flex flex-wrap gap-2">
+            <button
+                v-for="f in filtrosDias"
+                :key="f.valor"
+                type="button"
+                class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium"
+                :class="filtroDias === f.valor ? 'border-kredix-negro bg-kredix-negro text-white' : 'border-gray-300 text-kredix-gris'"
+                @click="elegirFiltroDias(f.valor)"
+            >
+                {{ f.etiqueta }}
+            </button>
+        </div>
+
+        <p v-if="clientes.total === 0" class="text-sm text-kredix-gris">Sin clientes para estos filtros.</p>
 
         <div v-if="clientes.total > 0" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <StatCard v-if="esAdmin" label="Cartera activa" :value="formatMoney(totalCarteraActiva)" :icon="Wallet" variant="rojo" tamano="grande" />
