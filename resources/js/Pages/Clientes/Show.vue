@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ArrowDown, ArrowLeftRight, ArrowUp, FileText, ImageOff, MessageCircle, NotebookPen, Repeat, Search } from '@lucide/vue';
+import { ArrowDown, ArrowUp, FileText, ImageOff, MessageCircle, NotebookPen, Repeat, Search } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
@@ -339,6 +339,8 @@ const editForm = useForm({
     _method: 'put',
     fecha: '',
     descripcion: '',
+    tipo_contacto: 'llamada',
+    fecha_prometida: '',
     cantidad: '',
     precio_unitario: '',
     modalidad_precio: 'divisa',
@@ -358,12 +360,14 @@ function openEditMov(m) {
     editForm.clearErrors();
     editForm.fecha = m.fecha;
     editForm.descripcion = m.descripcion;
+    editForm.tipo_contacto = m.tipo_contacto ?? 'llamada';
+    editForm.fecha_prometida = m.fecha_prometida ?? '';
     editForm.cantidad = m.cantidad ?? '';
     editForm.precio_unitario = m.precio_unitario ?? '';
     editForm.modalidad_precio = m.modalidad_precio ?? 'divisa';
     editForm.plazo_meses = m.plazo_meses ?? '';
     editForm.frecuencia_pago = m.frecuencia_pago ?? 'mensual';
-    editForm.monto = m.tipo === 'cargo' ? '' : m.monto;
+    editForm.monto = (m.tipo === 'cargo' || m.tipo === 'gestion') ? '' : m.monto;
     editForm.moneda = m.moneda;
     editForm.tasa_cambio = m.tasa_cambio ?? '';
     editForm.metodo_pago = m.metodo_pago ?? 'efectivo';
@@ -402,6 +406,10 @@ async function onEditFotoProductoChange(event) {
 }
 
 function submitEditMov() {
+    if (editTipo.value === 'gestion') {
+        editForm.descripcion = tipoContactoLabel[editForm.tipo_contacto];
+    }
+
     // PHP never parses multipart bodies on a real PUT verb, so this form (it carries
     // optional file inputs) must POST with _method spoofing instead of using .put().
     editForm.post(`/movimientos/${editingMovId.value}`, {
@@ -661,14 +669,6 @@ function cancelForms() {
                 </select>
             </div>
 
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Moneda</label>
-                <select v-model="cargoForm.moneda" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
-                    <option value="usd">USD</option>
-                    <option value="ves">VES</option>
-                </select>
-            </div>
-
             <TasaBcvInput v-if="cargoForm.modalidad_precio === 'bcv'" v-model="cargoForm.tasa_cambio" :tasa-bcv="tasaBcvCargo" />
             <p v-if="cargoForm.errors.tasa_cambio" class="text-sm text-kredix-rojo md:col-span-2">{{ cargoForm.errors.tasa_cambio }}</p>
 
@@ -736,14 +736,6 @@ function cancelForms() {
                 <label class="text-sm font-medium text-kredix-negro">Monto</label>
                 <input v-model="abonoForm.monto" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 <p v-if="abonoForm.errors.monto" class="text-sm text-kredix-rojo">{{ abonoForm.errors.monto }}</p>
-            </div>
-
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Moneda</label>
-                <select v-model="abonoForm.moneda" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
-                    <option value="usd">USD</option>
-                    <option value="ves">VES</option>
-                </select>
             </div>
 
             <TasaBcvInput v-model="abonoForm.tasa_cambio" :tasa-bcv="tasaBcvCargo" />
@@ -819,9 +811,9 @@ function cancelForms() {
         </form>
 
         <form v-if="formMode === 'editar'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitEditMov">
-            <p class="text-sm font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'cargo' : 'abono/ajuste' }}</p>
+            <p class="text-sm font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'cargo' : (editTipo === 'gestion' ? 'gestión' : 'abono/ajuste') }}</p>
 
-            <div class="flex flex-col gap-1">
+            <div v-if="editTipo !== 'gestion'" class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Descripcion</label>
                 <input v-model="editForm.descripcion" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 <p v-if="editForm.errors.descripcion" class="text-sm text-kredix-rojo">{{ editForm.errors.descripcion }}</p>
@@ -832,7 +824,30 @@ function cancelForms() {
                 <input v-model="editForm.fecha" type="date" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
             </div>
 
-            <template v-if="editTipo === 'cargo'">
+            <template v-if="editTipo === 'gestion'">
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Tipo de contacto</label>
+                    <select v-model="editForm.tipo_contacto" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                        <option value="llamada">Llamada</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="visita">Visita</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                    <p v-if="editForm.errors.tipo_contacto" class="text-sm text-kredix-rojo">{{ editForm.errors.tipo_contacto }}</p>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Comentario</label>
+                    <textarea v-model="editForm.comentario" rows="2" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
+                    <p v-if="editForm.errors.comentario" class="text-sm text-kredix-rojo">{{ editForm.errors.comentario }}</p>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Fecha prometida <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <input v-model="editForm.fecha_prometida" type="date" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="editForm.errors.fecha_prometida" class="text-sm text-kredix-rojo">{{ editForm.errors.fecha_prometida }}</p>
+                </div>
+            </template>
+
+            <template v-else-if="editTipo === 'cargo'">
                 <div class="flex gap-2">
                     <div class="flex flex-1 flex-col gap-1">
                         <label class="text-sm font-medium text-kredix-negro">Cantidad</label>
@@ -911,7 +926,7 @@ function cancelForms() {
                 </div>
             </template>
 
-            <div class="flex gap-2">
+            <div v-if="editTipo !== 'gestion'" class="flex gap-2">
                 <div class="flex flex-1 flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Moneda</label>
                     <select v-model="editForm.moneda" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
@@ -924,7 +939,7 @@ function cancelForms() {
                     <input v-model="editForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 </div>
             </div>
-            <p v-if="editForm.errors.tasa_cambio" class="text-sm text-kredix-rojo">{{ editForm.errors.tasa_cambio }}</p>
+            <p v-if="editTipo !== 'gestion' && editForm.errors.tasa_cambio" class="text-sm text-kredix-rojo">{{ editForm.errors.tasa_cambio }}</p>
 
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Motivo de edicion</label>
@@ -937,7 +952,7 @@ function cancelForms() {
                 <button
                     type="submit"
                     class="min-h-11 flex-1 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
-                    :class="editTipo === 'cargo' ? 'bg-kredix-negro' : 'bg-green-600'"
+                    :class="editTipo === 'cargo' ? 'bg-kredix-negro' : (editTipo === 'gestion' ? 'bg-[#1496BE]' : 'bg-green-600')"
                     :disabled="editForm.processing"
                 >
                     Guardar cambios
@@ -993,12 +1008,6 @@ function cancelForms() {
                         <span class="text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.cantidad ?? '-') }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-kredix-gris">Tasa</span>
-                        <span :class="m.tasa_cambio ? 'text-kredix-negro' : 'text-kredix-gris'">
-                            {{ m.tasa_cambio ?? '-' }}
-                        </span>
-                    </div>
-                    <div class="flex justify-between">
                         <span class="text-kredix-gris">Metodo</span>
                         <span class="text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</span>
                     </div>
@@ -1019,7 +1028,7 @@ function cancelForms() {
                         <span class="w-fit rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700">editado</span>
                         <span class="text-kredix-gris">{{ m.motivo_edicion }}</span>
                     </div>
-                    <button v-if="m.tipo !== 'gestion'" type="button" class="mt-1 self-start font-medium text-kredix-gris underline" @click.stop="openEditMov(m)">
+                    <button type="button" class="mt-1 self-start font-medium text-kredix-gris underline" @click.stop="openEditMov(m)">
                         Editar
                     </button>
                 </div>
@@ -1034,7 +1043,6 @@ function cancelForms() {
                     <col />
                     <col class="w-[56px]" />
                     <col class="w-[104px]" />
-                    <col class="w-[52px]" />
                     <col class="w-[112px]" />
                     <col class="w-[100px]" />
                     <col class="w-[52px]" />
@@ -1046,7 +1054,6 @@ function cancelForms() {
                         <th class="px-2 py-2">Descripcion</th>
                         <th class="px-2 py-2 text-right">Cant.</th>
                         <th class="px-2 py-2 text-right">Precio/Monto</th>
-                        <th class="px-2 py-2 text-center" title="Tasa de cambio">Tasa</th>
                         <th class="px-2 py-2">Metodo</th>
                         <th class="px-2 py-2 text-right">Saldo</th>
                         <th class="px-2 py-2"></th>
@@ -1100,14 +1107,10 @@ function cancelForms() {
                                 {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
                             </span>
                         </td>
-                        <td class="px-1 py-2 text-center" :title="m.tasa_cambio ? `Tasa: ${m.tasa_cambio}` : ''">
-                            <ArrowLeftRight v-if="m.tipo !== 'gestion' && m.tasa_cambio" :size="14" class="inline text-kredix-negro" />
-                            <span v-else class="text-kredix-gris">-</span>
-                        </td>
                         <td class="whitespace-nowrap px-2 py-2 text-kredix-gris">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</td>
                         <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
                         <td class="px-1 py-2 text-right">
-                            <button v-if="m.tipo !== 'gestion'" type="button" class="text-xs font-medium text-kredix-gris underline not-italic" @click="openEditMov(m)">Editar</button>
+                            <button type="button" class="text-xs font-medium text-kredix-gris underline not-italic" @click="openEditMov(m)">Editar</button>
                         </td>
                     </tr>
                 </tbody>

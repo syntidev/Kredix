@@ -37,7 +37,6 @@ class MovimientoCuentaController extends Controller
             'fecha_prometida' => ['nullable', 'date'],
             'fecha' => ['required', 'date'],
             'descripcion' => ['required', 'string', 'max:255'],
-            'moneda' => ['required', 'in:usd,ves'],
             'tasa_cambio' => ['nullable', 'numeric', 'min:0.0001'],
             'cantidad' => [Rule::requiredIf($esCargo), 'nullable', 'numeric', 'min:0.01'],
             'precio_unitario' => [Rule::requiredIf($esCargo), 'nullable', 'numeric', 'min:0.01'],
@@ -83,7 +82,7 @@ class MovimientoCuentaController extends Controller
             'plazo_meses' => $esCargo ? $validated['plazo_meses'] : null,
             'frecuencia_pago' => $esCargo ? $validated['frecuencia_pago'] : null,
             'monto' => $monto,
-            'moneda' => $validated['moneda'],
+            'moneda' => 'usd',
             'tasa_cambio' => $validated['tasa_cambio'] ?? null,
             'metodo_pago' => $validated['metodo_pago'] ?? null,
             'comentario' => $validated['comentario'] ?? null,
@@ -114,10 +113,14 @@ class MovimientoCuentaController extends Controller
     public function update(Request $request, MovimientoCuenta $movimiento)
     {
         $esCargo = $movimiento->tipo === 'cargo';
+        $esGestion = $movimiento->tipo === 'gestion';
+        $requiereMonto = ! $esCargo && ! $esGestion;
 
         $validated = $request->validate([
             'fecha' => ['required', 'date'],
             'descripcion' => ['required', 'string', 'max:255'],
+            'tipo_contacto' => [Rule::requiredIf($esGestion), 'nullable', 'in:llamada,whatsapp,visita,otro'],
+            'fecha_prometida' => ['nullable', 'date'],
             'moneda' => ['required', 'in:usd,ves'],
             'tasa_cambio' => ['nullable', 'numeric', 'min:0.0001'],
             'cantidad' => [Rule::requiredIf($esCargo), 'nullable', 'numeric', 'min:0.01'],
@@ -125,8 +128,8 @@ class MovimientoCuentaController extends Controller
             'modalidad_precio' => [Rule::requiredIf($esCargo), 'nullable', 'in:divisa,bcv'],
             'plazo_meses' => [Rule::requiredIf($esCargo), 'nullable', 'integer', 'min:1'],
             'frecuencia_pago' => [Rule::requiredIf($esCargo), 'nullable', 'in:semanal,quincenal,mensual'],
-            'monto' => [Rule::requiredIf(! $esCargo), 'nullable', 'numeric', 'min:0.01'],
-            'metodo_pago' => [Rule::requiredIf(! $esCargo), 'nullable', 'in:efectivo,zelle,binance,transferencia,pago_movil,bancamiga_divisa,punto_venta'],
+            'monto' => [Rule::requiredIf($requiereMonto), 'nullable', 'numeric', 'min:0.01'],
+            'metodo_pago' => [Rule::requiredIf($requiereMonto), 'nullable', 'in:efectivo,zelle,binance,transferencia,pago_movil,bancamiga_divisa,punto_venta'],
             'comentario' => [Rule::requiredIf(! $esCargo), 'nullable', 'string', 'max:1000'],
             'comprobante' => ['nullable', 'image', 'max:5120'],
             'foto_producto' => ['nullable', 'image', 'max:5120'],
@@ -144,16 +147,19 @@ class MovimientoCuentaController extends Controller
 
         $monto = $esCargo
             ? $validated['cantidad'] * $validated['precio_unitario']
-            : $validated['monto'];
+            : ($validated['monto'] ?? 0);
 
         $antes = $movimiento->only([
-            'fecha', 'descripcion', 'cantidad', 'precio_unitario', 'modalidad_precio', 'plazo_meses',
-            'frecuencia_pago', 'monto', 'moneda', 'tasa_cambio', 'metodo_pago', 'comentario',
+            'fecha', 'descripcion', 'tipo_contacto', 'fecha_prometida', 'cantidad', 'precio_unitario',
+            'modalidad_precio', 'plazo_meses', 'frecuencia_pago', 'monto', 'moneda', 'tasa_cambio',
+            'metodo_pago', 'comentario',
         ]);
 
         $movimiento->update([
             'fecha' => $validated['fecha'],
             'descripcion' => $validated['descripcion'],
+            'tipo_contacto' => $esGestion ? $validated['tipo_contacto'] : $movimiento->tipo_contacto,
+            'fecha_prometida' => $esGestion ? ($validated['fecha_prometida'] ?? null) : $movimiento->fecha_prometida,
             'cantidad' => $esCargo ? $validated['cantidad'] : null,
             'precio_unitario' => $esCargo ? $validated['precio_unitario'] : null,
             'modalidad_precio' => $esCargo ? $validated['modalidad_precio'] : null,
