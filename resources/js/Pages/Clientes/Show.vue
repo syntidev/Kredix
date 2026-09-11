@@ -27,6 +27,15 @@ const props = defineProps({
     usuarios: { type: Array, default: () => [] },
 });
 
+// window.open() sincrono en el click, sin await antes -- en PWA instalada en iOS
+// (display: standalone) esto es lo que saca el PDF de la ventana standalone hacia
+// una pestana real de Safari, que conserva su barra nativa con boton de compartir.
+// Una navegacion normal (<a href>, incluso con target="_blank") se queda atrapada
+// dentro del contenedor del PWA, que no tiene esa barra.
+function abrirPdf() {
+    window.open(`/clientes/${props.cliente.id}/estado-cuenta`, '_blank', 'noopener');
+}
+
 function cambiarResponsable(event) {
     router.patch(
         `/clientes/${props.cliente.id}/responsable`,
@@ -587,13 +596,14 @@ function cancelForms() {
                     <MessageCircle :size="16" />
                     WhatsApp
                 </a>
-                <a
-                    :href="`/clientes/${cliente.id}/estado-cuenta`"
+                <button
+                    type="button"
                     class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"
+                    @click="abrirPdf"
                 >
                     <FileText :size="16" />
                     PDF
-                </a>
+                </button>
             </div>
 
             <button
