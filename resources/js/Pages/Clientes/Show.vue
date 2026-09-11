@@ -544,7 +544,7 @@ function cancelForms() {
                 <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'abono'">
                     + Nuevo abono
                 </button>
-                <button type="button" class="col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-gris active:bg-gray-100 md:col-span-1" @click="formMode = 'gestion'">
+                <button type="button" class="col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100 md:col-span-1" @click="formMode = 'gestion'">
                     <NotebookPen :size="16" />
                     Registrar contacto
                 </button>
