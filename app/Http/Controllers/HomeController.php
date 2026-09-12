@@ -34,11 +34,24 @@ class HomeController extends Controller
                 'creadoEn' => $m->created_at->toIso8601String(),
             ]);
 
+        $cierreDelDia = MovimientoCuenta::where('tipo', 'abono')
+            ->whereDate('fecha', now()->toDateString())
+            ->selectRaw("metodo_pago, SUM(monto) as total, COUNT(*) as cantidad, SUM(CASE WHEN estado_validacion = 'pendiente' THEN 1 ELSE 0 END) as pendientes")
+            ->groupBy('metodo_pago')
+            ->get()
+            ->map(fn ($fila) => [
+                'metodoPago' => $fila->metodo_pago,
+                'total' => (float) $fila->total,
+                'cantidad' => (int) $fila->cantidad,
+                'pendientes' => (int) $fila->pendientes,
+            ]);
+
         return Inertia::render('Home/Index', [
             'totalClientes' => Cliente::count(),
             'clientesConSaldo' => $clientesConSaldo,
             'eventosUrgentes' => (new CarteleraController())->calcularEventos()->take(3)->values(),
             'actividadReciente' => $actividadReciente,
+            'cierreDelDia' => $cierreDelDia,
         ]);
     }
 }

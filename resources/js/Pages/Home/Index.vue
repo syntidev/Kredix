@@ -14,6 +14,7 @@ const props = defineProps({
     clientesConSaldo: { type: Number, required: true },
     eventosUrgentes: { type: Array, default: () => [] },
     actividadReciente: { type: Array, default: () => [] },
+    cierreDelDia: { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -41,6 +42,18 @@ const ESTILO_ACTIVIDAD = {
 function estiloActividad(tipo) {
     return ESTILO_ACTIVIDAD[tipo] ?? ESTILO_ACTIVIDAD.abono;
 }
+
+const METODO_PAGO_LABEL = {
+    efectivo: 'Efectivo',
+    zelle: 'Zelle',
+    binance: 'Binance',
+    transferencia: 'Transferencia',
+    pago_movil: 'Pago Movil',
+    bancamiga_divisa: 'Bancamiga Divisa',
+    punto_venta: 'Punto de Venta',
+};
+
+const totalCierreDelDia = computed(() => props.cierreDelDia.reduce((acc, fila) => acc + fila.total, 0));
 </script>
 
 <template>
@@ -66,6 +79,22 @@ function estiloActividad(tipo) {
                 <Link href="/cartelera" class="text-sm font-medium text-kredix-rojo underline">Ver todos</Link>
             </div>
             <EventoCartelera v-for="evento in eventosUrgentes" :key="evento.cliente_id + evento.tipo" :evento="evento" />
+        </div>
+
+        <div v-if="cierreDelDia.length > 0" class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <h2 class="text-lg font-semibold text-kredix-negro">Cierre del dia</h2>
+            <div v-for="fila in cierreDelDia" :key="fila.metodoPago" class="flex items-center justify-between text-sm">
+                <span class="text-kredix-negro">{{ METODO_PAGO_LABEL[fila.metodoPago] ?? fila.metodoPago }}</span>
+                <span class="tabular-nums text-kredix-gris">
+                    <span class="font-medium text-kredix-negro">{{ formatMoney(fila.total) }}</span>
+                    ({{ fila.cantidad }} abono{{ fila.cantidad === 1 ? '' : 's' }})
+                    <span v-if="fila.pendientes > 0" class="text-amber-600"> — {{ fila.pendientes }} pendiente{{ fila.pendientes === 1 ? '' : 's' }} por validar</span>
+                </span>
+            </div>
+            <div class="flex items-center justify-between border-t border-gray-100 pt-2 text-sm font-semibold">
+                <span class="text-kredix-negro">Total del dia</span>
+                <span class="tabular-nums text-kredix-negro">{{ formatMoney(totalCierreDelDia) }}</span>
+            </div>
         </div>
 
         <div v-if="actividadReciente.length > 0" class="flex flex-col gap-3">
