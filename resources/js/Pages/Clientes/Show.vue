@@ -501,6 +501,7 @@ function openEditMov(m) {
     editingMovId.value = m.id;
     editEstadoValidacion.value = m.estado_validacion ?? null;
     formMode.value = 'editar';
+    formSnapshot.value = serializarDatos(editForm.data());
 }
 
 function toggleValidacion() {
@@ -587,6 +588,67 @@ function cancelForms() {
     editingMovId.value = null;
     editEstadoValidacion.value = null;
     formMode.value = null;
+}
+
+// File no serializa via JSON.stringify a algo comparable (dos File distintos dan
+// "{}" ambos) -- se reduce a nombre+tamaño para que el snapshot detecte un archivo
+// nuevo seleccionado sin falsos positivos entre aperturas.
+function serializarDatos(datos) {
+    const limpio = {};
+    for (const [key, val] of Object.entries(datos)) {
+        limpio[key] = val instanceof File ? `${val.name}:${val.size}` : val;
+    }
+    return JSON.stringify(limpio);
+}
+
+const formSnapshot = ref('');
+
+function abrirCargo() {
+    formMode.value = 'cargo';
+    formSnapshot.value = serializarDatos(cargoForm.data());
+}
+
+function abrirAbono() {
+    formMode.value = 'abono';
+    formSnapshot.value = serializarDatos({ ...abonoForm.data(), esAjuste: esAjuste.value });
+}
+
+function abrirGestion() {
+    formMode.value = 'gestion';
+    formSnapshot.value = serializarDatos(gestionForm.data());
+}
+
+function datosFormActivo() {
+    if (formMode.value === 'cargo') return cargoForm.data();
+    if (formMode.value === 'abono') return { ...abonoForm.data(), esAjuste: esAjuste.value };
+    if (formMode.value === 'gestion') return gestionForm.data();
+    if (formMode.value === 'editar') return editForm.data();
+    return null;
+}
+
+function hayCambiosSinGuardar() {
+    const datos = datosFormActivo();
+    if (!datos) return false;
+    return serializarDatos(datos) !== formSnapshot.value;
+}
+
+const mostrarConfirmarDescarte = ref(false);
+
+function intentarCerrar() {
+    if (hayCambiosSinGuardar()) {
+        mostrarConfirmarDescarte.value = true;
+    } else {
+        cancelForms();
+    }
+}
+
+function confirmarDescarte() {
+    mostrarConfirmarDescarte.value = false;
+    cancelForms();
+}
+
+function cancelarDescarte() {
+    mostrarConfirmarDescarte.value = false;
 }
 </script>
 
@@ -744,24 +806,24 @@ function cancelForms() {
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <h2 class="text-lg font-semibold text-kredix-negro">Movimientos</h2>
             <div v-if="!formMode" class="grid grid-cols-2 gap-2 md:flex md:flex-wrap">
-                <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'cargo'">
+                <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80" @click="abrirCargo">
                     + Nueva compra
                 </button>
-                <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'abono'">
+                <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white active:opacity-80" @click="abrirAbono">
                     + Nuevo abono
                 </button>
-                <button type="button" class="col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-[#1496BE] px-4 text-sm font-medium text-white active:bg-[#0F7A99] md:col-span-1" @click="formMode = 'gestion'">
+                <button type="button" class="col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-[#1496BE] px-4 text-sm font-medium text-white active:bg-[#0F7A99] md:col-span-1" @click="abrirGestion">
                     <NotebookPen :size="16" />
                     Anotar gestión
                 </button>
             </div>
         </div>
 
-        <div v-if="formMode === 'cargo'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="cancelForms">
+        <div v-if="formMode === 'cargo'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
         <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" @submit.prevent="submitCargo">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nueva compra</h2>
-                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="cancelForms">
+                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
                     <X :size="18" />
                 </button>
             </div>
@@ -868,17 +930,17 @@ function cancelForms() {
             </template>
 
             <div class="mt-1 flex gap-2 md:col-span-2">
-                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
                 <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="cargoForm.processing">Guardar compra</button>
             </div>
         </form>
         </div>
 
-        <div v-if="formMode === 'abono'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="cancelForms">
+        <div v-if="formMode === 'abono'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
         <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nuevo abono</h2>
-                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="cancelForms">
+                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
                     <X :size="18" />
                 </button>
             </div>
@@ -926,14 +988,20 @@ function cancelForms() {
             </div>
 
             <div class="mt-1 flex gap-2 md:col-span-2">
-                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
                 <button type="submit" class="min-h-11 flex-1 rounded-lg bg-green-600 text-sm font-semibold text-white disabled:opacity-60" :disabled="abonoForm.processing">Guardar abono</button>
             </div>
         </form>
         </div>
 
-        <form v-if="formMode === 'gestion'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitGestion">
-            <p class="text-sm font-medium text-kredix-negro">Anotar gestión</p>
+        <div v-if="formMode === 'gestion'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
+        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitGestion">
+            <div class="flex items-center justify-between">
+                <h2 class="font-medium text-kredix-negro">Anotar gestión</h2>
+                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
+                    <X :size="18" />
+                </button>
+            </div>
 
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Fecha</label>
@@ -964,13 +1032,20 @@ function cancelForms() {
             </div>
 
             <div class="mt-1 flex gap-2">
-                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
                 <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="gestionForm.processing">Guardar</button>
             </div>
         </form>
+        </div>
 
-        <form v-if="formMode === 'editar'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitEditMov">
-            <p class="text-sm font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'compra' : (editTipo === 'gestion' ? 'gestión' : 'abono/ajuste') }}</p>
+        <div v-if="formMode === 'editar'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
+        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitEditMov">
+            <div class="flex items-center justify-between">
+                <h2 class="font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'compra' : (editTipo === 'gestion' ? 'gestión' : 'abono/ajuste') }}</h2>
+                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
+                    <X :size="18" />
+                </button>
+            </div>
 
             <div v-if="editTipo !== 'gestion'" class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Descripcion</label>
@@ -1125,7 +1200,7 @@ function cancelForms() {
             </div>
 
             <div class="mt-1 flex gap-2">
-                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
                 <button
                     type="submit"
                     class="min-h-11 flex-1 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
@@ -1136,6 +1211,18 @@ function cancelForms() {
                 </button>
             </div>
         </form>
+        </div>
+
+        <div v-if="mostrarConfirmarDescarte" class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4" @click.self="cancelarDescarte">
+            <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
+                <p class="font-medium text-kredix-negro">Tienes cambios sin guardar</p>
+                <p class="mt-1 text-sm text-kredix-gris">¿Deseas salir sin guardar?</p>
+                <div class="mt-4 flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelarDescarte">Cancelar</button>
+                    <button type="button" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white active:opacity-80" @click="confirmarDescarte">Salir sin guardar</button>
+                </div>
+            </div>
+        </div>
 
         <p v-if="movimientos.length === 0" class="text-sm text-kredix-gris">Todavia no hay movimientos registrados.</p>
 
