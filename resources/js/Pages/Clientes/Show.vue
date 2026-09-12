@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ArrowDown, ArrowUp, Download, FileText, ImageOff, MessageCircle, NotebookPen, Pencil, Repeat, Search, Trash2, X } from '@lucide/vue';
+import { ArrowDown, ArrowUp, Download, FileText, ImageOff, MessageCircle, NotebookPen, Pencil, Plus, Repeat, Search, Trash2, X } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
@@ -254,15 +254,18 @@ const movimientosFiltrados = computed(() => {
 
 // formMode: null | 'cargo' | 'abono' | 'editar'
 const formMode = ref(null);
+const fabAbierto = ref(false);
 const plazoSugerido = ref(null);
+
+function productoVacio() {
+    return { descripcion: '', cantidad: '', precio_unitario: '' };
+}
 
 const cargoForm = useForm({
     cliente_id: props.cliente.id,
     tipo: 'cargo',
     fecha: today(),
-    descripcion: '',
-    cantidad: '',
-    precio_unitario: '',
+    productos: [productoVacio()],
     modalidad_precio: 'divisa',
     plazo_meses: '',
     frecuencia_pago: 'mensual',
@@ -273,6 +276,14 @@ const cargoForm = useForm({
     numero_cuotas: 3,
     cuotas: [],
 });
+
+function agregarProducto() {
+    cargoForm.productos.push(productoVacio());
+}
+
+function quitarProducto(i) {
+    cargoForm.productos.splice(i, 1);
+}
 
 watch(() => cargoForm.modalidad_precio, (val) => {
     if (val === 'divisa') {
@@ -287,7 +298,7 @@ watch(() => cargoForm.modalidad_precio, (val) => {
 const faltaTasaBcv = computed(() => cargoForm.modalidad_precio === 'bcv' && !cargoForm.tasa_cambio);
 const faltaTasaBcvEdit = computed(() => editForm.modalidad_precio === 'bcv' && !editForm.tasa_cambio);
 
-const montoCargo = computed(() => (parseFloat(cargoForm.cantidad) || 0) * (parseFloat(cargoForm.precio_unitario) || 0));
+const montoCargo = computed(() => cargoForm.productos.reduce((suma, p) => suma + (parseFloat(p.cantidad) || 0) * (parseFloat(p.precio_unitario) || 0), 0));
 
 function actualizarSugerencia() {
     const regla = props.reglas.find((r) => montoCargo.value >= parseFloat(r.monto_min) && montoCargo.value <= parseFloat(r.monto_max));
@@ -374,6 +385,7 @@ function submitCargo() {
             cargoForm.reset();
             cargoForm.tipo = 'cargo';
             cargoForm.fecha = today();
+            cargoForm.productos = [productoVacio()];
             cargoForm.moneda = 'usd';
             cargoForm.frecuencia_pago = 'mensual';
             cargoForm.modalidad_precio = 'divisa';
@@ -893,6 +905,25 @@ function confirmarYEliminarMov() {
             </div>
         </div>
 
+        <div v-if="!formMode" class="fixed bottom-20 right-4 z-20 flex flex-col items-end gap-2 md:bottom-6 md:right-6">
+            <template v-if="fabAbierto">
+                <button type="button" class="flex min-h-11 items-center justify-center rounded-full bg-green-600 px-4 text-sm font-medium text-white shadow-lg active:opacity-80" @click="fabAbierto = false; abrirAbono()">
+                    + Nuevo abono
+                </button>
+                <button type="button" class="flex min-h-11 items-center justify-center rounded-full bg-kredix-negro px-4 text-sm font-medium text-white shadow-lg active:opacity-80" @click="fabAbierto = false; abrirCargo()">
+                    + Nueva compra
+                </button>
+            </template>
+            <button
+                type="button"
+                aria-label="Acceso rapido: nuevo movimiento"
+                class="flex h-14 w-14 items-center justify-center rounded-full bg-kredix-rojo text-white shadow-lg active:opacity-80"
+                @click="fabAbierto = !fabAbierto"
+            >
+                <Plus :size="24" class="transition-transform" :class="fabAbierto ? 'rotate-45' : ''" />
+            </button>
+        </div>
+
         <div v-if="formMode === 'cargo'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
         <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" @submit.prevent="submitCargo">
             <div class="flex items-center justify-between md:col-span-2">
@@ -903,26 +934,36 @@ function confirmarYEliminarMov() {
             </div>
 
             <div class="flex flex-col gap-1 md:col-span-2">
-                <label class="text-sm font-medium text-kredix-negro">Descripcion</label>
-                <input v-model="cargoForm.descripcion" type="text" placeholder="ej: Bicicleta Factor Monza" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-                <p v-if="cargoForm.errors.descripcion" class="text-sm text-kredix-rojo">{{ cargoForm.errors.descripcion }}</p>
-            </div>
-
-            <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Fecha</label>
-                <input v-model="cargoForm.fecha" type="date" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <input v-model="cargoForm.fecha" type="date" class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none md:w-1/2" />
             </div>
 
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Cantidad</label>
-                <input v-model="cargoForm.cantidad" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
-                <p v-if="cargoForm.errors.cantidad" class="text-sm text-kredix-rojo">{{ cargoForm.errors.cantidad }}</p>
+            <div v-for="(producto, i) in cargoForm.productos" :key="i" class="flex flex-col gap-2 rounded-lg bg-gray-50 p-3 md:col-span-2">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs font-medium uppercase text-kredix-gris">Producto {{ i + 1 }}</p>
+                    <button v-if="i > 0" type="button" class="text-xs font-medium text-kredix-rojo underline" @click="quitarProducto(i)">Quitar</button>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Descripcion</label>
+                    <input v-model="producto.descripcion" type="text" placeholder="ej: Bicicleta Factor Monza" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="cargoForm.errors[`productos.${i}.descripcion`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.descripcion`] }}</p>
+                </div>
+                <div class="flex gap-2">
+                    <div class="flex flex-1 flex-col gap-1">
+                        <label class="text-sm font-medium text-kredix-negro">Cantidad</label>
+                        <input v-model="producto.cantidad" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
+                        <p v-if="cargoForm.errors[`productos.${i}.cantidad`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.cantidad`] }}</p>
+                    </div>
+                    <div class="flex flex-1 flex-col gap-1">
+                        <label class="text-sm font-medium text-kredix-negro">Precio unit.</label>
+                        <input v-model="producto.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
+                        <p v-if="cargoForm.errors[`productos.${i}.precio_unitario`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.precio_unitario`] }}</p>
+                    </div>
+                </div>
             </div>
 
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Precio unit.</label>
-                <input v-model="cargoForm.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
-                <p v-if="cargoForm.errors.precio_unitario" class="text-sm text-kredix-rojo">{{ cargoForm.errors.precio_unitario }}</p>
+            <div class="md:col-span-2">
+                <button type="button" class="text-sm font-medium text-kredix-negro underline" @click="agregarProducto">+ Agregar otro producto</button>
             </div>
 
             <div class="flex flex-col gap-1">
@@ -961,18 +1002,18 @@ function confirmarYEliminarMov() {
             </div>
 
             <div class="flex flex-col gap-1 md:col-span-2">
-                <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional{{ cargoForm.productos.length > 1 ? ', se adjunta al primer producto' : '' }})</span></label>
                 <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onFotoProductoChange" />
                 <p v-if="fotoProductoHeicError" class="text-sm text-kredix-rojo">{{ fotoProductoHeicError }}</p>
                 <p v-if="cargoForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ cargoForm.errors.foto_producto }}</p>
             </div>
 
-            <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro md:col-span-2">
+            <label v-if="cargoForm.productos.length === 1" class="flex items-center gap-2 text-sm font-medium text-kredix-negro md:col-span-2">
                 <input v-model="cargoForm.usa_plan_cuotas" type="checkbox" class="h-4 w-4" />
                 Venta especial / plan de cuotas
             </label>
 
-            <template v-if="cargoForm.usa_plan_cuotas">
+            <template v-if="cargoForm.productos.length === 1 && cargoForm.usa_plan_cuotas">
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Numero de cuotas</label>
                     <input v-model="cargoForm.numero_cuotas" type="number" min="1" max="24" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />

@@ -30,44 +30,94 @@ class MovimientoCuentaController extends Controller
         $esGestion = $tipo === 'gestion';
         $requiereMonto = in_array($tipo, ['abono', 'ajuste_devolucion'], true);
 
+        if ($esCargo) {
+            $validated = $request->validate([
+                'cliente_id' => ['required', 'exists:clientes,id'],
+                'fecha' => ['required', 'date'],
+                'productos' => ['required', 'array', 'min:1'],
+                'productos.*.descripcion' => ['required', 'string', 'max:255'],
+                'productos.*.cantidad' => ['required', 'numeric', 'min:0.01'],
+                'productos.*.precio_unitario' => ['required', 'numeric', 'min:0.01'],
+                'modalidad_precio' => ['required', 'in:divisa,bcv'],
+                'plazo_meses' => ['required', 'integer', 'min:1'],
+                'frecuencia_pago' => ['required', 'in:semanal,quincenal,mensual'],
+                'tasa_cambio' => ['nullable', 'numeric', 'min:0.0001'],
+                'foto_producto' => ['nullable', 'image', 'max:5120'],
+                'usa_plan_cuotas' => ['boolean'],
+                'cuotas' => [Rule::requiredIf($request->boolean('usa_plan_cuotas')), 'array'],
+                'cuotas.*.numero_cuota' => ['required_with:cuotas', 'integer', 'min:1'],
+                'cuotas.*.monto_sugerido' => ['required_with:cuotas', 'numeric', 'min:0.01'],
+                'cuotas.*.fecha_esperada' => ['required_with:cuotas', 'date'],
+            ], [
+                'productos.*.descripcion.required' => 'descripcion requerida',
+                'productos.*.cantidad.required' => 'cantidad requerida',
+                'productos.*.precio_unitario.required' => 'precio unitario requerido',
+                'plazo_meses.required' => 'plazo requerido',
+                'frecuencia_pago.required' => 'frecuencia de pago requerida',
+                'cuotas.required' => 'plan de cuotas requerido',
+            ]);
+
+            // fecha/modalidad/plazo/frecuencia se comparten entre todos los productos
+            // del mismo envio; cada uno crea su propio registro tipo=cargo
+            // independiente -- el plan de cuotas y la foto (si se adjunto) quedan
+            // en el primero, ya que el frontend solo permite cuotas con 1 producto
+            $movimientos = collect($validated['productos'])->map(function (array $producto) use ($validated) {
+                return MovimientoCuenta::create([
+                    'cliente_id' => $validated['cliente_id'],
+                    'fecha' => $validated['fecha'],
+                    'tipo' => 'cargo',
+                    'descripcion' => $producto['descripcion'],
+                    'cantidad' => $producto['cantidad'],
+                    'precio_unitario' => $producto['precio_unitario'],
+                    'modalidad_precio' => $validated['modalidad_precio'],
+                    'plazo_meses' => $validated['plazo_meses'],
+                    'frecuencia_pago' => $validated['frecuencia_pago'],
+                    'monto' => $producto['cantidad'] * $producto['precio_unitario'],
+                    'moneda' => 'usd',
+                    'tasa_cambio' => $validated['tasa_cambio'] ?? null,
+                    'registrado_por' => auth()->id(),
+                ]);
+            });
+
+            $primero = $movimientos->first();
+
+            if ($request->hasFile('foto_producto')) {
+                $this->adjuntarComprimida($primero, $request->file('foto_producto'), 'producto');
+            }
+
+            if ($request->boolean('usa_plan_cuotas')) {
+                foreach ($validated['cuotas'] as $cuota) {
+                    $primero->planCuotas()->create([
+                        'numero_cuota' => $cuota['numero_cuota'],
+                        'monto_sugerido' => $cuota['monto_sugerido'],
+                        'fecha_esperada' => $cuota['fecha_esperada'],
+                    ]);
+                }
+            }
+
+            return redirect()->route('clientes.show', $validated['cliente_id']);
+        }
+
         $validated = $request->validate([
             'cliente_id' => ['required', 'exists:clientes,id'],
-            'tipo' => ['required', 'in:cargo,abono,ajuste_devolucion,gestion'],
+            'tipo' => ['required', 'in:abono,ajuste_devolucion,gestion'],
             'tipo_contacto' => [Rule::requiredIf($esGestion), 'nullable', 'in:llamada,whatsapp,visita,otro'],
             'fecha_prometida' => ['nullable', 'date'],
             'fecha' => ['required', 'date'],
             'descripcion' => ['required', 'string', 'max:255'],
             'tasa_cambio' => ['nullable', 'numeric', 'min:0.0001'],
-            'cantidad' => [Rule::requiredIf($esCargo), 'nullable', 'numeric', 'min:0.01'],
-            'precio_unitario' => [Rule::requiredIf($esCargo), 'nullable', 'numeric', 'min:0.01'],
-            'modalidad_precio' => [Rule::requiredIf($esCargo), 'nullable', 'in:divisa,bcv'],
-            'plazo_meses' => [Rule::requiredIf($esCargo), 'nullable', 'integer', 'min:1'],
-            'frecuencia_pago' => [Rule::requiredIf($esCargo), 'nullable', 'in:semanal,quincenal,mensual'],
             'monto' => [Rule::requiredIf($requiereMonto), 'nullable', 'numeric', 'min:0.01'],
             'metodo_pago' => [Rule::requiredIf($requiereMonto), 'nullable', 'in:efectivo,zelle,binance,transferencia,pago_movil,bancamiga_divisa,punto_venta'],
-            'comentario' => [Rule::requiredIf(! $esCargo), 'nullable', 'string', 'max:1000'],
+            'comentario' => ['required', 'string', 'max:1000'],
             'comprobante' => ['nullable', 'image', 'max:5120'],
-            'foto_producto' => ['nullable', 'image', 'max:5120'],
-            'usa_plan_cuotas' => ['boolean'],
-            'cuotas' => [Rule::requiredIf($esCargo && $request->boolean('usa_plan_cuotas')), 'array'],
-            'cuotas.*.numero_cuota' => ['required_with:cuotas', 'integer', 'min:1'],
-            'cuotas.*.monto_sugerido' => ['required_with:cuotas', 'numeric', 'min:0.01'],
-            'cuotas.*.fecha_esperada' => ['required_with:cuotas', 'date'],
         ], [
             'comentario.required' => 'comentario requerido',
             'monto.required' => 'monto requerido',
             'metodo_pago.required' => 'metodo de pago requerido',
-            'cantidad.required' => 'cantidad requerida',
-            'precio_unitario.required' => 'precio unitario requerido',
-            'plazo_meses.required' => 'plazo requerido',
-            'frecuencia_pago.required' => 'frecuencia de pago requerida',
             'tipo_contacto.required' => 'tipo de contacto requerido',
-            'cuotas.required' => 'plan de cuotas requerido',
         ]);
 
-        $monto = $esCargo
-            ? $validated['cantidad'] * $validated['precio_unitario']
-            : ($validated['monto'] ?? 0);
+        $monto = $validated['monto'] ?? 0;
 
         $movimiento = MovimientoCuenta::create([
             'cliente_id' => $validated['cliente_id'],
@@ -76,11 +126,6 @@ class MovimientoCuentaController extends Controller
             'tipo_contacto' => $esGestion ? $validated['tipo_contacto'] : null,
             'fecha_prometida' => $esGestion ? ($validated['fecha_prometida'] ?? null) : null,
             'descripcion' => $validated['descripcion'],
-            'cantidad' => $esCargo ? $validated['cantidad'] : null,
-            'precio_unitario' => $esCargo ? $validated['precio_unitario'] : null,
-            'modalidad_precio' => $esCargo ? $validated['modalidad_precio'] : null,
-            'plazo_meses' => $esCargo ? $validated['plazo_meses'] : null,
-            'frecuencia_pago' => $esCargo ? $validated['frecuencia_pago'] : null,
             'monto' => $monto,
             'moneda' => 'usd',
             'tasa_cambio' => $validated['tasa_cambio'] ?? null,
@@ -92,20 +137,6 @@ class MovimientoCuentaController extends Controller
 
         if ($request->hasFile('comprobante')) {
             $this->adjuntarComprimida($movimiento, $request->file('comprobante'), 'comprobantes');
-        }
-
-        if ($esCargo && $request->hasFile('foto_producto')) {
-            $this->adjuntarComprimida($movimiento, $request->file('foto_producto'), 'producto');
-        }
-
-        if ($esCargo && $request->boolean('usa_plan_cuotas')) {
-            foreach ($validated['cuotas'] as $cuota) {
-                $movimiento->planCuotas()->create([
-                    'numero_cuota' => $cuota['numero_cuota'],
-                    'monto_sugerido' => $cuota['monto_sugerido'],
-                    'fecha_esperada' => $cuota['fecha_esperada'],
-                ]);
-            }
         }
 
         return redirect()->route('clientes.show', $validated['cliente_id']);
