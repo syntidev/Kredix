@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ArrowDown, ArrowUp, FileText, ImageOff, MessageCircle, NotebookPen, Pencil, Repeat, Search, Trash2, X } from '@lucide/vue';
+import { ArrowDown, ArrowUp, Download, FileText, ImageOff, MessageCircle, NotebookPen, Pencil, Repeat, Search, Trash2, X } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
@@ -59,6 +59,15 @@ function slug(texto) {
 function abrirPdf() {
     const nombreSlug = slug(props.cliente.nombre) || 'cliente';
     window.open(`/clientes/${props.cliente.id}/estado-cuenta-${nombreSlug}.pdf`, '_blank', 'noopener');
+}
+
+// mismo generador de PDF, ?descargar=1 le indica al controller usar download()
+// (Content-Disposition: attachment) en vez de stream() -- para que el archivo
+// quede en el dispositivo (Descargas) y el usuario lo adjunte manualmente donde
+// quiera, sin depender del boton de compartir del visor nativo
+function descargarPdf() {
+    const nombreSlug = slug(props.cliente.nombre) || 'cliente';
+    window.open(`/clientes/${props.cliente.id}/estado-cuenta-${nombreSlug}.pdf?descargar=1`, '_blank', 'noopener');
 }
 
 function cambiarResponsable(event) {
@@ -752,7 +761,16 @@ function cancelarDescarte() {
                     @click="abrirPdf"
                 >
                     <FileText :size="16" />
-                    PDF
+                    Estado de cuenta
+                </button>
+                <button
+                    type="button"
+                    title="Descargar el PDF al dispositivo"
+                    class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"
+                    @click="descargarPdf"
+                >
+                    <Download :size="16" />
+                    Descargar
                 </button>
             </div>
 
