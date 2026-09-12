@@ -19,13 +19,14 @@ class HomeController extends Controller
 
         // fecha (DATE, sin hora) no alcanza para "hace X tiempo" con precision real --
         // created_at (timestamp real del registro) es la unica fuente de hora exacta
-        $actividadReciente = MovimientoCuenta::where('tipo', 'abono')
+        $actividadReciente = MovimientoCuenta::whereIn('tipo', ['abono', 'cargo'])
             ->with('cliente:id,nombre')
             ->orderByDesc('created_at')
             ->take(6)
             ->get()
             ->map(fn (MovimientoCuenta $m) => [
                 'id' => $m->id,
+                'tipo' => $m->tipo,
                 'clienteId' => $m->cliente_id,
                 'clienteNombre' => $m->cliente?->nombre,
                 'monto' => (float) $m->monto,

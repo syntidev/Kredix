@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { ArrowDown, BarChart3, Settings, Users, Wallet } from '@lucide/vue';
+import { ArrowDown, ArrowUp, BarChart3, Settings, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import EventoCartelera from '../../Components/EventoCartelera.vue';
 import { formatMoney } from '../../lib/formatMoney';
@@ -30,6 +30,16 @@ function dotValidacion(estado) {
     if (estado === 'pendiente') return 'bg-amber-500';
     if (estado === 'validado') return 'bg-green-500';
     return null;
+}
+
+// mismo lenguaje visual que ESTILO_MOVIMIENTO en Clientes/Show.vue
+const ESTILO_ACTIVIDAD = {
+    abono: { icono: ArrowDown, color: 'text-green-600', etiqueta: 'Abono' },
+    cargo: { icono: ArrowUp, color: 'text-orange-600', etiqueta: 'Compra' },
+};
+
+function estiloActividad(tipo) {
+    return ESTILO_ACTIVIDAD[tipo] ?? ESTILO_ACTIVIDAD.abono;
 }
 </script>
 
@@ -69,12 +79,12 @@ function dotValidacion(estado) {
                 <div class="min-w-0">
                     <p class="flex items-center gap-1.5 truncate text-sm text-kredix-negro">
                         <span v-if="dotValidacion(a.estadoValidacion)" class="h-1.5 w-1.5 shrink-0 rounded-full" :class="dotValidacion(a.estadoValidacion)"></span>
-                        Abono de <span class="font-medium">{{ a.clienteNombre }}</span>
+                        {{ estiloActividad(a.tipo).etiqueta }} de <span class="font-medium">{{ a.clienteNombre }}</span>
                     </p>
                     <p class="text-xs text-kredix-gris">{{ formatTiempoRelativo(a.creadoEn) }}</p>
                 </div>
-                <span class="tabular-nums inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-green-600">
-                    <ArrowDown :size="12" />
+                <span class="tabular-nums inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold" :class="estiloActividad(a.tipo).color">
+                    <component :is="estiloActividad(a.tipo).icono" :size="12" />
                     {{ formatMoney(a.monto) }}
                 </span>
             </Link>
