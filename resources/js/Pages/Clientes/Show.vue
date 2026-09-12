@@ -198,6 +198,13 @@ function badgeTipo(tipo) {
     return BADGE_TIPO[tipo] ?? 'bg-gray-100 text-kredix-gris';
 }
 
+// capa de traduccion visual -- el valor real en BD y en toda comparacion logica
+// (tipo === 'cargo', WHERE tipo = 'cargo', filtros de Cartera/Cartelera) sigue
+// siendo 'cargo', esto solo cambia lo que el usuario lee en pantalla
+function etiquetaTipo(tipo) {
+    return tipo === 'cargo' ? 'Compra' : tipo;
+}
+
 function today() {
     return new Date().toISOString().slice(0, 10);
 }
@@ -713,7 +720,7 @@ function cancelForms() {
             <h2 class="text-lg font-semibold text-kredix-negro">Movimientos</h2>
             <div v-if="!formMode" class="grid grid-cols-2 gap-2 md:flex md:flex-wrap">
                 <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'cargo'">
-                    + Nuevo cargo
+                    + Nueva compra
                 </button>
                 <button type="button" class="flex min-h-11 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white active:opacity-80" @click="formMode = 'abono'">
                     + Nuevo abono
@@ -728,7 +735,7 @@ function cancelForms() {
         <div v-if="formMode === 'cargo'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="cancelForms">
         <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" @submit.prevent="submitCargo">
             <div class="flex items-center justify-between md:col-span-2">
-                <h2 class="font-medium text-kredix-negro">Nuevo cargo</h2>
+                <h2 class="font-medium text-kredix-negro">Nueva compra</h2>
                 <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="cancelForms">
                     <X :size="18" />
                 </button>
@@ -837,7 +844,7 @@ function cancelForms() {
 
             <div class="mt-1 flex gap-2 md:col-span-2">
                 <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelForms">Cancelar</button>
-                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="cargoForm.processing">Guardar cargo</button>
+                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="cargoForm.processing">Guardar compra</button>
             </div>
         </form>
         </div>
@@ -938,7 +945,7 @@ function cancelForms() {
         </form>
 
         <form v-if="formMode === 'editar'" class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitEditMov">
-            <p class="text-sm font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'cargo' : (editTipo === 'gestion' ? 'gestión' : 'abono/ajuste') }}</p>
+            <p class="text-sm font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'compra' : (editTipo === 'gestion' ? 'gestión' : 'abono/ajuste') }}</p>
 
             <div v-if="editTipo !== 'gestion'" class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Descripcion</label>
@@ -1112,7 +1119,7 @@ function cancelForms() {
                     <div class="flex min-w-0 flex-col gap-0.5">
                         <div class="flex items-center gap-2">
                             <span class="text-xs text-kredix-gris">{{ formatFecha(m.fecha) }}</span>
-                            <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="badgeTipo(m.tipo)">{{ m.tipo }}</span>
+                            <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="badgeTipo(m.tipo)">{{ etiquetaTipo(m.tipo) }}</span>
                         </div>
                         <p class="break-words text-sm text-kredix-negro">
                             <template v-if="m.tipo === 'gestion'">{{ tipoContactoLabel[m.tipo_contacto] ?? m.tipo_contacto }} — {{ m.comentario }}</template>
@@ -1196,7 +1203,7 @@ function cancelForms() {
                     >
                         <td class="whitespace-nowrap px-2 py-2 text-kredix-negro">{{ formatFecha(m.fecha) }}</td>
                         <td class="px-2 py-2">
-                            <span class="rounded-full px-2 py-0.5 text-xs font-medium not-italic" :class="badgeTipo(m.tipo)">{{ m.tipo }}</span>
+                            <span class="rounded-full px-2 py-0.5 text-xs font-medium not-italic" :class="badgeTipo(m.tipo)">{{ etiquetaTipo(m.tipo) }}</span>
                         </td>
                         <td class="break-words px-2 py-2 text-kredix-negro">
                             <template v-if="m.tipo === 'gestion'">

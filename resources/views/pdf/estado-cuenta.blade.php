@@ -17,6 +17,11 @@
         .rojo { color: #c00000; }
         .verde { color: #15803d; }
         .saldo-grande { font-size: 22px; font-weight: bold; }
+        .totalizacion { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        .totalizacion td { padding: 0; }
+        .total-celda { width: 45%; text-align: right; padding-top: 8px; border-top: 2px solid #101010; }
+        .total-celda p { margin: 0; }
+        .total-label { font-size: 9px; text-transform: uppercase; color: #666; }
         h2 { font-size: 13px; margin: 16px 0 6px; }
         .nota { color: #666; font-size: 9px; margin-bottom: 8px; }
         .cargo-cuotas { margin-bottom: 10px; }
@@ -57,6 +62,14 @@
                 return \Illuminate\Support\Carbon::parse($fecha)->format('d/m/Y');
             }
         }
+        // capa de traduccion visual -- el valor real 'tipo' en BD y todo filtro/
+        // comparacion logica sigue siendo 'cargo', esto solo cambia el texto
+        // que el cliente lee en el PDF
+        if (! function_exists('etiquetaTipoPdf')) {
+            function etiquetaTipoPdf($tipo) {
+                return $tipo === 'cargo' ? 'Compra' : $tipo;
+            }
+        }
     @endphp
     <table class="encabezado">
         <tr>
@@ -77,12 +90,11 @@
     </table>
 
     <table class="cliente">
-        <tr><td class="label">Cliente</td><td>{{ $cliente->nombre }}</td></tr>
+        <tr><td class="label">Cliente</td><td><strong>{{ $cliente->nombre }}</strong></td></tr>
         <tr><td class="label">Telefono</td><td>{{ $cliente->telefono }}</td></tr>
         @if ($cliente->cedula)
             <tr><td class="label">Cedula</td><td>{{ $cliente->cedula }}</td></tr>
         @endif
-        <tr><td class="label">Saldo pendiente</td><td class="saldo-grande {{ $saldoPendiente > 0 ? 'rojo' : ($saldoPendiente < 0 ? 'verde' : '') }}">{{ formatMoneyPdf($saldoPendiente) }}</td></tr>
     </table>
 
     <table class="movimientos">
@@ -99,7 +111,7 @@
             @forelse ($movimientos as $m)
                 <tr>
                     <td>{{ formatFechaPdf($m['fecha']) }}</td>
-                    <td>{{ $m['tipo'] }}</td>
+                    <td>{{ etiquetaTipoPdf($m['tipo']) }}</td>
                     <td>{{ $m['descripcion'] }}</td>
                     <td class="monto {{ $m['tipo'] === 'abono' ? 'verde' : ($m['tipo'] === 'ajuste_devolucion' ? 'rojo' : '') }}">{{ $m['monto'] !== null ? formatMoneyPdf($m['monto']) : '-' }}</td>
                     <td class="monto">{{ formatMoneyPdf($m['saldo_acumulado']) }}</td>
@@ -108,6 +120,16 @@
                 <tr><td colspan="5">Sin movimientos registrados.</td></tr>
             @endforelse
         </tbody>
+    </table>
+
+    <table class="totalizacion">
+        <tr>
+            <td></td>
+            <td class="total-celda">
+                <p class="total-label">Saldo pendiente</p>
+                <p class="saldo-grande {{ $saldoPendiente > 0 ? 'rojo' : ($saldoPendiente < 0 ? 'verde' : '') }}">{{ formatMoneyPdf($saldoPendiente) }}</p>
+            </td>
+        </tr>
     </table>
 
     @if (count($compromisosCuotas) > 0)
