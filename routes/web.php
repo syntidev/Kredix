@@ -47,6 +47,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/movimientos', [MovimientoCuentaController::class, 'store'])->name('movimientos.store');
     Route::put('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'update'])->name('movimientos.update');
     Route::patch('/movimientos/{movimiento}/validacion', [MovimientoCuentaController::class, 'validar'])->name('movimientos.validar');
+    Route::delete('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'destroy'])->name('movimientos.destroy');
 
     Route::middleware('es_admin')->group(function () {
         Route::get('/kpi', [KpiController::class, 'index'])->name('kpi');

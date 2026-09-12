@@ -219,4 +219,28 @@ class MovimientoCuentaController extends Controller
 
         return redirect()->route('clientes.show', $movimiento->cliente_id);
     }
+
+    public function destroy(Request $request, MovimientoCuenta $movimiento)
+    {
+        $validated = $request->validate([
+            'motivo' => ['required', 'string', 'max:1000'],
+        ], [
+            'motivo.required' => 'motivo requerido',
+        ]);
+
+        $clienteId = $movimiento->cliente_id;
+
+        // soft-delete real (SoftDeletes ya excluye estos registros de cualquier
+        // query normal: saldoPendiente/totalCobrado, tabla de Movimientos, PDF,
+        // Resumen del dia, Cartelera y KPI todos usan Eloquent, nunca SQL crudo
+        // sobre movimientos_cuenta) -- el registro sigue en la BD para auditoria,
+        // nunca forceDelete
+        $movimiento->update([
+            'motivo_eliminacion' => $validated['motivo'],
+            'eliminado_por' => auth()->id(),
+        ]);
+        $movimiento->delete();
+
+        return redirect()->route('clientes.show', $clienteId);
+    }
 }

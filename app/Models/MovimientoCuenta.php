@@ -38,6 +38,8 @@ class MovimientoCuenta extends Model implements HasMedia
         'estado_validacion',
         'validado_por',
         'validado_en',
+        'motivo_eliminacion',
+        'eliminado_por',
     ];
 
     protected $casts = [

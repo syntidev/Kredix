@@ -674,6 +674,35 @@ function confirmarDescarte() {
 function cancelarDescarte() {
     mostrarConfirmarDescarte.value = false;
 }
+
+const eliminandoMovId = ref(null);
+const motivoEliminacionMov = ref('');
+const eliminandoMovProcesando = ref(false);
+
+function confirmarEliminarMov(m) {
+    eliminandoMovId.value = m.id;
+    motivoEliminacionMov.value = '';
+}
+
+function cancelarEliminarMov() {
+    eliminandoMovId.value = null;
+    motivoEliminacionMov.value = '';
+}
+
+function confirmarYEliminarMov() {
+    eliminandoMovProcesando.value = true;
+    router.delete(`/movimientos/${eliminandoMovId.value}`, {
+        data: { motivo: motivoEliminacionMov.value },
+        preserveScroll: true,
+        onFinish: () => {
+            eliminandoMovProcesando.value = false;
+        },
+        onSuccess: () => {
+            eliminandoMovId.value = null;
+            motivoEliminacionMov.value = '';
+        },
+    });
+}
 </script>
 
 <template>
@@ -1346,9 +1375,14 @@ function cancelarDescarte() {
                         <span class="w-fit rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700">editado</span>
                         <span class="text-kredix-gris">{{ m.motivo_edicion }}</span>
                     </div>
-                    <button type="button" class="mt-1 self-start font-medium text-kredix-gris underline" @click.stop="openEditMov(m)">
-                        Editar
-                    </button>
+                    <div class="mt-1 flex w-fit gap-3 self-start">
+                        <button type="button" class="font-medium text-kredix-gris underline" @click.stop="openEditMov(m)">
+                            Editar
+                        </button>
+                        <button type="button" class="font-medium text-kredix-rojo underline" @click.stop="confirmarEliminarMov(m)">
+                            Eliminar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1363,7 +1397,7 @@ function cancelarDescarte() {
                     <col class="w-[104px]" />
                     <col class="w-[136px]" />
                     <col class="w-[100px]" />
-                    <col class="w-[52px]" />
+                    <col class="w-[64px]" />
                 </colgroup>
                 <thead class="bg-gray-100 text-xs uppercase text-kredix-gris">
                     <tr>
@@ -1434,7 +1468,10 @@ function cancelarDescarte() {
                         </td>
                         <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
                         <td class="px-1 py-2 text-right">
-                            <button type="button" class="text-xs font-medium text-kredix-gris underline not-italic" @click="openEditMov(m)">Editar</button>
+                            <div class="flex flex-col items-end gap-0.5">
+                                <button type="button" class="text-xs font-medium text-kredix-gris underline not-italic" @click="openEditMov(m)">Editar</button>
+                                <button type="button" class="text-xs font-medium text-kredix-rojo underline not-italic" @click="confirmarEliminarMov(m)">Eliminar</button>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
@@ -1514,6 +1551,35 @@ function cancelarDescarte() {
                         Cancelar
                     </button>
                     <button type="button" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white active:opacity-80" @click="doEliminarCliente">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="eliminandoMovId" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="cancelarEliminarMov">
+            <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
+                <p class="font-medium text-kredix-negro">¿Eliminar este movimiento?</p>
+                <p class="mt-1 text-sm text-kredix-gris">No se borra de la base de datos, solo deja de contar en el saldo y de aparecer en el estado de cuenta.</p>
+                <div class="mt-3 flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Motivo <span class="font-normal text-kredix-gris">(obligatorio)</span></label>
+                    <textarea
+                        v-model="motivoEliminacionMov"
+                        rows="2"
+                        placeholder="ej: producto cargado por error, nunca se entrego"
+                        class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                    ></textarea>
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelarEliminarMov">
+                        Cancelar
+                    </button>
+                    <button
+                        type="button"
+                        class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60"
+                        :disabled="!motivoEliminacionMov.trim() || eliminandoMovProcesando"
+                        @click="confirmarYEliminarMov"
+                    >
                         Eliminar
                     </button>
                 </div>
