@@ -81,17 +81,21 @@ const totalCierreDelDia = computed(() => props.cierreDelDia.reduce((acc, fila) =
             <EventoCartelera v-for="evento in eventosUrgentes" :key="evento.cliente_id + evento.tipo" :evento="evento" />
         </div>
 
-        <div v-if="cierreDelDia.length > 0" class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <h2 class="text-lg font-semibold text-kredix-negro">Cierre del dia</h2>
-            <div v-for="fila in cierreDelDia" :key="fila.metodoPago" class="flex items-center justify-between text-sm">
-                <span class="text-kredix-negro">{{ METODO_PAGO_LABEL[fila.metodoPago] ?? fila.metodoPago }}</span>
-                <span class="tabular-nums text-kredix-gris">
-                    <span class="font-medium text-kredix-negro">{{ formatMoney(fila.total) }}</span>
-                    ({{ fila.cantidad }} abono{{ fila.cantidad === 1 ? '' : 's' }})
-                    <span v-if="fila.pendientes > 0" class="text-amber-600"> — {{ fila.pendientes }} pendiente{{ fila.pendientes === 1 ? '' : 's' }} por validar</span>
-                </span>
+        <div v-if="cierreDelDia.length > 0" class="flex flex-col gap-3">
+            <h2 class="text-lg font-semibold text-kredix-negro">Resumen del dia</h2>
+            <div v-for="fila in cierreDelDia" :key="fila.metodoPago" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+                <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                    <span class="min-w-0 truncate text-sm font-medium text-kredix-negro">{{ METODO_PAGO_LABEL[fila.metodoPago] ?? fila.metodoPago }}</span>
+                    <span v-if="fila.pendientes > 0" class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        {{ fila.pendientes }} pendiente{{ fila.pendientes === 1 ? '' : 's' }} por validar
+                    </span>
+                </div>
+                <div class="mt-1 flex items-baseline justify-between gap-2">
+                    <span class="tabular-nums text-base font-semibold text-kredix-negro">{{ formatMoney(fila.total) }}</span>
+                    <span class="shrink-0 text-xs text-kredix-gris">{{ fila.cantidad }} abono{{ fila.cantidad === 1 ? '' : 's' }}</span>
+                </div>
             </div>
-            <div class="flex items-center justify-between border-t border-gray-100 pt-2 text-sm font-semibold">
+            <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold">
                 <span class="text-kredix-negro">Total del dia</span>
                 <span class="tabular-nums text-kredix-negro">{{ formatMoney(totalCierreDelDia) }}</span>
             </div>
