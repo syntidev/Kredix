@@ -401,9 +401,9 @@ class ClienteController extends Controller
 
         $validated['nombre'] = mb_strtoupper($validated['nombre'], 'UTF-8');
 
-        Cliente::create($validated);
+        $cliente = Cliente::create($validated);
 
-        return redirect()->route('clientes.index');
+        return redirect()->route('clientes.show', $cliente->id);
     }
 
     public function update(Request $request, Cliente $cliente)
