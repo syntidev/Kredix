@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { UserCheck, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import StatCard from '../../Components/StatCard.vue';
+import { colorDias } from '../../lib/colorDias';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
 
@@ -54,13 +55,6 @@ function irAPagina(pagina) {
     irA({ page: pagina });
 }
 
-function colorDias(dias) {
-    if (dias === null) return 'text-kredix-rojo';
-    if (dias <= 15) return 'text-green-600';
-    if (dias <= 30) return 'text-amber-600';
-    if (dias <= 60) return 'text-orange-600';
-    return 'text-kredix-rojo';
-}
 </script>
 
 <template>

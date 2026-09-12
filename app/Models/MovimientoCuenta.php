@@ -105,4 +105,20 @@ class MovimientoCuenta extends Model implements HasMedia
     {
         return (float) static::where('cliente_id', $clienteId)->where('tipo', 'abono')->sum('monto');
     }
+
+    /**
+     * Fecha y dias sin abonar del ultimo abono real (nunca cargo), a partir de una
+     * Collection ya cargada -- recibe la coleccion en vez de consultar la BD para
+     * poder reutilizarse dentro de un loop sobre muchos clientes (CarteleraController)
+     * sin introducir una query por cliente.
+     */
+    public static function ultimoAbonoInfo($movimientos): array
+    {
+        $ultimoAbono = $movimientos->where('tipo', 'abono')->whereNotNull('fecha')->sortBy('fecha')->last();
+
+        return [
+            'fecha' => $ultimoAbono?->fecha,
+            'dias' => $ultimoAbono ? now()->startOfDay()->diffInDays($ultimoAbono->fecha, true) : null,
+        ];
+    }
 }

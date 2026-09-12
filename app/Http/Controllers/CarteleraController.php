@@ -161,8 +161,7 @@ class CarteleraController extends Controller
             $ultimaActividad = $movs->whereIn('tipo', ['abono', 'gestion'])->whereNotNull('fecha')->sortByDesc('fecha')->first();
             $fechaEvento = ($ultimaActividad?->fecha ?? $cargos->first()?->fecha)?->toDateString();
 
-            $ultimoAbono = $abonos->last();
-            $diasSinAbonar = $ultimoAbono ? $hoy->diffInDays($ultimoAbono->fecha, true) : null;
+            $diasSinAbonar = MovimientoCuenta::ultimoAbonoInfo($movs)['dias'];
 
             $intervalos = [];
             for ($i = 1; $i < $abonos->count(); $i++) {

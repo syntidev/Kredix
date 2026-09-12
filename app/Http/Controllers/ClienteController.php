@@ -131,8 +131,8 @@ class ClienteController extends Controller
         });
 
         $saldoPendiente = MovimientoCuenta::saldoPendiente($cliente->id);
-        $ultimoAbono = $movimientosRaw->where('tipo', 'abono')->whereNotNull('fecha')->last();
-        $diasSinAbonar = $ultimoAbono ? now()->startOfDay()->diffInDays($ultimoAbono->fecha, true) : null;
+        $ultimoAbonoInfo = MovimientoCuenta::ultimoAbonoInfo($movimientosRaw);
+        $diasSinAbonar = $ultimoAbonoInfo['dias'];
 
         $intro = str_replace(
             ['{nombre}', '{saldo}', '{dias_sin_abonar}'],
@@ -152,6 +152,8 @@ class ClienteController extends Controller
             'usuarios' => User::where('es_oculto', false)->orderBy('name')->get(['id', 'name']),
             'movimientos' => $movimientos,
             'saldoPendiente' => $saldoPendiente,
+            'ultimoAbonoFecha' => $ultimoAbonoInfo['fecha']?->toDateString(),
+            'diasSinAbonar' => $diasSinAbonar,
             'totalCobrado' => MovimientoCuenta::totalCobrado($cliente->id),
             'totalOtorgado' => (float) MovimientoCuenta::where('cliente_id', $cliente->id)->where('tipo', 'cargo')->sum('monto'),
             'reglas' => ReglaPlazo::orderBy('monto_min')->get(),

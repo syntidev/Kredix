@@ -7,6 +7,7 @@ import BackButton from '../../Components/BackButton.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
 import UserAvatar from '../../Components/UserAvatar.vue';
+import { colorDias } from '../../lib/colorDias';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
@@ -20,6 +21,8 @@ const props = defineProps({
     saldoPendiente: { type: [Number, String], required: true },
     totalCobrado: { type: [Number, String], required: true },
     totalOtorgado: { type: [Number, String], required: true },
+    ultimoAbonoFecha: { type: String, default: null },
+    diasSinAbonar: { type: Number, default: null },
     reglas: { type: Array, required: true },
     compromisosCuotas: { type: Array, default: () => [] },
     mensajeWhatsapp: { type: String, default: '' },
@@ -698,25 +701,37 @@ function cancelarDescarte() {
                 </div>
             </div>
 
-            <div class="mt-3">
-                <p class="text-xs text-kredix-gris">Saldo pendiente</p>
-                <p
-                    class="tabular-nums text-4xl font-bold"
-                    :class="saldoPendiente > 0 ? 'text-kredix-rojo' : (saldoPendiente < 0 ? 'text-green-600' : 'text-kredix-negro')"
-                >
-                    {{ formatMoney(saldoPendiente) }}
-                </p>
-                <p class="mt-0.5 text-sm text-kredix-gris">Total cobrado: <span class="tabular-nums font-medium text-kredix-negro">{{ formatMoney(totalCobrado) }}</span></p>
-            </div>
+            <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                    <div>
+                        <p class="text-xs text-kredix-gris">Saldo pendiente</p>
+                        <p
+                            class="tabular-nums text-4xl font-bold"
+                            :class="saldoPendiente > 0 ? 'text-kredix-rojo' : (saldoPendiente < 0 ? 'text-green-600' : 'text-kredix-negro')"
+                        >
+                            {{ formatMoney(saldoPendiente) }}
+                        </p>
+                        <p class="mt-0.5 text-sm text-kredix-gris">Total cobrado: <span class="tabular-nums font-medium text-kredix-negro">{{ formatMoney(totalCobrado) }}</span></p>
+                    </div>
 
-            <div class="mt-3">
-                <p class="text-xs text-kredix-gris">
-                    Otorgado: <span class="font-medium text-kredix-negro">{{ formatMoney(totalOtorgado) }}</span>
-                    · Cobrado: <span class="font-medium text-green-600">{{ formatMoney(totalCobrado) }}</span>
-                    ({{ porcentajeCobrado }}%)
-                </p>
-                <div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                    <div class="h-full rounded-full bg-green-600" :style="{ width: anchoBarraCobrado + '%' }"></div>
+                    <div class="mt-3">
+                        <p class="text-xs text-kredix-gris">
+                            Otorgado: <span class="font-medium text-kredix-negro">{{ formatMoney(totalOtorgado) }}</span>
+                            · Cobrado: <span class="font-medium text-green-600">{{ formatMoney(totalCobrado) }}</span>
+                            ({{ porcentajeCobrado }}%)
+                        </p>
+                        <div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                            <div class="h-full rounded-full bg-green-600" :style="{ width: anchoBarraCobrado + '%' }"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md:border-l md:border-gray-100 md:pl-4">
+                    <p class="text-xs text-kredix-gris">Ultimo abono</p>
+                    <p class="text-2xl font-bold text-kredix-negro">{{ ultimoAbonoFecha ? formatFecha(ultimoAbonoFecha) : 'Nunca' }}</p>
+                    <p class="mt-0.5 text-sm font-medium" :class="ultimoAbonoFecha ? colorDias(diasSinAbonar) : 'text-kredix-gris'">
+                        {{ ultimoAbonoFecha ? `hace ${Math.round(diasSinAbonar)} dias` : 'sin abonos registrados' }}
+                    </p>
                 </div>
             </div>
 
