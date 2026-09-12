@@ -67,7 +67,13 @@
         // que el cliente lee en el PDF
         if (! function_exists('etiquetaTipoPdf')) {
             function etiquetaTipoPdf($tipo) {
-                return $tipo === 'cargo' ? 'Compra' : $tipo;
+                return match ($tipo) {
+                    'cargo' => 'Compra',
+                    'abono' => 'Abono',
+                    'ajuste_devolucion' => 'Ajuste',
+                    'gestion' => 'Gestion',
+                    default => ucfirst($tipo),
+                };
             }
         }
     @endphp
@@ -103,6 +109,7 @@
                 <th>Fecha</th>
                 <th>Tipo</th>
                 <th>Descripcion</th>
+                <th class="monto">Cant.</th>
                 <th class="monto">Monto</th>
                 <th class="monto">Saldo</th>
             </tr>
@@ -113,11 +120,12 @@
                     <td>{{ formatFechaPdf($m['fecha']) }}</td>
                     <td>{{ etiquetaTipoPdf($m['tipo']) }}</td>
                     <td>{{ $m['descripcion'] }}</td>
+                    <td class="monto">{{ $m['cantidad'] !== null ? $m['cantidad'] : '-' }}</td>
                     <td class="monto {{ $m['tipo'] === 'abono' ? 'verde' : ($m['tipo'] === 'ajuste_devolucion' ? 'rojo' : '') }}">{{ $m['monto'] !== null ? formatMoneyPdf($m['monto']) : '-' }}</td>
                     <td class="monto">{{ formatMoneyPdf($m['saldo_acumulado']) }}</td>
                 </tr>
             @empty
-                <tr><td colspan="5">Sin movimientos registrados.</td></tr>
+                <tr><td colspan="6">Sin movimientos registrados.</td></tr>
             @endforelse
         </tbody>
     </table>

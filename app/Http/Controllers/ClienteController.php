@@ -186,6 +186,7 @@ class ClienteController extends Controller
                 'fecha' => $m->fecha?->toDateString(),
                 'tipo' => $m->tipo,
                 'descripcion' => $m->descripcion,
+                'cantidad' => $m->cantidad,
                 'monto' => $m->tipo === 'gestion' ? null : (float) $m->monto,
                 'saldo_acumulado' => $saldo,
             ];
