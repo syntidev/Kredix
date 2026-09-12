@@ -449,6 +449,7 @@ function submitGestion() {
 
 const editingMovId = ref(null);
 const editTipo = ref('cargo');
+const editEstadoValidacion = ref(null);
 
 const editForm = useForm({
     _method: 'put',
@@ -492,7 +493,23 @@ function openEditMov(m) {
     editForm.motivo_edicion = '';
     editTipo.value = m.tipo;
     editingMovId.value = m.id;
+    editEstadoValidacion.value = m.estado_validacion ?? null;
     formMode.value = 'editar';
+}
+
+function toggleValidacion() {
+    router.patch(`/movimientos/${editingMovId.value}/validacion`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            editEstadoValidacion.value = editEstadoValidacion.value === 'pendiente' ? 'validado' : 'pendiente';
+        },
+    });
+}
+
+function dotValidacion(estado) {
+    if (estado === 'pendiente') return 'bg-amber-500';
+    if (estado === 'validado') return 'bg-green-500';
+    return null;
 }
 
 const editComprobanteHeicError = ref('');
@@ -532,6 +549,7 @@ function submitEditMov() {
         preserveScroll: true,
         onSuccess: () => {
             editingMovId.value = null;
+            editEstadoValidacion.value = null;
             formMode.value = null;
         },
     });
@@ -561,6 +579,7 @@ function cancelForms() {
     gestionForm.clearErrors();
     editForm.clearErrors();
     editingMovId.value = null;
+    editEstadoValidacion.value = null;
     formMode.value = null;
 }
 </script>
@@ -1058,6 +1077,22 @@ function cancelForms() {
                     <p v-if="editComprobanteHeicError" class="text-sm text-kredix-rojo">{{ editComprobanteHeicError }}</p>
                     <p v-if="editForm.errors.comprobante" class="text-sm text-kredix-rojo">{{ editForm.errors.comprobante }}</p>
                 </div>
+                <div v-if="editEstadoValidacion" class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                    <span class="flex items-center gap-2 text-sm font-medium text-kredix-negro">
+                        <span class="h-2 w-2 rounded-full" :class="dotValidacion(editEstadoValidacion)"></span>
+                        {{ editEstadoValidacion === 'validado' ? 'Validado' : 'Pendiente por validar' }}
+                    </span>
+                    <button
+                        type="button"
+                        role="switch"
+                        :aria-checked="editEstadoValidacion === 'validado'"
+                        class="min-h-8 rounded-full px-3 text-xs font-semibold text-white"
+                        :class="editEstadoValidacion === 'validado' ? 'bg-green-600' : 'bg-amber-500'"
+                        @click="toggleValidacion"
+                    >
+                        Marcar {{ editEstadoValidacion === 'validado' ? 'pendiente' : 'validado' }}
+                    </button>
+                </div>
             </template>
 
             <div v-if="editTipo !== 'gestion'" class="flex gap-2">
@@ -1143,7 +1178,10 @@ function cancelForms() {
                     </div>
                     <div class="flex justify-between">
                         <span class="text-kredix-gris">Metodo</span>
-                        <span class="text-kredix-negro">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</span>
+                        <span class="inline-flex items-center gap-1.5 text-kredix-negro">
+                            <span v-if="dotValidacion(m.estado_validacion)" class="h-1.5 w-1.5 rounded-full" :class="dotValidacion(m.estado_validacion)"></span>
+                            {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}
+                        </span>
                     </div>
                     <p v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</p>
                     <p v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion') && esComentarioVisible(m.comentario)" class="text-kredix-gris">{{ m.comentario }}</p>
@@ -1243,7 +1281,12 @@ function cancelForms() {
                                 {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
                             </span>
                         </td>
-                        <td class="whitespace-nowrap px-2 py-2 text-kredix-gris">{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}</td>
+                        <td class="whitespace-nowrap px-2 py-2 text-kredix-gris">
+                            <span class="inline-flex items-center gap-1.5">
+                                <span v-if="dotValidacion(m.estado_validacion)" class="h-1.5 w-1.5 rounded-full" :class="dotValidacion(m.estado_validacion)"></span>
+                                {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}
+                            </span>
+                        </td>
                         <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
                         <td class="px-1 py-2 text-right">
                             <button type="button" class="text-xs font-medium text-kredix-gris underline not-italic" @click="openEditMov(m)">Editar</button>

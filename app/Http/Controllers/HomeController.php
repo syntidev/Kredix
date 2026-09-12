@@ -29,6 +29,7 @@ class HomeController extends Controller
                 'clienteId' => $m->cliente_id,
                 'clienteNombre' => $m->cliente?->nombre,
                 'monto' => (float) $m->monto,
+                'estadoValidacion' => $m->estado_validacion,
                 'creadoEn' => $m->created_at->toIso8601String(),
             ]);
 

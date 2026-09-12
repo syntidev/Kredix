@@ -87,6 +87,7 @@ class MovimientoCuentaController extends Controller
             'metodo_pago' => $validated['metodo_pago'] ?? null,
             'comentario' => $validated['comentario'] ?? null,
             'registrado_por' => auth()->id(),
+            'estado_validacion' => ($tipo === 'abono' && $request->hasFile('comprobante')) ? 'pendiente' : null,
         ]);
 
         if ($request->hasFile('comprobante')) {
@@ -189,6 +190,21 @@ class MovimientoCuentaController extends Controller
                 'despues' => $movimiento->only(array_keys($antes)),
             ])
             ->log('actualizacion_movimiento');
+
+        return redirect()->route('clientes.show', $movimiento->cliente_id);
+    }
+
+    public function validar(Request $request, MovimientoCuenta $movimiento)
+    {
+        abort_if($movimiento->estado_validacion === null, 422, 'Este movimiento no requiere validacion');
+
+        $nuevoEstado = $movimiento->estado_validacion === 'pendiente' ? 'validado' : 'pendiente';
+
+        $movimiento->update([
+            'estado_validacion' => $nuevoEstado,
+            'validado_por' => $nuevoEstado === 'validado' ? auth()->id() : null,
+            'validado_en' => $nuevoEstado === 'validado' ? now() : null,
+        ]);
 
         return redirect()->route('clientes.show', $movimiento->cliente_id);
     }

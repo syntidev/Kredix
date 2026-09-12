@@ -25,6 +25,12 @@ const tiles = computed(() => [
     ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI', icon: BarChart3, stat: null }] : []),
     { href: '/configuracion', label: 'Configuracion', icon: Settings, stat: null },
 ]);
+
+function dotValidacion(estado) {
+    if (estado === 'pendiente') return 'bg-amber-500';
+    if (estado === 'validado') return 'bg-green-500';
+    return null;
+}
 </script>
 
 <template>
@@ -61,7 +67,10 @@ const tiles = computed(() => [
                 class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3 shadow-sm active:bg-gray-50"
             >
                 <div class="min-w-0">
-                    <p class="truncate text-sm text-kredix-negro">Abono de <span class="font-medium">{{ a.clienteNombre }}</span></p>
+                    <p class="flex items-center gap-1.5 truncate text-sm text-kredix-negro">
+                        <span v-if="dotValidacion(a.estadoValidacion)" class="h-1.5 w-1.5 shrink-0 rounded-full" :class="dotValidacion(a.estadoValidacion)"></span>
+                        Abono de <span class="font-medium">{{ a.clienteNombre }}</span>
+                    </p>
                     <p class="text-xs text-kredix-gris">{{ formatTiempoRelativo(a.creadoEn) }}</p>
                 </div>
                 <span class="tabular-nums shrink-0 text-sm font-semibold text-green-600">{{ formatMoney(a.monto) }}</span>

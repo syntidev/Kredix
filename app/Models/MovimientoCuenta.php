@@ -35,6 +35,9 @@ class MovimientoCuenta extends Model implements HasMedia
         'metodo_pago',
         'comentario',
         'registrado_por',
+        'estado_validacion',
+        'validado_por',
+        'validado_en',
     ];
 
     protected $casts = [
@@ -44,6 +47,7 @@ class MovimientoCuenta extends Model implements HasMedia
         'precio_unitario' => 'decimal:2',
         'monto' => 'decimal:2',
         'tasa_cambio' => 'decimal:4',
+        'validado_en' => 'datetime',
     ];
 
     public function cliente(): BelongsTo
@@ -54,6 +58,11 @@ class MovimientoCuenta extends Model implements HasMedia
     public function registradoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'registrado_por');
+    }
+
+    public function validadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'validado_por');
     }
 
     public function planCuotas(): HasMany

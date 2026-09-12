@@ -120,6 +120,7 @@ class ClienteController extends Controller
                 'metodo_pago' => $m->metodo_pago,
                 'comentario' => $m->comentario,
                 'registrado_por' => $m->registradoPor?->name,
+                'estado_validacion' => $m->estado_validacion,
                 'comprobante_url' => $m->getFirstMediaUrl('comprobantes') ?: null,
                 'comprobante_thumb_url' => $m->getFirstMediaUrl('comprobantes', 'thumb') ?: null,
                 'producto_url' => $m->getFirstMediaUrl('producto') ?: null,
