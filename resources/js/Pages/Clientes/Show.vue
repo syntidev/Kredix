@@ -456,6 +456,8 @@ function submitGestion() {
 const editingMovId = ref(null);
 const editTipo = ref('cargo');
 const editEstadoValidacion = ref(null);
+const editComprobanteUrlActual = ref(null);
+const editComprobanteThumbUrlActual = ref(null);
 
 const editForm = useForm({
     _method: 'put',
@@ -500,6 +502,8 @@ function openEditMov(m) {
     editTipo.value = m.tipo;
     editingMovId.value = m.id;
     editEstadoValidacion.value = estadoValidacionEfectivo(m);
+    editComprobanteUrlActual.value = m.comprobante_url ?? null;
+    editComprobanteThumbUrlActual.value = m.comprobante_thumb_url ?? null;
     formMode.value = 'editar';
     formSnapshot.value = serializarDatos(editForm.data());
 }
@@ -1164,6 +1168,11 @@ function cancelarDescarte() {
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Foto de comprobante <span class="font-normal text-kredix-gris">(opcional, reemplaza la actual)</span></label>
+                    <a v-if="editComprobanteUrlActual" :href="editComprobanteUrlActual" target="_blank" class="flex w-fit items-center gap-1.5 text-xs text-kredix-rojo underline">
+                        <img v-if="!imgErrores[`ec${editingMovId}`]" :src="editComprobanteThumbUrlActual" alt="comprobante actual" class="h-10 w-10 rounded object-cover" @error="onImgError(`ec${editingMovId}`)" />
+                        <ImageOff v-else :size="18" class="text-kredix-gris" />
+                        Comprobante actual
+                    </a>
                     <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onEditComprobanteChange" />
                     <p v-if="editComprobanteHeicError" class="text-sm text-kredix-rojo">{{ editComprobanteHeicError }}</p>
                     <p v-if="editForm.errors.comprobante" class="text-sm text-kredix-rojo">{{ editForm.errors.comprobante }}</p>
