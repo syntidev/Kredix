@@ -22,7 +22,7 @@ defineProps({
     <Head title="Sistema" />
 
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
-        <BackButton href="/clientes" label="Clientes" />
+        <BackButton href="/home" label="Inicio" />
         <h1 class="text-xl font-semibold text-kredix-negro">Sistema</h1>
 
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">

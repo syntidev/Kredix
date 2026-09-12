@@ -205,8 +205,14 @@ function etiquetaTipo(tipo) {
     return tipo === 'cargo' ? 'Compra' : tipo;
 }
 
+// toISOString() extrae la fecha en UTC -- entre las 8pm y medianoche hora Venezuela
+// (UTC-4) eso adelanta la fecha al dia siguiente. Se arman los componentes locales
+// a mano para que "hoy" respete el reloj del dispositivo, no UTC.
 function today() {
-    return new Date().toISOString().slice(0, 10);
+    const d = new Date();
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const dia = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mes}-${dia}`;
 }
 
 const movimientosConSaldo = computed(() => {
@@ -1218,7 +1224,7 @@ function cancelForms() {
                     <col />
                     <col class="w-[56px]" />
                     <col class="w-[104px]" />
-                    <col class="w-[112px]" />
+                    <col class="w-[136px]" />
                     <col class="w-[100px]" />
                     <col class="w-[52px]" />
                 </colgroup>
