@@ -499,7 +499,7 @@ function openEditMov(m) {
     editForm.motivo_edicion = '';
     editTipo.value = m.tipo;
     editingMovId.value = m.id;
-    editEstadoValidacion.value = m.estado_validacion ?? null;
+    editEstadoValidacion.value = estadoValidacionEfectivo(m);
     formMode.value = 'editar';
     formSnapshot.value = serializarDatos(editForm.data());
 }
@@ -511,6 +511,14 @@ function toggleValidacion() {
             editEstadoValidacion.value = editEstadoValidacion.value === 'pendiente' ? 'validado' : 'pendiente';
         },
     });
+}
+
+// estado_validacion en null no siempre significa "no aplica" -- un abono con
+// comprobante real creado antes de que este campo existiera tambien queda null en
+// la BD; si tiene comprobante, se trata como "pendiente" por defecto (misma regla
+// que usa openEditMov para decidir si mostrar el toggle)
+function estadoValidacionEfectivo(m) {
+    return (m.tipo === 'abono' && m.comprobante_url) ? (m.estado_validacion ?? 'pendiente') : null;
 }
 
 function dotValidacion(estado) {
@@ -1274,7 +1282,7 @@ function cancelarDescarte() {
                     <div class="flex justify-between">
                         <span class="text-kredix-gris">Metodo</span>
                         <span class="inline-flex items-center gap-1.5 text-kredix-negro">
-                            <span v-if="dotValidacion(m.estado_validacion)" class="h-1.5 w-1.5 rounded-full" :class="dotValidacion(m.estado_validacion)"></span>
+                            <span v-if="dotValidacion(estadoValidacionEfectivo(m))" class="h-1.5 w-1.5 rounded-full" :class="dotValidacion(estadoValidacionEfectivo(m))"></span>
                             {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}
                         </span>
                     </div>
@@ -1378,7 +1386,7 @@ function cancelarDescarte() {
                         </td>
                         <td class="whitespace-nowrap px-2 py-2 text-kredix-gris">
                             <span class="inline-flex items-center gap-1.5">
-                                <span v-if="dotValidacion(m.estado_validacion)" class="h-1.5 w-1.5 rounded-full" :class="dotValidacion(m.estado_validacion)"></span>
+                                <span v-if="dotValidacion(estadoValidacionEfectivo(m))" class="h-1.5 w-1.5 rounded-full" :class="dotValidacion(estadoValidacionEfectivo(m))"></span>
                                 {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}
                             </span>
                         </td>

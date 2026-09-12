@@ -175,6 +175,14 @@ class MovimientoCuentaController extends Controller
 
         if ($request->hasFile('comprobante')) {
             $this->adjuntarComprimida($movimiento, $request->file('comprobante'), 'comprobantes');
+
+            // abonos creados antes de que este campo existiera (o a los que se les
+            // adjunta comprobante por primera vez aqui) nunca tuvieron oportunidad
+            // de nacer "pendiente" -- se corrige al momento en que de verdad
+            // adquieren un comprobante, sin pisar un estado ya decidido
+            if ($movimiento->tipo === 'abono' && $movimiento->estado_validacion === null) {
+                $movimiento->update(['estado_validacion' => 'pendiente']);
+            }
         }
 
         if ($esCargo && $request->hasFile('foto_producto')) {
@@ -196,9 +204,12 @@ class MovimientoCuentaController extends Controller
 
     public function validar(Request $request, MovimientoCuenta $movimiento)
     {
-        abort_if($movimiento->estado_validacion === null, 422, 'Este movimiento no requiere validacion');
+        // la fuente de verdad es si tiene un comprobante real adjunto, no si la
+        // columna estado_validacion ya fue poblada -- abonos creados antes de que
+        // este campo existiera tienen comprobante pero estado_validacion en null
+        abort_if($movimiento->tipo !== 'abono' || ! $movimiento->getFirstMedia('comprobantes'), 422, 'Este movimiento no requiere validacion');
 
-        $nuevoEstado = $movimiento->estado_validacion === 'pendiente' ? 'validado' : 'pendiente';
+        $nuevoEstado = ($movimiento->estado_validacion ?? 'pendiente') === 'pendiente' ? 'validado' : 'pendiente';
 
         $movimiento->update([
             'estado_validacion' => $nuevoEstado,
