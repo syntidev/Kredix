@@ -37,7 +37,11 @@ Route::middleware('auth')->group(function () {
     Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
 
     Route::get('/clientes/{cliente}', [ClienteController::class, 'show'])->name('clientes.show');
-    Route::get('/clientes/{cliente}/estado-cuenta', [ClienteController::class, 'estadoCuenta'])->name('clientes.estado-cuenta');
+    // {nombreSlug} es puramente cosmetico -- Cliente $cliente (route model binding
+    // por id) sigue siendo la unica fuente real para resolver el cliente; iOS/WebKit
+    // ignora el filename= del Content-Disposition al guardar desde el visor nativo
+    // y usa el ultimo segmento de la URL, de ahi que el nombre tenga que vivir aqui
+    Route::get('/clientes/{cliente}/estado-cuenta-{nombreSlug}.pdf', [ClienteController::class, 'estadoCuenta'])->name('clientes.estado-cuenta');
     Route::patch('/clientes/{cliente}/mensaje-pdf', [ClienteController::class, 'actualizarMensajePdf'])->name('clientes.mensaje-pdf');
     Route::patch('/clientes/{cliente}/responsable', [ClienteController::class, 'actualizarResponsable'])->name('clientes.responsable');
     Route::post('/movimientos', [MovimientoCuentaController::class, 'store'])->name('movimientos.store');

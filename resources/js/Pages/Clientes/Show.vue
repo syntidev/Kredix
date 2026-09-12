@@ -27,13 +27,35 @@ const props = defineProps({
     usuarios: { type: Array, default: () => [] },
 });
 
+// equivalente JS de Str::slug() de Laravel -- solo para que la URL sea legible,
+// el backend nunca confia en esto para resolver el cliente (ver comentario en
+// routes/web.php). Regex de marcas diacriticas armado via fromCharCode: equivale
+// a /[̀-ͯ]/g, escrito asi para que el rango unicode nunca se corrompa
+// en herramientas de edicion que normalizan texto.
+const REGEX_DIACRITICOS = new RegExp(String.fromCharCode(91, 92, 117, 48, 51, 48, 48, 45, 92, 117, 48, 51, 54, 102, 93), 'g');
+
+function slug(texto) {
+    return texto
+        .normalize('NFD')
+        .replace(REGEX_DIACRITICOS, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
 // window.open() sincrono en el click, sin await antes -- en PWA instalada en iOS
 // (display: standalone) esto es lo que saca el PDF de la ventana standalone hacia
 // una pestana real de Safari, que conserva su barra nativa con boton de compartir.
 // Una navegacion normal (<a href>, incluso con target="_blank") se queda atrapada
 // dentro del contenedor del PWA, que no tiene esa barra.
+//
+// el nombre del cliente va en la URL (no solo en Content-Disposition) porque
+// iOS/WebKit ignora el filename= del header al guardar/compartir desde el visor
+// nativo y usa el ultimo segmento de la URL en su lugar -- el {id} en la ruta
+// sigue siendo lo unico que el backend usa para resolver el cliente.
 function abrirPdf() {
-    window.open(`/clientes/${props.cliente.id}/estado-cuenta`, '_blank', 'noopener');
+    const nombreSlug = slug(props.cliente.nombre) || 'cliente';
+    window.open(`/clientes/${props.cliente.id}/estado-cuenta-${nombreSlug}.pdf`, '_blank', 'noopener');
 }
 
 function cambiarResponsable(event) {
