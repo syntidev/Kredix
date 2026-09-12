@@ -735,7 +735,7 @@ function cancelarDescarte() {
                     </div>
                 </div>
 
-                <div class="flex h-full flex-col justify-center rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div class="flex h-full flex-col justify-center whitespace-nowrap rounded-lg border border-gray-200 bg-gray-50 p-4 md:w-fit md:justify-self-end md:text-right">
                     <p class="text-xs text-kredix-gris">Ultimo abono</p>
                     <p class="text-2xl font-bold text-kredix-negro">{{ ultimoAbonoFecha ? formatFecha(ultimoAbonoFecha) : 'Nunca' }}</p>
                     <p class="mt-0.5 text-sm font-medium" :class="ultimoAbonoFecha ? colorDias(diasSinAbonar) : 'text-kredix-gris'">
