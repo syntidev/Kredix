@@ -49,7 +49,9 @@ const chartSeries = computed(() => [
 
 const chartOptions = computed(() => ({
     chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
-    colors: ['#101010', '#FA0A0A'],
+    // Otorgado=naranja (mismo tono de Compra/cargo), Cobrado=verde (mismo tono de
+    // abono) -- misma paleta ya establecida en Movimientos, nunca invertida
+    colors: ['#EA580C', '#16A34A'],
     plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
     dataLabels: { enabled: false },
     xaxis: {
@@ -63,10 +65,14 @@ const chartOptions = computed(() => ({
     grid: { borderColor: '#f3f4f6', strokeDashArray: 0, xaxis: { lines: { show: false } } },
 }));
 
+// mismos tonos exactos del semaforo de antiguedad ya usado en Cartera/Index.vue
+// (colorDias): verde <=15, amarillo <=30, naranja <=60, rojo 60+
+const COLOR_RANGO_CARTERA = { '0-15': 'bg-green-600', '16-30': 'bg-amber-600', '31-60': 'bg-orange-600', '60+': 'bg-kredix-rojo' };
+
 const rangosCartera = computed(() => {
     const entries = Object.entries(props.antiguedadCartera);
     const max = Math.max(...entries.map(([, v]) => v), 1);
-    return entries.map(([rango, monto]) => ({ rango, monto, pct: (monto / max) * 100 }));
+    return entries.map(([rango, monto]) => ({ rango, monto, pct: (monto / max) * 100, color: COLOR_RANGO_CARTERA[rango] ?? 'bg-kredix-rojo' }));
 });
 
 // suma exacta a 100%: los primeros 2 porcentajes se redondean, el tercero se
@@ -81,7 +87,7 @@ const saludChartSeries = computed(() => [props.saludCartera.al_dia, props.saludC
 const saludChartOptions = computed(() => ({
     chart: { type: 'donut', fontFamily: 'inherit' },
     labels: ['Al dia', 'Atrasados', 'Cartera fria'],
-    colors: ['#101010', '#EA580C', '#FA0A0A'],
+    colors: ['#16A34A', '#EA580C', '#FA0A0A'],
     legend: { position: 'bottom' },
     dataLabels: { formatter: (val) => `${Math.round(val)}%` },
     plotOptions: {
@@ -119,7 +125,7 @@ const saludChartOptions = computed(() => ({
             </div>
         </div>
 
-        <StatCard label="Dinero en calle" :value="formatMoney(dineroEnCalle)" :icon="Wallet" variant="rojo" tamano="grande" />
+        <StatCard label="Dinero en calle" :value="formatMoney(dineroEnCalle)" :icon="Wallet" variant="negro" tamano="grande" />
 
         <StatCard label="Total clientes" :value="String(totalClientesActivos)" :icon="crecimientoClientesPct !== null && crecimientoClientesPct < 0 ? TrendingDown : TrendingUp" :variant="crecimientoClientesPct !== null && crecimientoClientesPct < 0 ? 'rojo' : 'verde'">
             <p class="mt-1 text-xs text-kredix-gris">{{ clientesNuevosEsteMes }} nuevos este mes</p>
@@ -130,7 +136,7 @@ const saludChartOptions = computed(() => ({
         </StatCard>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <StatCard v-for="s in seccionesPeriodo" :key="s.key" :label="s.etiqueta" :value="formatMoney(s.actual.cobrado)" :icon="s.actual.neto >= 0 ? TrendingUp : TrendingDown" :variant="s.actual.neto >= 0 ? 'verde' : 'rojo'" :ayuda="AYUDA_PERIODO">
+            <StatCard v-for="s in seccionesPeriodo" :key="s.key" :label="s.etiqueta" :value="formatMoney(s.actual.cobrado)" :icon="s.actual.neto >= 0 ? TrendingUp : TrendingDown" :variant="s.actual.neto >= 0 ? 'verde' : 'rojo'" color-valor="text-green-600" :ayuda="AYUDA_PERIODO">
                 <p class="mt-1 text-xs text-kredix-gris">
                     Otorgado: <span class="font-medium text-kredix-negro">{{ formatMoney(s.actual.otorgado) }}</span>
                     · Neto: <span class="font-medium" :class="s.actual.neto >= 0 ? 'text-green-600' : 'text-kredix-rojo'">{{ formatMoney(s.actual.neto) }}</span>
@@ -202,7 +208,7 @@ const saludChartOptions = computed(() => ({
                 <VueApexCharts type="donut" height="260" :options="saludChartOptions" :series="saludChartSeries" />
                 <div class="mt-3 flex flex-col gap-1.5 text-sm">
                     <div class="flex items-center justify-between">
-                        <span class="flex items-center gap-1.5 text-kredix-negro"><span class="h-2.5 w-2.5 rounded-full bg-kredix-negro"></span>Al dia (0-15 dias)</span>
+                        <span class="flex items-center gap-1.5 text-kredix-negro"><span class="h-2.5 w-2.5 rounded-full bg-green-600"></span>Al dia (0-15 dias)</span>
                         <span class="tabular-nums font-medium text-kredix-negro">{{ saludCartera.al_dia }} ({{ pctAlDia }}%)</span>
                     </div>
                     <div class="flex items-center justify-between">
@@ -226,7 +232,7 @@ const saludChartOptions = computed(() => ({
                         <span class="tabular-nums font-medium text-kredix-negro">{{ formatMoney(r.monto) }}</span>
                     </div>
                     <div class="h-2 w-full rounded-full bg-gray-100">
-                        <div class="h-2 rounded-full bg-kredix-rojo" :style="{ width: r.pct + '%' }"></div>
+                        <div class="h-2 rounded-full" :class="r.color" :style="{ width: r.pct + '%' }"></div>
                     </div>
                 </div>
             </div>

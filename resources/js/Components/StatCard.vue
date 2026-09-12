@@ -9,6 +9,7 @@ defineProps({
     variant: { type: String, default: 'negro' }, // 'rojo' | 'negro' | 'verde'
     tamano: { type: String, default: 'normal' }, // 'normal' | 'grande' -- el numero principal de la pantalla usa 'grande'
     ayuda: { type: String, default: null }, // texto del tooltip "?" -- omitir para no mostrar el icono
+    colorValor: { type: String, default: null }, // clase Tailwind que reemplaza el color del numero principal (default: text-kredix-negro)
 });
 
 const VARIANTS = {
@@ -46,8 +47,8 @@ const mostrarAyuda = ref(false);
                 <component :is="icon" :size="20" :class="classesFor(variant).icon" />
             </div>
             <p
-                class="min-w-0 tabular-nums text-kredix-negro"
-                :class="tamano === 'grande' ? 'text-3xl font-bold sm:text-5xl' : 'text-2xl font-semibold sm:text-3xl'"
+                class="min-w-0 tabular-nums"
+                :class="[colorValor ?? 'text-kredix-negro', tamano === 'grande' ? 'text-3xl font-bold sm:text-5xl' : 'text-2xl font-semibold sm:text-3xl']"
             >
                 {{ value }}
             </p>
