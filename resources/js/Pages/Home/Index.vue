@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { BarChart3, Settings, Users, Wallet } from '@lucide/vue';
+import { ArrowDown, BarChart3, Settings, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import EventoCartelera from '../../Components/EventoCartelera.vue';
 import { formatMoney } from '../../lib/formatMoney';
@@ -73,7 +73,10 @@ function dotValidacion(estado) {
                     </p>
                     <p class="text-xs text-kredix-gris">{{ formatTiempoRelativo(a.creadoEn) }}</p>
                 </div>
-                <span class="tabular-nums shrink-0 text-sm font-semibold text-green-600">{{ formatMoney(a.monto) }}</span>
+                <span class="tabular-nums inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-green-600">
+                    <ArrowDown :size="12" />
+                    {{ formatMoney(a.monto) }}
+                </span>
             </Link>
         </div>
     </div>
