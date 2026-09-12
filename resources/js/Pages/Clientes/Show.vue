@@ -710,7 +710,7 @@ function cancelarDescarte() {
                 </div>
             </div>
 
-            <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div>
                     <div>
                         <p class="text-xs text-kredix-gris">Saldo pendiente</p>
@@ -735,7 +735,7 @@ function cancelarDescarte() {
                     </div>
                 </div>
 
-                <div class="md:border-l md:border-gray-100 md:pl-4">
+                <div class="flex h-full flex-col justify-center rounded-lg border border-gray-200 bg-gray-50 p-4">
                     <p class="text-xs text-kredix-gris">Ultimo abono</p>
                     <p class="text-2xl font-bold text-kredix-negro">{{ ultimoAbonoFecha ? formatFecha(ultimoAbonoFecha) : 'Nunca' }}</p>
                     <p class="mt-0.5 text-sm font-medium" :class="ultimoAbonoFecha ? colorDias(diasSinAbonar) : 'text-kredix-gris'">
