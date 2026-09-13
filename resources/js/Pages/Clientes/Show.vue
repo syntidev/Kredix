@@ -285,6 +285,38 @@ function quitarProducto(i) {
     cargoForm.productos.splice(i, 1);
 }
 
+const sugerenciasProducto = ref([]);
+const sugerenciaProductoIndex = ref(null);
+let sugerenciasProductoTimeout = null;
+
+// texto libre siempre se acepta -- esto solo sugiere, nunca bloquea ni exige
+// elegir una opcion existente para poder guardar
+function buscarSugerenciasProducto(i) {
+    sugerenciaProductoIndex.value = i;
+    clearTimeout(sugerenciasProductoTimeout);
+
+    const texto = cargoForm.productos[i].descripcion.trim();
+    if (texto.length < 2) {
+        sugerenciasProducto.value = [];
+        return;
+    }
+
+    sugerenciasProductoTimeout = setTimeout(async () => {
+        try {
+            const res = await fetch(`/productos?q=${encodeURIComponent(texto)}`);
+            sugerenciasProducto.value = res.ok ? await res.json() : [];
+        } catch {
+            sugerenciasProducto.value = [];
+        }
+    }, 250);
+}
+
+function elegirSugerenciaProducto(i, nombre) {
+    cargoForm.productos[i].descripcion = nombre;
+    sugerenciasProducto.value = [];
+    sugerenciaProductoIndex.value = null;
+}
+
 watch(() => cargoForm.modalidad_precio, (val) => {
     if (val === 'divisa') {
         cargoForm.tasa_cambio = '';
@@ -943,9 +975,31 @@ function confirmarYEliminarMov() {
                     <p class="text-xs font-medium uppercase text-kredix-gris">Producto {{ i + 1 }}</p>
                     <button v-if="i > 0" type="button" class="text-xs font-medium text-kredix-rojo underline" @click="quitarProducto(i)">Quitar</button>
                 </div>
-                <div class="flex flex-col gap-1">
+                <div class="relative flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Descripcion</label>
-                    <input v-model="producto.descripcion" type="text" placeholder="ej: Bicicleta Factor Monza" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <input
+                        v-model="producto.descripcion"
+                        type="text"
+                        placeholder="ej: Bicicleta Factor Monza"
+                        class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                        @input="buscarSugerenciasProducto(i)"
+                        @focus="buscarSugerenciasProducto(i)"
+                        @blur="sugerenciaProductoIndex = null"
+                    />
+                    <ul
+                        v-if="sugerenciaProductoIndex === i && sugerenciasProducto.length > 0"
+                        class="absolute top-full z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg"
+                    >
+                        <li v-for="s in sugerenciasProducto" :key="s">
+                            <button
+                                type="button"
+                                class="block w-full px-3 py-2 text-left text-sm text-kredix-negro active:bg-gray-100"
+                                @mousedown.prevent="elegirSugerenciaProducto(i, s)"
+                            >
+                                {{ s }}
+                            </button>
+                        </li>
+                    </ul>
                     <p v-if="cargoForm.errors[`productos.${i}.descripcion`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.descripcion`] }}</p>
                 </div>
                 <div class="flex gap-2">

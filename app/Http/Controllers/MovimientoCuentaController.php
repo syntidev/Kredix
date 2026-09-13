@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\MovimientoCuenta;
+use App\Models\Producto;
 use App\Services\ImagenUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -62,6 +63,12 @@ class MovimientoCuentaController extends Controller
             // independiente -- el plan de cuotas y la foto (si se adjunto) quedan
             // en el primero, ya que el frontend solo permite cuotas con 1 producto
             $movimientos = collect($validated['productos'])->map(function (array $producto) use ($validated) {
+                $catalogo = Producto::firstOrCreate(
+                    ['nombre' => Producto::normalizarNombre($producto['descripcion'])],
+                    ['veces_usado' => 0]
+                );
+                $catalogo->increment('veces_usado');
+
                 return MovimientoCuenta::create([
                     'cliente_id' => $validated['cliente_id'],
                     'fecha' => $validated['fecha'],
