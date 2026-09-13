@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -26,10 +27,18 @@ class TasaBcvFetcherService
 
             if ($r->successful()) {
                 $rate = (float) ($r->json('promedio') ?? 0);
+                $fecha = $r->json('fechaActualizacion');
                 if ($rate > 10 && $rate < 10000) {
-                    Log::info('[TasaBcvFetcher] USD OK via dolarapi', ['rate' => $rate]);
+                    if (! $this->esDeHoy($fecha)) {
+                        Log::warning('[TasaBcvFetcher] USD dolarapi con fecha desactualizada, se descarta', [
+                            'rate' => $rate,
+                            'fechaActualizacion' => $fecha,
+                        ]);
+                    } else {
+                        Log::info('[TasaBcvFetcher] USD OK via dolarapi', ['rate' => $rate]);
 
-                    return ['success' => true, 'rate' => $rate, 'source' => 'dolarapi'];
+                        return ['success' => true, 'rate' => $rate, 'source' => 'dolarapi'];
+                    }
                 }
             }
         } catch (\Throwable $e) {
@@ -44,10 +53,18 @@ class TasaBcvFetcherService
 
             if ($r->successful()) {
                 $rate = (float) ($r->json('bcv_usd') ?? 0);
+                $fecha = $r->json('timestamp');
                 if ($rate > 10 && $rate < 10000) {
-                    Log::info('[TasaBcvFetcher] USD OK via brecha-cambiaria', ['rate' => $rate]);
+                    if (! $this->esDeHoy($fecha)) {
+                        Log::warning('[TasaBcvFetcher] USD brecha-cambiaria con fecha desactualizada, se descarta', [
+                            'rate' => $rate,
+                            'timestamp' => $fecha,
+                        ]);
+                    } else {
+                        Log::info('[TasaBcvFetcher] USD OK via brecha-cambiaria', ['rate' => $rate]);
 
-                    return ['success' => true, 'rate' => $rate, 'source' => 'brecha-cambiaria'];
+                        return ['success' => true, 'rate' => $rate, 'source' => 'brecha-cambiaria'];
+                    }
                 }
             }
         } catch (\Throwable $e) {
@@ -57,5 +74,26 @@ class TasaBcvFetcherService
         Log::error('[TasaBcvFetcher] USD FAIL todas las fuentes — se requiere tasa manual');
 
         return ['success' => false, 'rate' => null, 'source' => 'all_failed'];
+    }
+
+    /**
+     * Valida que el dato reportado por la fuente sea del dia de hoy en
+     * America/Caracas -- solo la fecha, nunca la hora exacta. Independiente de si
+     * el valor sube o baja: esto es staleness, no una regla sobre el monto.
+     */
+    private function esDeHoy(?string $fecha): bool
+    {
+        if (! $fecha) {
+            return false;
+        }
+
+        try {
+            $fechaCaracas = Carbon::parse($fecha)->setTimezone('America/Caracas')->toDateString();
+            $hoyCaracas = Carbon::now('America/Caracas')->toDateString();
+
+            return $fechaCaracas === $hoyCaracas;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 }
