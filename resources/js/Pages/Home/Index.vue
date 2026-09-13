@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ArrowDown, ArrowUp, BarChart3, Settings, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import EventoCartelera from '../../Components/EventoCartelera.vue';
@@ -54,6 +54,18 @@ const METODO_PAGO_LABEL = {
 };
 
 const totalCierreDelDia = computed(() => props.cierreDelDia.reduce((acc, fila) => acc + fila.total, 0));
+
+const metodoExpandido = ref(null);
+
+function toggleMetodo(metodoPago) {
+    metodoExpandido.value = metodoExpandido.value === metodoPago ? null : metodoPago;
+}
+
+function toggleValidacionAbono(abono) {
+    // redirect()->back() en el controller devuelve las props de Home ya
+    // actualizadas -- no hace falta mutar estado local, Inertia refresca solo
+    router.patch(`/movimientos/${abono.id}/validacion`, {}, { preserveScroll: true });
+}
 </script>
 
 <template>
@@ -83,16 +95,42 @@ const totalCierreDelDia = computed(() => props.cierreDelDia.reduce((acc, fila) =
 
         <div v-if="cierreDelDia.length > 0" class="flex flex-col gap-3">
             <h2 class="text-lg font-semibold text-kredix-negro">Resumen del dia</h2>
-            <div v-for="fila in cierreDelDia" :key="fila.metodoPago" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-                <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                    <span class="min-w-0 truncate text-sm font-medium text-kredix-negro">{{ METODO_PAGO_LABEL[fila.metodoPago] ?? fila.metodoPago }}</span>
-                    <span v-if="fila.pendientes > 0" class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                        {{ fila.pendientes }} pendiente{{ fila.pendientes === 1 ? '' : 's' }} por validar
-                    </span>
-                </div>
-                <div class="mt-1 flex items-baseline justify-between gap-2">
-                    <span class="tabular-nums text-base font-semibold text-kredix-negro">{{ formatMoney(fila.total) }}</span>
-                    <span class="shrink-0 text-xs text-kredix-gris">{{ fila.cantidad }} abono{{ fila.cantidad === 1 ? '' : 's' }}</span>
+            <div v-for="fila in cierreDelDia" :key="fila.metodoPago" class="rounded-lg border border-gray-200 bg-white shadow-sm">
+                <button
+                    type="button"
+                    class="w-full p-3 text-left active:bg-gray-50"
+                    @click="toggleMetodo(fila.metodoPago)"
+                >
+                    <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                        <span class="min-w-0 truncate text-sm font-medium text-kredix-negro">{{ METODO_PAGO_LABEL[fila.metodoPago] ?? fila.metodoPago }}</span>
+                        <span v-if="fila.pendientes > 0" class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            {{ fila.pendientes }} pendiente{{ fila.pendientes === 1 ? '' : 's' }} por validar
+                        </span>
+                    </div>
+                    <div class="mt-1 flex items-baseline justify-between gap-2">
+                        <span class="tabular-nums text-base font-semibold text-kredix-negro">{{ formatMoney(fila.total) }}</span>
+                        <span class="shrink-0 text-xs text-kredix-gris">{{ fila.cantidad }} abono{{ fila.cantidad === 1 ? '' : 's' }}</span>
+                    </div>
+                </button>
+                <div v-if="metodoExpandido === fila.metodoPago" class="flex flex-col divide-y divide-gray-100 border-t border-gray-100">
+                    <div v-for="abono in fila.abonos" :key="abono.id" class="flex items-center gap-2 p-3">
+                        <button
+                            v-if="abono.estadoValidacion"
+                            type="button"
+                            class="shrink-0 rounded-full p-1 active:bg-gray-100"
+                            :title="abono.estadoValidacion === 'pendiente' ? 'Marcar como validado' : 'Marcar como pendiente'"
+                            @click="toggleValidacionAbono(abono)"
+                        >
+                            <span class="block h-2.5 w-2.5 rounded-full" :class="dotValidacion(abono.estadoValidacion)"></span>
+                        </button>
+                        <Link :href="`/clientes/${abono.clienteId}`" class="flex min-w-0 flex-1 items-center justify-between gap-2 active:opacity-70">
+                            <span class="min-w-0 truncate text-sm text-kredix-negro">{{ abono.clienteNombre }}</span>
+                            <span class="flex shrink-0 items-center gap-2 text-xs text-kredix-gris">
+                                {{ abono.hora }}
+                                <span class="tabular-nums text-sm font-semibold text-green-600">{{ formatMoney(abono.monto) }}</span>
+                            </span>
+                        </Link>
+                    </div>
                 </div>
             </div>
             <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold">

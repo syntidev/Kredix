@@ -255,7 +255,7 @@ class MovimientoCuentaController extends Controller
             'validado_en' => $nuevoEstado === 'validado' ? now() : null,
         ]);
 
-        return redirect()->route('clientes.show', $movimiento->cliente_id);
+        return redirect()->back();
     }
 
     public function destroy(Request $request, MovimientoCuenta $movimiento)

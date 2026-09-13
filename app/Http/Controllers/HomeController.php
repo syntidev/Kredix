@@ -34,17 +34,35 @@ class HomeController extends Controller
                 'creadoEn' => $m->created_at->toIso8601String(),
             ]);
 
-        $cierreDelDia = MovimientoCuenta::where('tipo', 'abono')
+        $abonosHoy = MovimientoCuenta::where('tipo', 'abono')
             ->whereDate('fecha', now()->toDateString())
-            ->selectRaw("metodo_pago, SUM(monto) as total, COUNT(*) as cantidad, SUM(CASE WHEN estado_validacion = 'pendiente' THEN 1 ELSE 0 END) as pendientes")
+            ->with('cliente:id,nombre')
+            ->orderByDesc('created_at')
+            ->get();
+
+        // mismo criterio que estadoValidacionEfectivo() en Clientes/Show.vue: solo
+        // un abono con comprobante real adjunto requiere validacion
+        $estadoValidacionEfectivo = fn (MovimientoCuenta $m) => $m->getFirstMedia('comprobantes')
+            ? ($m->estado_validacion ?? 'pendiente')
+            : null;
+
+        $cierreDelDia = $abonosHoy
             ->groupBy('metodo_pago')
-            ->get()
-            ->map(fn ($fila) => [
-                'metodoPago' => $fila->metodo_pago,
-                'total' => (float) $fila->total,
-                'cantidad' => (int) $fila->cantidad,
-                'pendientes' => (int) $fila->pendientes,
-            ]);
+            ->map(fn ($grupo, $metodoPago) => [
+                'metodoPago' => $metodoPago,
+                'total' => (float) $grupo->sum('monto'),
+                'cantidad' => $grupo->count(),
+                'pendientes' => $grupo->filter(fn (MovimientoCuenta $m) => $estadoValidacionEfectivo($m) === 'pendiente')->count(),
+                'abonos' => $grupo->map(fn (MovimientoCuenta $m) => [
+                    'id' => $m->id,
+                    'clienteId' => $m->cliente_id,
+                    'clienteNombre' => $m->cliente?->nombre,
+                    'monto' => (float) $m->monto,
+                    'hora' => $m->created_at->format('H:i'),
+                    'estadoValidacion' => $estadoValidacionEfectivo($m),
+                ])->values(),
+            ])
+            ->values();
 
         return Inertia::render('Home/Index', [
             'totalClientes' => Cliente::count(),
