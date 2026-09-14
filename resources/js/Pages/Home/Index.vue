@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ArrowDown, ArrowUp, BarChart3, Settings, Users, Wallet } from '@lucide/vue';
+import { ArrowDown, ArrowUp, BarChart3, NotebookPen, Plus, Search, Settings, Users, Wallet } from '@lucide/vue';
+import StatTile from '../../Components/StatTile.vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import EventoCartelera from '../../Components/EventoCartelera.vue';
 import { formatMoney } from '../../lib/formatMoney';
@@ -15,7 +16,19 @@ const props = defineProps({
     eventosUrgentes: { type: Array, default: () => [] },
     actividadReciente: { type: Array, default: () => [] },
     cierreDelDia: { type: Array, default: () => [] },
+    enCalle: { type: Number, default: 0 },
+    cobradoHoy: { type: Number, default: 0 },
+    carteraConMora: { type: Array, default: () => [] },
 });
+
+const busqueda = ref('');
+
+function buscarCliente() {
+    if (busqueda.value.trim() === '') {
+        return;
+    }
+    router.get('/clientes', { q: busqueda.value.trim() });
+}
 
 const page = usePage();
 const esAdmin = computed(() => !!page.props.auth?.user?.es_admin);
@@ -66,12 +79,70 @@ function toggleValidacionAbono(abono) {
     // actualizadas -- no hace falta mutar estado local, Inertia refresca solo
     router.patch(`/movimientos/${abono.id}/validacion`, {}, { preserveScroll: true });
 }
+
+// Abono/Cargo/Gestion reusan los modales YA existentes en Clientes/Show.vue --
+// como son por-cliente, la accion rapida lleva a elegir el cliente primero en
+// vez de duplicar esos modales aqui
+const accionesRapidas = [
+    { href: '/clientes', label: 'Cliente', icon: Plus, bg: 'bg-white', color: 'text-kredix-gris' },
+    { href: '/clientes', label: 'Abono', icon: ArrowDown, bg: 'bg-abono-bg', color: 'text-abono-text' },
+    { href: '/clientes', label: 'Cargo', icon: ArrowUp, bg: 'bg-cargo-bg', color: 'text-cargo-text' },
+    { href: '/clientes', label: 'Gestion', icon: NotebookPen, bg: 'bg-white', color: 'text-kredix-gris' },
+];
 </script>
 
 <template>
     <Head title="Inicio" />
 
-    <div class="mx-auto flex max-w-3xl flex-col gap-4">
+    <div class="-m-4 flex flex-col gap-4 bg-crema p-4 md:-m-6 md:p-6">
+    <div class="mx-auto flex w-full max-w-3xl flex-col gap-4">
+        <form class="flex items-center gap-2 rounded-card bg-white/90 px-4 py-2.5 shadow-card-sm backdrop-blur-card" @submit.prevent="buscarCliente">
+            <Search :size="16" class="text-kredix-gris" />
+            <input
+                v-model="busqueda"
+                type="search"
+                placeholder="Buscar cliente"
+                class="w-full bg-transparent text-sm text-kredix-negro outline-none placeholder:text-kredix-gris"
+            />
+        </form>
+
+        <div class="grid grid-cols-2 gap-3">
+            <StatTile label="En calle" :value="formatMoney(enCalle)" variant="mora" />
+            <StatTile label="Cobrado hoy" :value="formatMoney(cobradoHoy)" variant="abono" />
+        </div>
+
+        <div>
+            <p class="mb-2 px-1 text-xs text-kredix-gris">Accion rapida</p>
+            <div class="grid grid-cols-4 gap-2">
+                <Link v-for="accion in accionesRapidas" :key="accion.label" :href="accion.href" class="flex flex-col items-center gap-1.5">
+                    <div class="flex h-[52px] w-[52px] items-center justify-center rounded-2xl shadow-card backdrop-blur-card active:scale-95" :class="accion.bg">
+                        <component :is="accion.icon" :size="18" :class="accion.color" />
+                    </div>
+                    <span class="text-[11px] text-kredix-gris">{{ accion.label }}</span>
+                </Link>
+            </div>
+        </div>
+
+        <div v-if="carteraConMora.length > 0" class="flex flex-col gap-2">
+            <div class="flex items-center justify-between px-1">
+                <p class="text-xs text-kredix-gris">Cartera con mora</p>
+                <Link href="/cartera" class="text-xs font-medium text-kredix-rojo">Ver todo</Link>
+            </div>
+            <Link
+                v-for="c in carteraConMora"
+                :key="c.id"
+                :href="`/clientes/${c.id}`"
+                class="flex items-center gap-3 rounded-2xl bg-white px-3.5 py-3 shadow-card-sm active:bg-gray-50"
+            >
+                <div class="h-9 w-1.5 shrink-0 rounded-full bg-mora-fill"></div>
+                <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm text-kredix-negro">{{ c.nombre }}</p>
+                    <p class="text-[11px] text-kredix-gris">{{ c.diasSinAbonar !== null ? `${Math.round(c.diasSinAbonar)} dias sin abonar` : 'nunca ha abonado' }}</p>
+                </div>
+                <p class="shrink-0 text-sm font-medium text-mora-text">{{ formatMoney(c.saldoPendiente) }}</p>
+            </Link>
+        </div>
+
         <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Link
                 v-for="tile in tiles"
@@ -160,5 +231,6 @@ function toggleValidacionAbono(abono) {
                 </span>
             </Link>
         </div>
+    </div>
     </div>
 </template>

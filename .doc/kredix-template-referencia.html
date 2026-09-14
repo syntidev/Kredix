@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kredix — Template de referencia (Home + Ficha cliente)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        colors: {
+          mora:   { bg: '#FEF2F2', text: '#B91C1C', fill: '#EF4444' },
+          abono:  { bg: '#F0FDF4', text: '#15803D', fill: '#22C55E' },
+          cargo:  { bg: '#FFF7ED', text: '#C2410C', fill: '#F97316' },
+        },
+        boxShadow: {
+          'card-sm': '0 1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.03)',
+          'card':    '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+          'card-lg': '0 8px 24px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.05)',
+          'card-float': '0 12px 32px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06)',
+        },
+        backdropBlur: { card: '16px' },
+        borderRadius: { card: '20px', pill: '999px' },
+      }
+    }
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/dist/tabler-icons.min.css"></script>
+<style>
+  body { background: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 40%); }
+  .glass { background: rgba(255,255,255,0.78); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body class="font-sans text-slate-900 min-h-screen flex flex-col items-center gap-10 py-10 px-4">
+
+  <!-- ============================================================
+       NOTA PARA EL AGENTE (CLI-A) — LEER ANTES DE IMPLEMENTAR
+       Este archivo es SOLO referencia visual/estructural, no produccion.
+       Reglas:
+       1. Reemplazar Tailwind CDN por build real del proyecto (npm).
+       2. Todo color semantico (mora/abono/cargo) se mapea 1:1 a los
+          colores YA definidos en CLAUDE.md: rojo=mora/urgencia,
+          verde=bien/cobrado/abono, naranja=otorgado/cargo/compra.
+          NUNCA reinterpretar esta semantica sin pedirlo explicito.
+       3. Componentes reutilizables sugeridos: <CardMovimiento>,
+          <StatTile>, <QuickAction>, <BottomNav>.
+       4. Datos de este archivo son de ejemplo (Maracucho, Hector
+          Palacio) — NO hardcodear, vienen de MovimientoCuenta::sum().
+       5. backdrop-blur es costoso en Chrome Android — perfilar antes
+          de aplicar a listas largas (Cartera general con 400+ filas).
+          Considerar version sin blur (solo shadow-card) como fallback
+          si el perfilado muestra jank.
+  ============================================================= -->
+
+  <!-- ============ PANTALLA 1: HOME ============ -->
+  <div class="w-[390px] rounded-card shadow-card-lg glass p-4 pb-2">
+
+    <div class="flex items-center justify-between px-1 pb-4">
+      <div>
+        <p class="text-xs text-slate-400">Buenas tardes</p>
+        <p class="text-[17px] font-medium">Wilmer</p>
+      </div>
+      <div class="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-medium shadow-card-sm">W</div>
+    </div>
+
+    <!-- Buscador -->
+    <div class="flex items-center gap-2 bg-white/90 shadow-card-sm rounded-card px-4 py-2.5 mb-4">
+      <i class="ti ti-search text-slate-400 text-base"></i>
+      <input type="text" placeholder="Buscar cliente" class="bg-transparent outline-none text-sm w-full placeholder:text-slate-400" />
+    </div>
+
+    <!-- Stat tiles -->
+    <div class="grid grid-cols-2 gap-3 mb-5">
+      <div class="rounded-card p-3.5 shadow-card" style="background: linear-gradient(160deg,#FEF2F2,#FFF5F5);">
+        <p class="text-[11px] text-mora-text/80 mb-0.5">En calle</p>
+        <p class="text-xl font-medium text-mora-text">$48.200</p>
+      </div>
+      <div class="rounded-card p-3.5 shadow-card" style="background: linear-gradient(160deg,#F0FDF4,#F6FFF8);">
+        <p class="text-[11px] text-abono-text/80 mb-0.5">Cobrado hoy</p>
+        <p class="text-xl font-medium text-abono-text">$680</p>
+      </div>
+    </div>
+
+    <p class="text-xs text-slate-400 mb-2 px-1">Acción rápida</p>
+    <div class="grid grid-cols-4 gap-2 mb-5">
+      <button class="flex flex-col items-center gap-1.5 group">
+        <div class="w-[52px] h-[52px] rounded-2xl bg-white shadow-card flex items-center justify-center group-active:scale-95 transition-transform">
+          <i class="ti ti-plus text-lg text-slate-500"></i>
+        </div>
+        <span class="text-[11px] text-slate-500">Cliente</span>
+      </button>
+      <button class="flex flex-col items-center gap-1.5 group">
+        <div class="w-[52px] h-[52px] rounded-2xl bg-abono-bg shadow-card flex items-center justify-center group-active:scale-95 transition-transform">
+          <i class="ti ti-cash text-lg text-abono-text"></i>
+        </div>
+        <span class="text-[11px] text-slate-500">Abono</span>
+      </button>
+      <button class="flex flex-col items-center gap-1.5 group">
+        <div class="w-[52px] h-[52px] rounded-2xl bg-cargo-bg shadow-card flex items-center justify-center group-active:scale-95 transition-transform">
+          <i class="ti ti-shopping-cart text-lg text-cargo-text"></i>
+        </div>
+        <span class="text-[11px] text-slate-500">Cargo</span>
+      </button>
+      <button class="flex flex-col items-center gap-1.5 group">
+        <div class="w-[52px] h-[52px] rounded-2xl bg-white shadow-card flex items-center justify-center group-active:scale-95 transition-transform">
+          <i class="ti ti-note text-lg text-slate-500"></i>
+        </div>
+        <span class="text-[11px] text-slate-500">Gestión</span>
+      </button>
+    </div>
+
+    <div class="flex items-center justify-between mb-2 px-1">
+      <p class="text-xs text-slate-400">Cartera con mora</p>
+      <span class="text-xs text-blue-600 font-medium">Ver todo</span>
+    </div>
+    <div class="flex flex-col gap-2 mb-3">
+      <div class="bg-white shadow-card-sm rounded-2xl px-3.5 py-3 flex items-center gap-3">
+        <div class="w-1.5 h-9 rounded-full bg-mora-fill"></div>
+        <div class="flex-1">
+          <p class="text-sm">Maracucho</p>
+          <p class="text-[11px] text-slate-400">48 días sin abonar</p>
+        </div>
+        <p class="text-sm font-medium text-mora-text">$2.465</p>
+      </div>
+      <div class="bg-white shadow-card-sm rounded-2xl px-3.5 py-3 flex items-center gap-3">
+        <div class="w-1.5 h-9 rounded-full bg-cargo-fill"></div>
+        <div class="flex-1">
+          <p class="text-sm">Hector Palacio</p>
+          <p class="text-[11px] text-slate-400">18 días sin abonar</p>
+        </div>
+        <p class="text-sm font-medium">$225</p>
+      </div>
+    </div>
+
+    <!-- Bottom nav -->
+    <div class="flex justify-around pt-2 pb-1 border-t border-slate-100 mt-2">
+      <div class="flex flex-col items-center gap-1"><i class="ti ti-home text-lg text-blue-600"></i><span class="text-[10px] text-blue-600">Inicio</span></div>
+      <div class="flex flex-col items-center gap-1"><i class="ti ti-users text-lg text-slate-300"></i><span class="text-[10px] text-slate-400">Clientes</span></div>
+      <div class="flex flex-col items-center gap-1"><i class="ti ti-chart-bar text-lg text-slate-300"></i><span class="text-[10px] text-slate-400">KPI</span></div>
+      <div class="flex flex-col items-center gap-1"><i class="ti ti-settings text-lg text-slate-300"></i><span class="text-[10px] text-slate-400">Ajustes</span></div>
+    </div>
+  </div>
+
+  <!-- ============ PANTALLA 2: FICHA DE CLIENTE ============ -->
+  <div class="w-[390px] rounded-card shadow-card-lg glass p-4 pb-2">
+
+    <div class="flex items-center justify-between px-1 pb-4">
+      <div class="flex items-center gap-2.5">
+        <i class="ti ti-chevron-left text-lg text-slate-400"></i>
+        <div>
+          <p class="text-[16px] font-medium">Maracucho</p>
+          <p class="text-xs text-slate-400">0414-0000000</p>
+        </div>
+      </div>
+      <i class="ti ti-dots-vertical text-slate-400"></i>
+    </div>
+
+    <div class="rounded-card p-4.5 mb-4 shadow-card" style="background: linear-gradient(160deg,#FEF2F2,#FFF5F5); padding:18px;">
+      <p class="text-xs text-mora-text/80 mb-0.5">Saldo pendiente</p>
+      <p class="text-[30px] font-medium text-mora-text leading-tight">$2.465</p>
+      <p class="text-xs text-mora-text/80 mt-1.5"><i class="ti ti-clock text-[13px] align-[-2px]"></i> 48 días sin abonar</p>
+    </div>
+
+    <div class="flex gap-2.5 mb-4">
+      <button class="flex-1 bg-abono-bg text-abono-text font-medium text-sm py-2.5 rounded-2xl shadow-card-sm active:scale-95 transition-transform">
+        <i class="ti ti-plus text-[15px] align-[-2px] mr-1"></i>Abono
+      </button>
+      <button class="flex-1 bg-cargo-bg text-cargo-text font-medium text-sm py-2.5 rounded-2xl shadow-card-sm active:scale-95 transition-transform">
+        <i class="ti ti-shopping-cart text-[15px] align-[-2px] mr-1"></i>Cargo
+      </button>
+      <button class="bg-[#25D366]/10 text-[#128C4A] px-3.5 rounded-2xl shadow-card-sm active:scale-95 transition-transform">
+        <i class="ti ti-brand-whatsapp text-base"></i>
+      </button>
+    </div>
+
+    <p class="text-xs text-slate-400 mb-2 px-1">Movimientos recientes</p>
+    <div class="flex flex-col gap-2">
+
+      <div class="bg-white shadow-card-sm rounded-2xl px-3.5 py-3 flex items-center gap-3">
+        <div class="w-8.5 h-8.5 rounded-xl bg-abono-bg flex items-center justify-center flex-shrink-0" style="width:34px;height:34px;">
+          <i class="ti ti-arrow-down text-abono-text text-base"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm">Abono Zelle</p>
+          <p class="text-[11px] text-slate-400">31 jul · Nro. tfsowyx3y</p>
+        </div>
+        <p class="text-sm font-medium text-abono-text">+$500</p>
+      </div>
+
+      <div class="bg-white shadow-card-sm rounded-2xl px-3.5 py-3 flex items-center gap-3">
+        <div class="w-8.5 h-8.5 rounded-xl bg-cargo-bg flex items-center justify-center flex-shrink-0" style="width:34px;height:34px;">
+          <i class="ti ti-shopping-cart text-cargo-text text-base"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm">Cloudsurfer 2 · x1</p>
+          <p class="text-[11px] text-slate-400">29 may · cuenta hijo Rodrigo</p>
+        </div>
+        <p class="text-sm font-medium">$195</p>
+      </div>
+
+      <div class="bg-white shadow-card-sm rounded-2xl px-3.5 py-3 flex items-center gap-3">
+        <div class="w-8.5 h-8.5 rounded-xl bg-abono-bg flex items-center justify-center flex-shrink-0" style="width:34px;height:34px;">
+          <i class="ti ti-arrow-down text-abono-text text-base"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm">Abono Zelle</p>
+          <p class="text-[11px] text-slate-400">28 jul · Nro. 7BAIWN9R</p>
+        </div>
+        <p class="text-sm font-medium text-abono-text">+$1.000</p>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

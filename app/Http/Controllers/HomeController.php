@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Models\MovimientoCuenta;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class HomeController extends Controller
@@ -64,12 +65,53 @@ class HomeController extends Controller
             ])
             ->values();
 
+        $saldosActivos = DB::table('movimientos_cuenta')
+            ->select('cliente_id', DB::raw("SUM(CASE WHEN tipo = 'cargo' THEN monto WHEN tipo IN ('abono', 'ajuste_devolucion') THEN -monto ELSE 0 END) as saldo"))
+            ->whereNull('deleted_at')
+            ->groupBy('cliente_id')
+            ->havingRaw('saldo > 0');
+
+        $enCalle = (float) DB::query()->fromSub($saldosActivos, 'saldos')->sum('saldo');
+
+        $cobradoHoy = (float) MovimientoCuenta::where('tipo', 'abono')
+            ->whereDate('fecha', now()->toDateString())
+            ->sum('monto');
+
+        $ultimosAbonos = MovimientoCuenta::where('tipo', 'abono')
+            ->select('cliente_id', DB::raw('MAX(fecha) as ultima_fecha'))
+            ->groupBy('cliente_id')
+            ->pluck('ultima_fecha', 'cliente_id');
+
+        // mismo criterio de severidad que ClienteController::cartera() (nunca
+        // abonaron primero, luego mas dias sin abonar) pero acotado a quien
+        // realmente debe (saldo > 0) -- "cartera con mora" real, no cartera completa
+        $carteraConMora = Cliente::query()
+            ->joinSub($saldosActivos, 'saldos', 'saldos.cliente_id', '=', 'clientes.id')
+            ->select('clientes.id', 'clientes.nombre', 'saldos.saldo')
+            ->get()
+            ->map(function ($c) use ($ultimosAbonos) {
+                $ultima = $ultimosAbonos->get($c->id);
+
+                return [
+                    'id' => $c->id,
+                    'nombre' => $c->nombre,
+                    'saldoPendiente' => (float) $c->saldo,
+                    'diasSinAbonar' => $ultima ? now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($ultima), true) : null,
+                ];
+            })
+            ->sortByDesc(fn ($c) => $c['diasSinAbonar'] ?? INF)
+            ->take(3)
+            ->values();
+
         return Inertia::render('Home/Index', [
             'totalClientes' => Cliente::count(),
             'clientesConSaldo' => $clientesConSaldo,
             'eventosUrgentes' => (new CarteleraController())->calcularEventos()->take(3)->values(),
             'actividadReciente' => $actividadReciente,
             'cierreDelDia' => $cierreDelDia,
+            'enCalle' => $enCalle,
+            'cobradoHoy' => $cobradoHoy,
+            'carteraConMora' => $carteraConMora,
         ]);
     }
 }

@@ -757,10 +757,11 @@ function confirmarYEliminarMov() {
 <template>
     <Head :title="cliente.nombre" />
 
-    <div class="mx-auto flex max-w-3xl flex-col gap-4">
+    <div class="-m-4 flex flex-col gap-4 bg-crema p-4 md:-m-6 md:p-6">
+    <div class="mx-auto flex w-full max-w-3xl flex-col gap-4">
         <BackButton href="/clientes" label="Clientes" />
 
-        <div class="rounded-xl border border-[#e3e8ee] bg-white p-4 shadow-[0_1px_3px_rgba(0,55,112,0.08)]">
+        <div class="rounded-card bg-white p-4 shadow-card">
             <div class="flex flex-wrap items-start justify-between gap-2">
                 <div class="flex items-center gap-3">
                     <UserAvatar :nombre="cliente.nombre" size="md" />
@@ -787,34 +788,36 @@ function confirmarYEliminarMov() {
                     </button>
                 </div>
             </div>
+        </div>
 
-            <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <!-- saldo pendiente: elemento hero de la ficha, deliberadamente sin
+             encapsular en una card generica igual a las demas -->
+        <div class="px-1">
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div>
-                    <div>
-                        <p class="text-xs text-kredix-gris">Saldo pendiente</p>
-                        <p
-                            class="tabular-nums text-4xl font-bold"
-                            :class="saldoPendiente > 0 ? 'text-kredix-rojo' : (saldoPendiente < 0 ? 'text-green-600' : 'text-kredix-negro')"
-                        >
-                            {{ formatMoney(saldoPendiente) }}
-                        </p>
-                        <p class="mt-0.5 text-sm text-kredix-gris">Total cobrado: <span class="tabular-nums font-medium text-kredix-negro">{{ formatMoney(totalCobrado) }}</span></p>
-                        <p v-if="tieneCargoBcvActivo" class="mt-1.5 text-xs font-medium text-amber-700">⚠ Incluye montos en BCV — sujeto a fluctuacion cambiaria</p>
-                    </div>
+                    <p class="text-xs text-marino/70">Saldo pendiente</p>
+                    <p
+                        class="tabular-nums text-5xl font-medium leading-tight"
+                        :class="saldoPendiente > 0 ? 'text-mora-text' : (saldoPendiente < 0 ? 'text-abono-text' : 'text-marino')"
+                    >
+                        {{ formatMoney(saldoPendiente) }}
+                    </p>
+                    <p class="mt-1 text-sm text-marino/70">Total cobrado: <span class="tabular-nums font-medium text-marino">{{ formatMoney(totalCobrado) }}</span></p>
+                    <p v-if="tieneCargoBcvActivo" class="mt-1.5 text-xs font-medium text-amber-700">⚠ Incluye montos en BCV — sujeto a fluctuacion cambiaria</p>
 
                     <div class="mt-3">
-                        <p class="text-xs text-kredix-gris">
-                            Otorgado: <span class="tabular-nums font-medium text-kredix-negro">{{ formatMoney(totalOtorgado) }}</span>
-                            · Cobrado: <span class="tabular-nums font-medium text-green-600">{{ formatMoney(totalCobrado) }}</span>
+                        <p class="text-xs text-marino/70">
+                            Otorgado: <span class="tabular-nums font-medium text-marino">{{ formatMoney(totalOtorgado) }}</span>
+                            · Cobrado: <span class="tabular-nums font-medium text-abono-text">{{ formatMoney(totalCobrado) }}</span>
                             ({{ porcentajeCobrado }}%)
                         </p>
-                        <div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                            <div class="h-full rounded-full bg-green-600" :style="{ width: anchoBarraCobrado + '%' }"></div>
+                        <div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-white">
+                            <div class="h-full rounded-full bg-abono-fill" :style="{ width: anchoBarraCobrado + '%' }"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex h-full flex-col justify-center whitespace-nowrap rounded-lg border border-gray-200 bg-gray-50 p-4 md:w-fit md:justify-self-end md:text-right">
+                <div class="flex h-full flex-col justify-center whitespace-nowrap rounded-card bg-white p-4 shadow-card-sm md:w-fit md:justify-self-end md:text-right">
                     <p class="text-xs text-kredix-gris">Ultimo abono</p>
                     <p class="text-2xl font-bold text-kredix-negro">{{ ultimoAbonoFecha ? formatFecha(ultimoAbonoFecha) : 'Nunca' }}</p>
                     <p class="mt-0.5 text-sm font-medium" :class="ultimoAbonoFecha ? colorDias(diasSinAbonar) : 'text-kredix-gris'">
@@ -829,14 +832,14 @@ function confirmarYEliminarMov() {
                     :href="waLink"
                     target="_blank"
                     rel="noopener"
-                    class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-lg border border-green-600 px-3 text-sm font-medium text-green-700 active:bg-green-50"
+                    class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-2xl bg-abono-bg px-3 text-sm font-medium text-abono-text shadow-card-sm active:scale-95"
                 >
                     <MessageCircle :size="16" />
                     WhatsApp
                 </a>
                 <button
                     type="button"
-                    class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"
+                    class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-2xl bg-white px-3 text-sm font-medium text-kredix-negro shadow-card-sm active:scale-95"
                     @click="abrirPdf"
                 >
                     <FileText :size="16" />
@@ -1700,5 +1703,6 @@ function confirmarYEliminarMov() {
                 </div>
             </div>
         </div>
+    </div>
     </div>
 </template>
