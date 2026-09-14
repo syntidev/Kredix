@@ -1016,8 +1016,15 @@ function confirmarYEliminarMov() {
                 </div>
             </div>
 
-            <div class="md:col-span-2">
-                <button type="button" class="text-sm font-medium text-kredix-negro underline" @click="agregarProducto">+ Agregar otro producto</button>
+            <div class="flex justify-end md:col-span-2">
+                <button
+                    type="button"
+                    class="flex min-h-11 items-center gap-1.5 rounded-full bg-[#1496BE] px-4 text-sm font-medium text-white active:bg-[#0F7A99]"
+                    @click="agregarProducto"
+                >
+                    <Plus :size="16" />
+                    Agregar otro producto
+                </button>
             </div>
 
             <div class="flex flex-col gap-1">
