@@ -16,8 +16,8 @@ const props = defineProps({
     eventosUrgentes: { type: Array, default: () => [] },
     actividadReciente: { type: Array, default: () => [] },
     cierreDelDia: { type: Array, default: () => [] },
-    enCalle: { type: Number, default: 0 },
-    cobradoHoy: { type: Number, default: 0 },
+    enCalle: { type: Number, default: null },
+    cobradoHoy: { type: Number, default: null },
     carteraConMora: { type: Array, default: () => [] },
 });
 
@@ -106,7 +106,7 @@ const accionesRapidas = [
             />
         </form>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div v-if="enCalle !== null" class="grid grid-cols-2 gap-3">
             <StatTile label="En calle" :value="formatMoney(enCalle)" variant="mora" />
             <StatTile label="Cobrado hoy" :value="formatMoney(cobradoHoy)" variant="abono" />
         </div>

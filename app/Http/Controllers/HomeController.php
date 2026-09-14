@@ -71,11 +71,18 @@ class HomeController extends Controller
             ->groupBy('cliente_id')
             ->havingRaw('saldo > 0');
 
-        $enCalle = (float) DB::query()->fromSub($saldosActivos, 'saldos')->sum('saldo');
+        // agregado de TODA la cartera -- mismo criterio que totalCarteraActiva en
+        // ClienteController::cartera(): solo admin, null para el resto (el saldo
+        // de UN cliente individual sigue visible para todos en su ficha)
+        $esAdmin = (bool) auth()->user()?->es_admin;
 
-        $cobradoHoy = (float) MovimientoCuenta::where('tipo', 'abono')
-            ->whereDate('fecha', now()->toDateString())
-            ->sum('monto');
+        $enCalle = $esAdmin
+            ? (float) DB::query()->fromSub($saldosActivos, 'saldos')->sum('saldo')
+            : null;
+
+        $cobradoHoy = $esAdmin
+            ? (float) MovimientoCuenta::where('tipo', 'abono')->whereDate('fecha', now()->toDateString())->sum('monto')
+            : null;
 
         $ultimosAbonos = MovimientoCuenta::where('tipo', 'abono')
             ->select('cliente_id', DB::raw('MAX(fecha) as ultima_fecha'))
