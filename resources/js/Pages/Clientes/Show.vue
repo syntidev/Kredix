@@ -1053,14 +1053,14 @@ watch(algunModalAbierto, (abierto) => {
                     <p v-if="cargoForm.errors[`productos.${i}.descripcion`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.descripcion`] }}</p>
                 </div>
                 <div class="flex gap-2">
-                    <div class="flex flex-1 flex-col gap-1">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
                         <label class="text-sm font-medium text-kredix-negro">Cantidad</label>
-                        <input v-model="producto.cantidad" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
+                        <input v-model="producto.cantidad" type="number" step="0.01" min="0" class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
                         <p v-if="cargoForm.errors[`productos.${i}.cantidad`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.cantidad`] }}</p>
                     </div>
-                    <div class="flex flex-1 flex-col gap-1">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
                         <label class="text-sm font-medium text-kredix-negro">Precio unit.</label>
-                        <input v-model="producto.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
+                        <input v-model="producto.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
                         <p v-if="cargoForm.errors[`productos.${i}.precio_unitario`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.precio_unitario`] }}</p>
                     </div>
                 </div>
