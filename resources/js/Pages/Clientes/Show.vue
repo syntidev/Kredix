@@ -771,6 +771,28 @@ function confirmarYEliminarMov() {
         },
     });
 }
+
+// Safari iOS arrastra los overlays position:fixed si el body de fondo sigue
+// siendo pannable -- ninguno de los 8 modales de esta pagina bloqueaba scroll
+// (a diferencia de Components/Modal.vue, que si lo hace). Un solo computed
+// cubre los 8: formMode no-null son 4 (cargo/abono/gestion/editar), el resto
+// un booleano/id cada uno.
+const algunModalAbierto = computed(() => formMode.value !== null
+    || mostrarConfirmarDescarte.value
+    || editandoCliente.value
+    || eliminandoCliente.value
+    || eliminandoMovId.value !== null);
+
+let overflowBodyPrevio = null;
+
+watch(algunModalAbierto, (abierto) => {
+    if (abierto) {
+        overflowBodyPrevio = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = overflowBodyPrevio ?? '';
+    }
+});
 </script>
 
 <template>
