@@ -77,7 +77,7 @@ function logout() {
 </script>
 
 <template>
-    <div class="min-h-screen bg-[#F2F1EE]">
+    <div class="min-h-screen bg-crema">
         <header class="bg-kredix-negro">
             <div class="mx-auto flex h-14 max-w-3xl items-center justify-between px-4 md:px-8">
                 <Link href="/home" class="shrink-0">
@@ -186,27 +186,29 @@ function logout() {
         </main>
 
         <nav
-            class="fixed inset-x-0 bottom-0 z-20 flex bg-kredix-negro pt-1.5 md:hidden"
-            style="padding-bottom: max(0.375rem, env(safe-area-inset-bottom))"
+            class="fixed inset-x-4 z-20 flex items-center justify-between rounded-[22px] bg-white px-2 py-2 shadow-card-float md:hidden"
+            style="bottom: max(1rem, calc(0.5rem + env(safe-area-inset-bottom)))"
         >
             <Link
                 v-for="tab in tabsCore"
                 :key="tab.href"
                 :href="tab.href"
-                class="flex flex-1 flex-col items-center gap-0.5 py-1"
-                :class="isActive(tab.href) ? 'text-kredix-rojo' : 'text-kredix-gris'"
+                :aria-label="tab.label"
+                class="flex items-center justify-center gap-1.5 rounded-full"
+                :class="isActive(tab.href) ? 'bg-indigo-50 px-4 py-2.5 text-indigo-600' : 'h-11 w-11 text-kredix-gris'"
             >
-                <component :is="tab.icon" :size="22" />
-                <span class="text-[11px] font-medium">{{ tab.label }}</span>
+                <component :is="tab.icon" :size="20" />
+                <span v-if="isActive(tab.href)" class="text-xs font-semibold">{{ tab.label }}</span>
             </Link>
             <button
                 type="button"
-                class="flex flex-1 flex-col items-center gap-0.5 py-1"
-                :class="masActivo || masAbierto ? 'text-kredix-rojo' : 'text-kredix-gris'"
+                aria-label="Mas"
+                class="flex items-center justify-center gap-1.5 rounded-full"
+                :class="masActivo || masAbierto ? 'bg-indigo-50 px-4 py-2.5 text-indigo-600' : 'h-11 w-11 text-kredix-gris'"
                 @click="masAbierto = !masAbierto"
             >
-                <MoreHorizontal :size="22" />
-                <span class="text-[11px] font-medium">Mas</span>
+                <MoreHorizontal :size="20" />
+                <span v-if="masActivo || masAbierto" class="text-xs font-semibold">Mas</span>
             </button>
         </nav>
 
@@ -214,7 +216,7 @@ function logout() {
         <div
             v-if="masAbierto"
             class="fixed inset-x-4 z-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg md:hidden"
-            style="bottom: calc(4.25rem + env(safe-area-inset-bottom))"
+            style="bottom: calc(5.5rem + env(safe-area-inset-bottom))"
         >
             <Link
                 v-for="item in masItems"
