@@ -225,7 +225,7 @@ const accionesRapidas = [
                         <span v-if="dotValidacion(a.estadoValidacion)" class="h-1.5 w-1.5 shrink-0 rounded-full" :class="dotValidacion(a.estadoValidacion)"></span>
                         {{ estiloActividad(a.tipo).etiqueta }} de <span class="font-medium">{{ a.clienteNombre }}</span>
                     </p>
-                    <p class="text-xs text-kredix-gris">{{ formatTiempoRelativo(a.creadoEn) }}</p>
+                    <p class="text-xs text-kredix-gris">{{ formatTiempoRelativo(a.creadoEn) }}<template v-if="a.registradoPor"> · {{ a.registradoPor }}</template></p>
                 </div>
                 <span class="tabular-nums inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold" :class="estiloActividad(a.tipo).color">
                     <component :is="estiloActividad(a.tipo).icono" :size="12" />

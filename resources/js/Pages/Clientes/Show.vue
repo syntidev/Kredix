@@ -1515,6 +1515,10 @@ watch(algunModalAbierto, (abierto) => {
                             {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}
                         </span>
                     </div>
+                    <div v-if="m.registrado_por" class="flex justify-between">
+                        <span class="text-kredix-gris">Registrado por</span>
+                        <span class="text-kredix-gris">{{ m.registrado_por }}</span>
+                    </div>
                     <p v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</p>
                     <p v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="text-kredix-gris">{{ m.comentario }}</p>
                     <div v-if="m.comprobante_url || m.producto_url" class="flex gap-3">
@@ -1624,6 +1628,7 @@ watch(algunModalAbierto, (abierto) => {
                                 <span v-if="dotValidacion(estadoValidacionEfectivo(m))" class="h-1.5 w-1.5 rounded-full" :class="dotValidacion(estadoValidacionEfectivo(m))"></span>
                                 {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}
                             </span>
+                            <span v-if="m.registrado_por" class="block text-xs">{{ m.registrado_por }}</span>
                         </td>
                         <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
                         <td class="px-1 py-2 text-right">
