@@ -46,19 +46,38 @@ function slug(texto) {
         .replace(/^-+|-+$/g, '');
 }
 
-// window.open() sincrono en el click, sin await antes -- en PWA instalada en iOS
-// (display: standalone) esto es lo que saca el PDF de la ventana standalone hacia
-// una pestana real de Safari, que conserva su barra nativa con boton de compartir.
-// Una navegacion normal (<a href>, incluso con target="_blank") se queda atrapada
-// dentro del contenedor del PWA, que no tiene esa barra.
-//
 // el nombre del cliente va en la URL (no solo en Content-Disposition) porque
 // iOS/WebKit ignora el filename= del header al guardar/compartir desde el visor
 // nativo y usa el ultimo segmento de la URL en su lugar -- el {id} en la ruta
 // sigue siendo lo unico que el backend usa para resolver el cliente.
-function abrirPdf() {
+
+// PWA instalada en iOS (icono en pantalla de inicio) renderiza el PDF inline
+// en WKWebView sin ningun toolbar -- ni boton de compartir, ni forma de salir.
+// window.open() NO escapa ese contenedor (confirmado con el operador). Unico
+// mecanismo que si invoca el share sheet nativo del sistema desde adentro de
+// una PWA standalone es Web Share API con el PDF como File. Se restringe a
+// iOS via userAgent porque Android/desktop ya funcionan bien con window.open()
+// y no deben cambiar de comportamiento.
+const esIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+async function abrirPdf() {
     const nombreSlug = slug(props.cliente.nombre) || 'cliente';
-    window.open(`/clientes/${props.cliente.id}/estado-cuenta-${nombreSlug}.pdf`, '_blank', 'noopener');
+    const url = `/clientes/${props.cliente.id}/estado-cuenta-${nombreSlug}.pdf`;
+
+    if (esIOS && navigator.canShare) {
+        try {
+            const blob = await (await fetch(url)).blob();
+            const file = new File([blob], `estado-cuenta-${nombreSlug}.pdf`, { type: 'application/pdf' });
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file] });
+                return;
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') return; // usuario cerro el share sheet, no abrir fallback
+        }
+    }
+
+    window.open(url, '_blank', 'noopener');
 }
 
 // mismo generador de PDF, ?descargar=1 le indica al controller usar download()
