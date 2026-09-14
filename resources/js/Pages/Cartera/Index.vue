@@ -4,7 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { UserCheck, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import StatCard from '../../Components/StatCard.vue';
-import { colorDias } from '../../lib/colorDias';
+import { barraDias, colorDias } from '../../lib/colorDias';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
 
@@ -92,9 +92,10 @@ function irAPagina(pagina) {
             <StatCard label="Clientes con saldo" :value="String(clientesConSaldo)" :icon="Users" variant="negro" />
         </div>
 
-        <div v-if="clientes.total > 0" class="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div v-if="clientes.total > 0" class="overflow-hidden rounded-card bg-white shadow-card-sm">
             <table class="w-full table-fixed text-left text-sm">
                 <colgroup>
+                    <col class="w-2" />
                     <col />
                     <col class="w-[96px]" />
                     <col class="w-[104px]" />
@@ -102,6 +103,7 @@ function irAPagina(pagina) {
                 </colgroup>
                 <thead class="bg-gray-100 text-xs uppercase text-kredix-gris">
                     <tr>
+                        <th class="p-0"></th>
                         <th class="px-2 py-2">Cliente</th>
                         <th class="px-2 py-2 text-right">Saldo pendiente</th>
                         <th class="px-2 py-2">Ultimo abono</th>
@@ -110,6 +112,7 @@ function irAPagina(pagina) {
                 </thead>
                 <tbody>
                     <tr v-for="(c, idx) in clientes.data" :key="c.id" class="border-t border-gray-100" :class="idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'">
+                        <td class="p-0"><div class="h-full min-h-[2.5rem] w-2" :class="barraDias(c.diasDesdeUltimoAbono)"></div></td>
                         <td class="break-words px-2 py-2">
                             <Link :href="`/clientes/${c.id}`" class="text-kredix-negro underline">{{ c.nombre }}</Link>
                         </td>
@@ -121,7 +124,7 @@ function irAPagina(pagina) {
             </table>
         </div>
 
-        <div v-if="clientes.last_page > 1" class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3">
+        <div v-if="clientes.last_page > 1" class="flex items-center justify-between rounded-card bg-white p-3 shadow-card-sm">
             <button
                 type="button"
                 class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro disabled:opacity-40"
