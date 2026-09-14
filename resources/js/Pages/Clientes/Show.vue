@@ -755,7 +755,7 @@ function confirmarYEliminarMov() {
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <BackButton href="/clientes" label="Clientes" />
 
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="rounded-xl border border-[#e3e8ee] bg-white p-4 shadow-[0_1px_3px_rgba(0,55,112,0.08)]">
             <div class="flex flex-wrap items-start justify-between gap-2">
                 <div class="flex items-center gap-3">
                     <UserAvatar :nombre="cliente.nombre" size="md" />
@@ -798,8 +798,8 @@ function confirmarYEliminarMov() {
 
                     <div class="mt-3">
                         <p class="text-xs text-kredix-gris">
-                            Otorgado: <span class="font-medium text-kredix-negro">{{ formatMoney(totalOtorgado) }}</span>
-                            · Cobrado: <span class="font-medium text-green-600">{{ formatMoney(totalCobrado) }}</span>
+                            Otorgado: <span class="tabular-nums font-medium text-kredix-negro">{{ formatMoney(totalOtorgado) }}</span>
+                            · Cobrado: <span class="tabular-nums font-medium text-green-600">{{ formatMoney(totalCobrado) }}</span>
                             ({{ porcentajeCobrado }}%)
                         </p>
                         <div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-200">
@@ -878,7 +878,7 @@ function confirmarYEliminarMov() {
             <p class="mt-0.5 whitespace-pre-wrap">{{ cliente.notas }}</p>
         </div>
 
-        <div v-if="cliente.contacto_alterno_nombre || cliente.contacto_alterno_telefono" class="rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-sm">
+        <div v-if="cliente.contacto_alterno_nombre || cliente.contacto_alterno_telefono" class="rounded-xl border border-[#e3e8ee] bg-white p-3 text-sm shadow-[0_1px_3px_rgba(0,55,112,0.08)]">
             <p class="text-xs font-medium uppercase text-kredix-gris">Contacto alterno</p>
             <p v-if="cliente.contacto_alterno_nombre" class="mt-0.5 text-kredix-negro">{{ cliente.contacto_alterno_nombre }}</p>
             <p v-if="cliente.contacto_alterno_telefono" class="text-kredix-gris">{{ formatPhoneDisplay(cliente.contacto_alterno_telefono) }}</p>
@@ -901,7 +901,7 @@ function confirmarYEliminarMov() {
                     Reconstruccion visual, no es un registro contable — ningun abono queda vinculado a una cuota especifica.
                 </p>
             </div>
-            <div v-for="cargo in compromisosCuotas" :key="cargo.cargo_id" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+            <div v-for="cargo in compromisosCuotas" :key="cargo.cargo_id" class="rounded-xl border border-[#e3e8ee] bg-white p-3 shadow-[0_1px_3px_rgba(0,55,112,0.08)]">
                 <p class="text-sm font-medium text-kredix-negro">{{ cargo.descripcion }} — <span class="tabular-nums">{{ formatMoney(cargo.monto_total) }}</span> ({{ formatFecha(cargo.fecha) }})</p>
                 <div class="mt-2 flex flex-col gap-1.5">
                     <div v-for="cuota in cargo.cuotas" :key="cuota.numero_cuota" class="flex items-center justify-between gap-2 text-sm">
@@ -939,17 +939,17 @@ function confirmarYEliminarMov() {
 
         <div v-if="!formMode" class="fixed bottom-20 right-4 z-20 flex flex-col items-end gap-2 md:bottom-6 md:right-6">
             <template v-if="fabAbierto">
-                <button type="button" class="flex min-h-11 items-center justify-center rounded-full bg-green-600 px-4 text-sm font-medium text-white shadow-lg active:opacity-80" @click="fabAbierto = false; abrirAbono()">
+                <button type="button" class="flex min-h-11 items-center justify-center rounded-full bg-green-600 px-4 text-sm font-medium text-white shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)] active:opacity-80" @click="fabAbierto = false; abrirAbono()">
                     + Nuevo abono
                 </button>
-                <button type="button" class="flex min-h-11 items-center justify-center rounded-full bg-kredix-negro px-4 text-sm font-medium text-white shadow-lg active:opacity-80" @click="fabAbierto = false; abrirCargo()">
+                <button type="button" class="flex min-h-11 items-center justify-center rounded-full bg-kredix-negro px-4 text-sm font-medium text-white shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)] active:opacity-80" @click="fabAbierto = false; abrirCargo()">
                     + Nueva compra
                 </button>
             </template>
             <button
                 type="button"
                 aria-label="Acceso rapido: nuevo movimiento"
-                class="flex h-14 w-14 items-center justify-center rounded-full bg-kredix-rojo text-white shadow-lg active:opacity-80"
+                class="flex h-14 w-14 items-center justify-center rounded-full bg-kredix-rojo text-white shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)] active:opacity-80"
                 @click="fabAbierto = !fabAbierto"
             >
                 <Plus :size="24" class="transition-transform" :class="fabAbierto ? 'rotate-45' : ''" />
@@ -957,7 +957,7 @@ function confirmarYEliminarMov() {
         </div>
 
         <div v-if="formMode === 'cargo'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" @submit.prevent="submitCargo">
+        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-xl border border-[#e3e8ee] bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)] md:grid-cols-2" @submit.prevent="submitCargo">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nueva compra</h2>
                 <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
@@ -988,7 +988,7 @@ function confirmarYEliminarMov() {
                     />
                     <ul
                         v-if="sugerenciaProductoIndex === i && sugerenciasProducto.length > 0"
-                        class="absolute top-full z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg"
+                        class="absolute top-full z-10 mt-1 w-full rounded-lg border border-[#e3e8ee] bg-white shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]"
                     >
                         <li v-for="s in sugerenciasProducto" :key="s">
                             <button
@@ -1106,7 +1106,7 @@ function confirmarYEliminarMov() {
         </div>
 
         <div v-if="formMode === 'abono'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
+        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-xl border border-[#e3e8ee] bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)] md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nuevo abono</h2>
                 <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
@@ -1164,7 +1164,7 @@ function confirmarYEliminarMov() {
         </div>
 
         <div v-if="formMode === 'gestion'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitGestion">
+        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl border border-[#e3e8ee] bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]" @submit.prevent="submitGestion">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Anotar gestión</h2>
                 <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
@@ -1208,7 +1208,7 @@ function confirmarYEliminarMov() {
         </div>
 
         <div v-if="formMode === 'editar'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submitEditMov">
+        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl border border-[#e3e8ee] bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]" @submit.prevent="submitEditMov">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'compra' : (editTipo === 'gestion' ? 'gestión' : 'abono/ajuste') }}</h2>
                 <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
@@ -1393,7 +1393,7 @@ function confirmarYEliminarMov() {
         </div>
 
         <div v-if="mostrarConfirmarDescarte" class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4" @click.self="cancelarDescarte">
-            <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
+            <div class="w-full max-w-sm rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
                 <p class="font-medium text-kredix-negro">Tienes cambios sin guardar</p>
                 <p class="mt-1 text-sm text-kredix-gris">¿Deseas salir sin guardar?</p>
                 <div class="mt-4 flex gap-2">
@@ -1421,7 +1421,7 @@ function confirmarYEliminarMov() {
             <div
                 v-for="(m, idx) in movimientosFiltrados"
                 :key="m.id"
-                class="rounded-lg border border-gray-200 p-3 shadow-sm"
+                class="rounded-xl border border-[#e3e8ee] p-3 shadow-[0_1px_3px_rgba(0,55,112,0.08)]"
                 :class="idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'"
             >
                 <button type="button" class="flex w-full items-start justify-between gap-3 text-left" @click="toggleDetalle(m.id)">
@@ -1487,7 +1487,7 @@ function confirmarYEliminarMov() {
             </div>
         </div>
 
-        <div v-if="movimientosFiltrados.length > 0" class="hidden rounded-lg border border-gray-200 bg-white shadow-sm md:block">
+        <div v-if="movimientosFiltrados.length > 0" class="hidden rounded-xl border border-[#e3e8ee] bg-white shadow-[0_1px_3px_rgba(0,55,112,0.08)] md:block">
             <table class="w-full table-fixed text-left text-sm">
                 <colgroup>
                     <col class="w-[92px]" />
@@ -1580,7 +1580,7 @@ function confirmarYEliminarMov() {
 
         <div v-if="editandoCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
             <form
-                class="flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-lg bg-white p-4 shadow-sm"
+                class="flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]"
                 @submit.prevent="submitEditarCliente"
             >
                 <h2 class="font-medium text-kredix-negro">Editar cliente</h2>
@@ -1631,7 +1631,7 @@ function confirmarYEliminarMov() {
         </div>
 
         <div v-if="eliminandoCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
-            <div v-if="eliminarPaso === 1" class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
+            <div v-if="eliminarPaso === 1" class="w-full max-w-sm rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
                 <p class="font-medium text-kredix-negro">¿Eliminar a {{ cliente.nombre }}?</p>
                 <p class="mt-1 text-sm text-kredix-gris">El cliente dejara de aparecer en el listado. No se borra fisicamente.</p>
                 <div class="mt-4 flex gap-2">
@@ -1643,7 +1643,7 @@ function confirmarYEliminarMov() {
                     </button>
                 </div>
             </div>
-            <div v-else class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
+            <div v-else class="w-full max-w-sm rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
                 <p class="font-medium text-kredix-negro">Esta accion no se puede deshacer facilmente.</p>
                 <p class="mt-1 text-sm text-kredix-gris">¿Confirmas la eliminacion de {{ cliente.nombre }}?</p>
                 <div class="mt-4 flex gap-2">
@@ -1658,7 +1658,7 @@ function confirmarYEliminarMov() {
         </div>
 
         <div v-if="eliminandoMovId" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="cancelarEliminarMov">
-            <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-sm">
+            <div class="w-full max-w-sm rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
                 <p class="font-medium text-kredix-negro">¿Eliminar este movimiento?</p>
                 <p class="mt-1 text-sm text-kredix-gris">No se borra de la base de datos, solo deja de contar en el saldo y de aparecer en el estado de cuenta.</p>
                 <div class="mt-3 flex flex-col gap-1">

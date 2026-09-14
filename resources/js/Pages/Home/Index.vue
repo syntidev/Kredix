@@ -77,7 +77,7 @@ function toggleValidacionAbono(abono) {
                 v-for="tile in tiles"
                 :key="tile.href"
                 :href="tile.href"
-                class="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm active:bg-gray-50 md:aspect-auto md:h-32"
+                class="flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border border-[#e3e8ee] bg-white p-4 text-center shadow-[0_1px_3px_rgba(0,55,112,0.08)] active:bg-gray-50 md:aspect-auto md:h-32"
             >
                 <component :is="tile.icon" :size="32" class="text-kredix-rojo" />
                 <span class="text-sm font-semibold text-kredix-negro">{{ tile.label }}</span>
@@ -95,7 +95,7 @@ function toggleValidacionAbono(abono) {
 
         <div v-if="cierreDelDia.length > 0" class="flex flex-col gap-3">
             <h2 class="text-lg font-semibold text-kredix-negro">Resumen del dia</h2>
-            <div v-for="fila in cierreDelDia" :key="fila.metodoPago" class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div v-for="fila in cierreDelDia" :key="fila.metodoPago" class="rounded-xl border border-[#e3e8ee] bg-white shadow-[0_1px_3px_rgba(0,55,112,0.08)]">
                 <button
                     type="button"
                     class="w-full p-3 text-left active:bg-gray-50"
@@ -145,7 +145,7 @@ function toggleValidacionAbono(abono) {
                 v-for="a in actividadReciente"
                 :key="a.id"
                 :href="`/clientes/${a.clienteId}`"
-                class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3 shadow-sm active:bg-gray-50"
+                class="flex items-center justify-between gap-3 rounded-xl border border-[#e3e8ee] bg-white p-3 shadow-[0_1px_3px_rgba(0,55,112,0.08)] active:bg-gray-50"
             >
                 <div class="min-w-0">
                     <p class="flex items-center gap-1.5 truncate text-sm text-kredix-negro">
