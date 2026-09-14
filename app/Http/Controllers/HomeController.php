@@ -47,11 +47,16 @@ class HomeController extends Controller
             ? ($m->estado_validacion ?? 'pendiente')
             : null;
 
+        // agregado de TODA la cartera (suma del dia por metodo) -- mismo criterio
+        // que enCalle/cobradoHoy: solo admin. La lista individual de abonos
+        // (para validar cada pago) se mantiene visible para todos los roles.
+        $esAdmin = (bool) auth()->user()?->es_admin;
+
         $cierreDelDia = $abonosHoy
             ->groupBy('metodo_pago')
             ->map(fn ($grupo, $metodoPago) => [
                 'metodoPago' => $metodoPago,
-                'total' => (float) $grupo->sum('monto'),
+                'total' => $esAdmin ? (float) $grupo->sum('monto') : null,
                 'cantidad' => $grupo->count(),
                 'pendientes' => $grupo->filter(fn (MovimientoCuenta $m) => $estadoValidacionEfectivo($m) === 'pendiente')->count(),
                 'abonos' => $grupo->map(fn (MovimientoCuenta $m) => [
@@ -74,8 +79,6 @@ class HomeController extends Controller
         // agregado de TODA la cartera -- mismo criterio que totalCarteraActiva en
         // ClienteController::cartera(): solo admin, null para el resto (el saldo
         // de UN cliente individual sigue visible para todos en su ficha)
-        $esAdmin = (bool) auth()->user()?->es_admin;
-
         $enCalle = $esAdmin
             ? (float) DB::query()->fromSub($saldosActivos, 'saldos')->sum('saldo')
             : null;

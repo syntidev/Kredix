@@ -66,7 +66,9 @@ const METODO_PAGO_LABEL = {
     punto_venta: 'Punto de Venta',
 };
 
-const totalCierreDelDia = computed(() => props.cierreDelDia.reduce((acc, fila) => acc + fila.total, 0));
+const totalCierreDelDia = computed(() => props.cierreDelDia.some((fila) => fila.total === null)
+    ? null
+    : props.cierreDelDia.reduce((acc, fila) => acc + fila.total, 0));
 
 const metodoExpandido = ref(null);
 
@@ -179,7 +181,7 @@ const accionesRapidas = [
                         </span>
                     </div>
                     <div class="mt-1 flex items-baseline justify-between gap-2">
-                        <span class="tabular-nums text-base font-semibold text-kredix-negro">{{ formatMoney(fila.total) }}</span>
+                        <span v-if="fila.total !== null" class="tabular-nums text-base font-semibold text-kredix-negro">{{ formatMoney(fila.total) }}</span>
                         <span class="shrink-0 text-xs text-kredix-gris">{{ fila.cantidad }} abono{{ fila.cantidad === 1 ? '' : 's' }}</span>
                     </div>
                 </button>
@@ -204,7 +206,7 @@ const accionesRapidas = [
                     </div>
                 </div>
             </div>
-            <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold">
+            <div v-if="totalCierreDelDia !== null" class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold">
                 <span class="text-kredix-negro">Total del dia</span>
                 <span class="tabular-nums text-kredix-negro">{{ formatMoney(totalCierreDelDia) }}</span>
             </div>
