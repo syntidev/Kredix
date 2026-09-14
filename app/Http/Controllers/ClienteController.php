@@ -19,6 +19,34 @@ use Spatie\Activitylog\Models\Activity;
 
 class ClienteController extends Controller
 {
+    private const MIN_CARACTERES_BUSQUEDA = 2;
+
+    private const MAX_RESULTADOS_BUSQUEDA = 8;
+
+    // usado por el buscador en vivo del Home (accion rapida) -- mismo filtro
+    // nombre/cedula/telefono que index(), version liviana en JSON sin
+    // paginacion ni el resto de props de la pagina Clientes/Index
+    public function buscar(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($q) < self::MIN_CARACTERES_BUSQUEDA) {
+            return response()->json([]);
+        }
+
+        return response()->json(
+            Cliente::query()
+                ->where(function ($query) use ($q) {
+                    $query->where('nombre', 'like', "%{$q}%")
+                        ->orWhere('cedula', 'like', "%{$q}%")
+                        ->orWhere('telefono', 'like', "%{$q}%");
+                })
+                ->orderBy('nombre')
+                ->limit(self::MAX_RESULTADOS_BUSQUEDA)
+                ->get(['id', 'nombre', 'telefono'])
+        );
+    }
+
     public function index(Request $request)
     {
         $q = $request->query('q');

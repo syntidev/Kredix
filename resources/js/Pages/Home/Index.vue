@@ -6,6 +6,7 @@ import StatTile from '../../Components/StatTile.vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import EventoCartelera from '../../Components/EventoCartelera.vue';
 import { formatMoney } from '../../lib/formatMoney';
+import { formatPhoneDisplay } from '../../lib/formatPhone';
 import { formatTiempoRelativo } from '../../lib/formatTiempoRelativo';
 
 defineOptions({ layout: AppLayout });
@@ -22,12 +23,50 @@ const props = defineProps({
 });
 
 const busqueda = ref('');
+const resultadosBusqueda = ref([]);
+let busquedaTimeout = null;
 
 function buscarCliente() {
     if (busqueda.value.trim() === '') {
         return;
     }
     router.get('/clientes', { q: busqueda.value.trim() });
+}
+
+// mismo filtro backend que Clientes/Index.vue (nombre/cedula/telefono),
+// expuesto en /clientes/buscar como JSON liviano para el dropdown en vivo
+function onBusquedaInput() {
+    clearTimeout(busquedaTimeout);
+    const texto = busqueda.value.trim();
+    if (texto.length < 2) {
+        resultadosBusqueda.value = [];
+        return;
+    }
+    busquedaTimeout = setTimeout(async () => {
+        try {
+            const res = await fetch(`/clientes/buscar?q=${encodeURIComponent(texto)}`);
+            resultadosBusqueda.value = res.ok ? await res.json() : [];
+        } catch {
+            resultadosBusqueda.value = [];
+        }
+    }, 300);
+}
+
+const accionSeleccionada = ref(null);
+
+function seleccionarAccion(accion) {
+    accionSeleccionada.value = accionSeleccionada.value === accion ? null : accion;
+}
+
+const placeholderBusqueda = computed(() => accionSeleccionada.value
+    ? `Buscar cliente para registrar ${accionSeleccionada.value}`
+    : 'Buscar cliente');
+
+function elegirResultado(cliente) {
+    const destino = accionSeleccionada.value
+        ? `/clientes/${cliente.id}?accion=${accionSeleccionada.value}`
+        : `/clientes/${cliente.id}`;
+    router.visit(destino);
 }
 
 function dotValidacion(estado) {
@@ -73,13 +112,13 @@ function toggleValidacionAbono(abono) {
 }
 
 // Abono/Cargo/Gestion reusan los modales YA existentes en Clientes/Show.vue --
-// como son por-cliente, la accion rapida lleva a elegir el cliente primero en
-// vez de duplicar esos modales aqui
+// como son por-cliente, la accion rapida activa un modo de busqueda
+// (accionSeleccionada) y el modal se autoabre en Show.vue via ?accion=
 const accionesRapidas = [
-    { href: '/clientes', label: 'Cliente', icon: Plus, bg: 'bg-white', color: 'text-kredix-gris' },
-    { href: '/clientes', label: 'Abono', icon: ArrowDown, bg: 'bg-abono-bg', color: 'text-abono-text' },
-    { href: '/clientes', label: 'Cargo', icon: ArrowUp, bg: 'bg-cargo-bg', color: 'text-cargo-text' },
-    { href: '/clientes', label: 'Gestion', icon: NotebookPen, bg: 'bg-white', color: 'text-kredix-gris' },
+    { accion: null, href: '/clientes', label: 'Cliente', icon: Plus, bg: 'bg-white', color: 'text-kredix-gris' },
+    { accion: 'abono', label: 'Abono', icon: ArrowDown, bg: 'bg-abono-bg', color: 'text-abono-text', ring: 'ring-abono-fill' },
+    { accion: 'cargo', label: 'Cargo', icon: ArrowUp, bg: 'bg-cargo-bg', color: 'text-cargo-text', ring: 'ring-cargo-fill' },
+    { accion: 'gestion', label: 'Gestion', icon: NotebookPen, bg: 'bg-white', color: 'text-kredix-gris', ring: 'ring-kredix-negro' },
 ];
 </script>
 
@@ -93,10 +132,24 @@ const accionesRapidas = [
             <input
                 v-model="busqueda"
                 type="search"
-                placeholder="Buscar cliente"
+                :placeholder="placeholderBusqueda"
                 class="w-full bg-transparent text-sm text-kredix-negro outline-none placeholder:text-kredix-gris"
+                @input="onBusquedaInput"
             />
         </form>
+
+        <div v-if="resultadosBusqueda.length > 0" class="flex flex-col gap-2">
+            <button
+                v-for="c in resultadosBusqueda"
+                :key="c.id"
+                type="button"
+                class="flex items-center justify-between gap-3 rounded-2xl bg-white px-3.5 py-3 text-left shadow-card-sm active:bg-gray-50"
+                @click="elegirResultado(c)"
+            >
+                <span class="min-w-0 truncate text-sm text-kredix-negro">{{ c.nombre }}</span>
+                <span class="shrink-0 text-xs text-kredix-gris">{{ formatPhoneDisplay(c.telefono) }}</span>
+            </button>
+        </div>
 
         <div v-if="enCalle !== null" class="grid grid-cols-2 gap-3">
             <StatTile label="En calle" :value="formatMoney(enCalle)" variant="mora" />
@@ -106,12 +159,27 @@ const accionesRapidas = [
         <div>
             <p class="mb-2 px-1 text-xs text-kredix-gris">Accion rapida</p>
             <div class="grid grid-cols-4 gap-2">
-                <Link v-for="accion in accionesRapidas" :key="accion.label" :href="accion.href" class="flex flex-col items-center gap-1.5">
-                    <div class="flex h-[52px] w-[52px] items-center justify-center rounded-2xl shadow-card backdrop-blur-card active:scale-95" :class="accion.bg">
+                <Link v-if="accionesRapidas[0].accion === null" :href="accionesRapidas[0].href" class="flex flex-col items-center gap-1.5">
+                    <div class="flex h-[52px] w-[52px] items-center justify-center rounded-2xl shadow-card backdrop-blur-card active:scale-95" :class="accionesRapidas[0].bg">
+                        <component :is="accionesRapidas[0].icon" :size="18" :class="accionesRapidas[0].color" />
+                    </div>
+                    <span class="text-[11px] text-kredix-gris">{{ accionesRapidas[0].label }}</span>
+                </Link>
+                <button
+                    v-for="accion in accionesRapidas.slice(1)"
+                    :key="accion.label"
+                    type="button"
+                    class="flex flex-col items-center gap-1.5"
+                    @click="seleccionarAccion(accion.accion)"
+                >
+                    <div
+                        class="flex h-[52px] w-[52px] items-center justify-center rounded-2xl shadow-card backdrop-blur-card active:scale-95"
+                        :class="[accion.bg, accionSeleccionada === accion.accion ? ['ring-2', 'ring-offset-2', accion.ring] : '']"
+                    >
                         <component :is="accion.icon" :size="18" :class="accion.color" />
                     </div>
-                    <span class="text-[11px] text-kredix-gris">{{ accion.label }}</span>
-                </Link>
+                    <span class="text-[11px]" :class="accionSeleccionada === accion.accion ? 'font-semibold text-kredix-negro' : 'text-kredix-gris'">{{ accion.label }}</span>
+                </button>
             </div>
         </div>
 

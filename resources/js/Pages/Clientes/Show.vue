@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ArrowDown, ArrowUp, Download, FileText, ImageOff, MessageCircle, NotebookPen, Pencil, Plus, Repeat, Search, Trash2, X } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
@@ -709,6 +709,15 @@ function abrirGestion() {
     formMode.value = 'gestion';
     formSnapshot.value = serializarDatos(gestionForm.data());
 }
+
+// accion rapida del Home (?accion=abono|cargo|gestion) autoabre el modal
+// correspondiente al llegar a la ficha
+onMounted(() => {
+    const accion = new URLSearchParams(window.location.search).get('accion');
+    if (accion === 'abono') abrirAbono();
+    else if (accion === 'cargo') abrirCargo();
+    else if (accion === 'gestion') abrirGestion();
+});
 
 function datosFormActivo() {
     if (formMode.value === 'cargo') return cargoForm.data();
