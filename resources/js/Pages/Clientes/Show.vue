@@ -1221,7 +1221,7 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="formMode === 'gestion'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl border border-[#e3e8ee] bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]" @submit.prevent="submitGestion">
+        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitGestion">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Anotar gestión</h2>
                 <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
@@ -1258,14 +1258,14 @@ watch(algunModalAbierto, (abierto) => {
             </div>
 
             <div class="mt-1 flex gap-2">
-                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
-                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="gestionForm.processing">Guardar</button>
+                <button type="button" class="min-h-11 flex-1 rounded-2xl border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
+                <button type="submit" class="min-h-11 flex-1 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="gestionForm.processing">Guardar</button>
             </div>
         </form>
         </div>
 
         <div v-if="formMode === 'editar'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl border border-[#e3e8ee] bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]" @submit.prevent="submitEditMov">
+        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitEditMov">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'compra' : (editTipo === 'gestion' ? 'gestión' : 'abono/ajuste') }}</h2>
                 <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
@@ -1436,11 +1436,11 @@ watch(algunModalAbierto, (abierto) => {
             </div>
 
             <div class="mt-1 flex gap-2">
-                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
+                <button type="button" class="min-h-11 flex-1 rounded-2xl border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
                 <button
                     type="submit"
-                    class="min-h-11 flex-1 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
-                    :class="editTipo === 'cargo' ? 'bg-kredix-negro' : (editTipo === 'gestion' ? 'bg-[#1496BE]' : 'bg-green-600')"
+                    class="min-h-11 flex-1 rounded-2xl text-sm font-semibold disabled:opacity-60"
+                    :class="editTipo === 'cargo' ? 'bg-cargo-bg text-cargo-text' : (editTipo === 'gestion' ? 'bg-kredix-negro text-white' : 'bg-abono-bg text-abono-text')"
                     :disabled="editForm.processing"
                 >
                     Guardar cambios
