@@ -1,3 +1,86 @@
+# SYSTEM_MAP.md — Kredix
+# Arbitro unico de verdad sobre el estado real del sistema
+# Ultima actualizacion: 2026-09-08 | Sprint: 0 (pre-inicio)
+
+---
+
+## Estado general
+
+- **Build:** Laravel 12.x + Inertia + Vue 3 + Tailwind v4 (CSS-first, sin config.js)
+  scaffoldeado en `C:\laragon\www\kredix`, `composer audit` limpio, build y smoke
+  test HTTP 200 verificados por CLI-A
+- **Ultimo sprint cerrado:** Sprint 0 Tarea 1 (scaffold local + push) — CERRADA.
+  Tarea 2 (deploy skeleton VPS) pendiente
+- **Tests:** no aplica todavia
+- **Deploy VPS:** COMPLETO — `/var/www/kredix` clonado, migrado contra MySQL `kredix`,
+  vhost Nginx con SSL (Cloudflare Origin Certificate, modo Full) respondiendo HTTP 200
+  local. Pendiente solo verificacion externa desde navegador.
+- **Usuario MySQL dedicado:** `kredix_app` creado, password rotado tras incidente CRLF,
+  guardado en `.env` del servidor
+- **Sprint 0:** CERRADO (Tarea 1 scaffold+push, Tarea 2 deploy skeleton con SSL)
+- **Repo:** github.com/syntidev/Kredix (main en commit b507dd0, force-push confirmado
+  explicitamente por Carlos, commit anterior 50b3584 era solo boilerplate Laravel 11)
+- **Cliente final:** OnBike Margarita
+
+---
+
+## Regla del Policia — estado actual
+
+```
+Clientes            ⏳ siguiente
+Creditos/Ventas     🔒 no iniciado
+Abonos              🔒 no iniciado
+(arranque produccion, captura manual)
+Importacion lote 2  🔒 no iniciado
+KPI                 🔒 no iniciado
+Notificaciones      🔒 no iniciado
+```
+
+Sprint 0 (Fundacion — scaffold + deploy) certificado y cerrado.
+
+Ningun modulo avanza sin cumplir los 6 criterios de certificacion de CLAUDE.md.
+
+---
+
+## Deuda tecnica
+
+Ninguna registrada — proyecto sin codigo aun.
+
+(Formato cuando exista: DT-001 | descripcion | severidad P0-P3 | modulo | dueño | fecha)
+
+---
+
+## Invariantes de seguridad/negocio verificadas
+
+Ninguna verificada aun. Lista de invariantes a verificar segun avancen los modulos
+(definidas en CLAUDE.md):
+
+- [ ] Moneda dual con tasa por transaccion (no tasa global)
+- [ ] Soft-deletes en creditos y abonos
+- [ ] `registrado_por` obligatorio en cada abono
+- [ ] Un cliente puede tener multiples creditos activos — total siempre `SUM()`, nunca campo fijo
+- [ ] Recuperacion de producto registrada como `ajuste`/`devolucion`, nunca como abono
+- [ ] Renegociacion versiona el credito existente, nunca duplica
+
+---
+
+## Bloqueantes antes de avanzar
+
+1. Confirmar usuario MySQL dedicado para Kredix en el VPS (no reutilizar credenciales
+   de synticorex/syntimeat)
+2. Crear repo `github.com/syntidev/kredix`
+3. Scaffold inicial de Laravel + Inertia + Vue 3 en local
+
+---
+
+## Proximas acciones (orden)
+
+1. `laravel new kredix` en `C:\laragon\www\kredix` + instalar Inertia/Vue 3 + Spatie MediaLibrary/ActivityLog
+2. Skeleton de despliegue: repo en GitHub → clone en VPS → Nginx + Cloudflare → pagina de bienvenida de Laravel visible en `kredix.synti.cloud`
+3. Sprint 1 — Modulo Clientes: migracion + modelo + formulario de captura (CLI-A) → auditoria (CLI-C) → certificacion → deploy
+4. Actualizar este documento al cerrar cada sprint
+
+
 # PLAN_MAESTRO — Kredix
 # Secuencia de sprints, dimensionada a un CRUD de 3 usuarios — no a la escala de ActivoPOS
 # Version: 1.0 | Septiembre 2026
@@ -47,33 +130,28 @@ de cada sprint se actualiza directamente en `.doc/SYSTEM_MAP.md` al cerrarlo.
 
 ---
 
-## Sprint 2 — Creditos / Ventas
+## Sprint 2+3 (REVISADO) — Cuenta corriente por cliente
 
-**Objetivo:** registrar el momento de entrega del producto y el monto a credito.
-**CLI:** CLI-A, CLI-C
+**Cambio de modelo, documentado el 2026-09-08:** el diseño original (Sprint 2 Creditos/Ventas
+con saldo independiente por venta + Sprint 3 Abonos atados a una venta especifica) no
+corresponde a como OTOMIX MARGARITA realmente lleva la cartera. La hoja de referencia real
+(WhatsApp transcrito a Excel) muestra una **cuenta corriente por cliente**: cada compra es
+un cargo, cada pago (efectivo, Zelle, o intercambio valorado como una maquina) es un abono,
+ambos en una sola linea de tiempo por cliente, con saldo acumulado — no por venta.
 
-**Tareas:**
-1. Migraciones `ventas_credito`, `items_venta` (producto texto libre + precio + cantidad)
-2. Motor de `reglas_plazo` parametrizable (monto min/max → plazo min/max, requiere_abono)
-3. Captura de tasa de cambio en el momento de la venta (no global)
-4. `frecuencia_pago` por credito
+**Objetivo:** un solo modulo `movimientos_cuenta` (cargo/abono) reemplaza a `ventas_credito`
++ `items_venta` + `abonos`. Saldo pendiente = SUM(cargos) - SUM(abonos), siempre por cliente.
+Se aprovecha el rebuild para agregar login basico (Breeze) — necesario para que
+`registrado_por` sea real y no un valor fijo.
 
-**Cierra cuando:** una venta a credito real, con su plazo calculado por la regla correspondiente, queda registrada y auditada.
+**CLI:** CLI-A (rebuild completo), CLI-C (audita el calculo de saldo antes de dar por cerrado)
 
----
+**Cierra cuando:** el saldo acumulado de un cliente con cargos + abonos + un ajuste tipo
+intercambio calza exactamente con el ejemplo de la hoja de OTOMIX, y el login distingue
+cual de los 3 usuarios registro cada movimiento.
 
-## Sprint 3 — Abonos
-
-**Objetivo:** cuantificar dinero entregado, con comprobante y comentario.
-**CLI:** CLI-A, CLI-C
-
-**Tareas:**
-1. Migracion `abonos` (monto, moneda, tasa_cambio, metodo_pago, comentario, `registrado_por`)
-2. Adjuntar imagen de comprobante via Spatie MediaLibrary
-3. Movimiento tipo `ajuste`/`devolucion` separado del abono normal (caso de recuperacion de producto)
-4. Soft-deletes verificados — cero borrado fisico
-
-**Cierra cuando:** un abono real, con foto y comentario, actualiza el saldo pendiente de un credito via `SUM()`.
+`reglas_plazo` no se elimina — pasa a ser metadata informativa sobre un cargo puntual
+(plazo sugerido), ya no controla ningun saldo propio.
 
 ---
 
@@ -113,6 +191,25 @@ condiciones reales, no con datos inventados para que "cuadre".
 **Objetivo:** alertas de inactividad de pago segun `frecuencia_pago` por credito.
 **Depende de:** Sprint 2 (frecuencia_pago) y datos reales de Sprint 1-4 para calibrar
 que umbral de dias es "alarma real" vs "normal".
+
+---
+
+## Item planificado (en pauta, no construido aun) — Recordatorio por WhatsApp
+
+**Idea (Carlos, 2026-09-09):** boton en la ficha de cliente que arma un mensaje de
+cobranza (saludo, estado del credito, saldo pendiente, invitacion cordial a abonar)
+usando datos reales, y abre WhatsApp con el texto pre-cargado listo para enviar.
+
+**Decisiones ya tomadas, pendientes de ejecutar:**
+- Usar deep link `wa.me/{telefono}?text=...` — NO WhatsApp Business API (verificacion
+  Meta, costo mensual, sobre-ingenieria para 3 usuarios enviando manualmente)
+- Numero de telefono: siempre el ya guardado en la ficha del cliente, nunca fijo/hardcoded
+- Intro del mensaje: editable por el usuario, vive en un modulo de **Configuracion**
+  separado del "Sistema" actual (que es el perfil de Breeze, no configuracion de la app)
+
+**Depende de:** modulo de Configuracion (no existe todavia, se crea junto con esto).
+
+---
 
 ---
 

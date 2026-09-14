@@ -1,69 +1,85 @@
 # SYSTEM_MAP.md — Kredix
 # Arbitro unico de verdad sobre el estado real del sistema
-# Ultima actualizacion: 2026-09-08 | Sprint: 0 (pre-inicio)
+# Ultima actualizacion: 2026-09-09 (fin de jornada)
 
 ---
 
 ## Estado general
 
-- **Build:** no iniciado — proyecto Laravel aun no scaffoldeado en `C:\laragon\www\kredix`
-- **Ultimo sprint cerrado:** ninguno
-- **Tests:** no aplica todavia
-- **Deploy VPS:** no realizado — subdominio `kredix.synti.cloud` no apunta a nada aun
-- **Usuario MySQL dedicado:** pendiente de crear (`kredix_app`, asumido en CLAUDE.md, no confirmado)
+- **Stack real:** Laravel 12.x + Inertia + Vue 3 + Tailwind v3 (bajado de v4 por
+  incompatibilidad con Breeze) + Spatie MediaLibrary + Spatie ActivityLog + Breeze
+  (self-signup deshabilitado)
+- **Repo:** github.com/syntidev/Kredix, rama `main` — worktrees `feature/estetica` y
+  `feature/funcional` ya mergeados y pendientes de limpieza (ver Housekeeping)
+- **Local:** `C:\laragon\www\kredix`, MySQL real (migrado de SQLite a mitad de sesion)
+- **VPS:** `/var/www/kredix`, MySQL dedicado `kredix_app`, Nginx con SSL (Cloudflare
+  Origin Certificate, modo Full — NO strict, otros sitios del VPS no lo soportarian),
+  desplegado y sincronizado con `main` a la fecha de esta nota
+- **Cliente final:** OnBike Margarita (razon social OTOMIX MARGARITA, C.A.)
+- **Usuario de prueba:** sistema@kredix.local — password quedo expuesto en el historial
+  de este chat en algun momento, rotar antes de uso real
 
----
-
-## Regla del Policia — estado actual
+## Regla del Policia — estado real
 
 ```
-Clientes            🔒 no iniciado
-Creditos/Ventas     🔒 no iniciado
-Abonos              🔒 no iniciado
-(arranque produccion, captura manual)
-Importacion lote 2  🔒 no iniciado
-KPI                 🔒 no iniciado
-Notificaciones      🔒 no iniciado
+Clientes            ✅ certificado y en produccion
+Cuenta corriente     ✅ certificado (reemplazo el modelo original de venta-por-venta)
+Abonos/Gestion       ✅ certificado, incluye tipo gestion (contacto sin pago)
+Cartera general      ✅ certificado, con semaforo de color por antiguedad
+KPI                  ⚠️ dashboard funcional, PERO formula de buen/mal pagador
+                        (clasificacion manual) sigue sin definir por Carlos
+Importacion lote 2   🔒 bloqueada — entrevistas de campo no iniciadas
+Notificaciones       🔒 no iniciado
 ```
 
-Ningun modulo avanza sin cumplir los 6 criterios de certificacion de CLAUDE.md.
+## Funcionalidades entregadas hoy (2026-09-09)
+
+- Scaffold completo, deploy VPS con SSL, cron BCV automatico
+- Modulo Clientes (CRUD completo con soft-delete)
+- Cuenta corriente por cliente (cargo/abono/ajuste_devolucion/gestion)
+- Cartera general con semaforo de color y orden por dias sin abonar
+- Dashboard KPI (dinero en calle, recuperado del mes, grafico semanal, actividad
+  por cobrador, antiguedad de cartera)
+- Cron automatico de tasa BCV (adaptado de synticorex: dolarapi + brecha-cambiaria),
+  4 corridas diarias en ventana real de publicacion (07:00/15:00/16:30/18:00 Caracas)
+- Modalidad de precio Divisa/BCV, metodos de pago incluyendo Pago Movil y Bancamiga Divisa
+- Modulo Configuracion + recordatorio de cobranza por WhatsApp (deep link wa.me)
+- Pasada completa de estetica: paleta real del logo, navegacion inferior mobile, PWA
+  instalable (manifest, iconos, banner iOS), pagina de inicio con tiles, StatCard +
+  formatMoney consistente en toda la app
+- Datos demo con variedad real (8 clientes, todos los rangos de antiguedad, gestiones,
+  un ajuste/devolucion, pago con Bancamiga) ya en produccion
+
+## Pendientes tecnicos (menores, no bloquean nada)
+
+- Formularios "Registrar contacto" y "Editar movimiento" en Clientes/Show — no
+  migrados al grid 2 columnas (si se hizo en Nuevo cargo/abono, no en estos)
+- Form "Nuevo cliente" en /clientes — sigue angosto
+- /configuracion sin `<Head title>` propio
+- Columna "Tasa" en tabla desktop muestra solo simbolo %, no el valor real
+- Etiqueta "Tasa cambio (opcional)" sigue diciendo "opcional" cuando el override
+  manual esta activo (ahi si es obligatoria)
+- Pipeline de imagenes (symlink storage, thumbnails, fallback visual sin icono roto)
+  — prompt entregado, verificacion de storage:link y GD/Imagick en VPS pendiente
+
+## Bloqueantes reales (no son de codigo)
+
+- Formula de "buen/mal pagador" — Carlos aun no la define, bloquea que KPI este completo
+- Entrevistas de campo de los 30 clientes en papel — no iniciadas, bloquea Importacion
+- 3 cuentas reales de los operadores — nunca creadas, todo sigue bajo usuario "Sistema"
+
+## Housekeeping pendiente (bajo riesgo, sin apuro)
+
+- Borrar worktrees ya mergeados: `git worktree remove kredix-estetica` /
+  `kredix-funcional` desde `kredix`, y las ramas remotas correspondientes
+- Archivos muertos de Breeze sin referencias (AuthenticatedLayout, NavLink,
+  ResponsiveNavLink, DropdownLink, Dropdown) — limpiar en una pasada dedicada
+- Rotar password de prueba y certificado de Cloudflare (quedaron en texto plano
+  en el historial del chat)
+- Documentar el procedimiento de worktrees para el proximo agente (pedido
+  explicito de Carlos, para el cierre de esta sesion)
 
 ---
 
-## Deuda tecnica
-
-Ninguna registrada — proyecto sin codigo aun.
-
-(Formato cuando exista: DT-001 | descripcion | severidad P0-P3 | modulo | dueño | fecha)
-
----
-
-## Invariantes de seguridad/negocio verificadas
-
-Ninguna verificada aun. Lista de invariantes a verificar segun avancen los modulos
-(definidas en CLAUDE.md):
-
-- [ ] Moneda dual con tasa por transaccion (no tasa global)
-- [ ] Soft-deletes en creditos y abonos
-- [ ] `registrado_por` obligatorio en cada abono
-- [ ] Un cliente puede tener multiples creditos activos — total siempre `SUM()`, nunca campo fijo
-- [ ] Recuperacion de producto registrada como `ajuste`/`devolucion`, nunca como abono
-- [ ] Renegociacion versiona el credito existente, nunca duplica
-
----
-
-## Bloqueantes antes de avanzar
-
-1. Confirmar usuario MySQL dedicado para Kredix en el VPS (no reutilizar credenciales
-   de synticorex/syntimeat)
-2. Crear repo `github.com/syntidev/kredix`
-3. Scaffold inicial de Laravel + Inertia + Vue 3 en local
-
----
-
-## Proximas acciones (orden)
-
-1. `laravel new kredix` en `C:\laragon\www\kredix` + instalar Inertia/Vue 3 + Spatie MediaLibrary/ActivityLog
-2. Skeleton de despliegue: repo en GitHub → clone en VPS → Nginx + Cloudflare → pagina de bienvenida de Laravel visible en `kredix.synti.cloud`
-3. Sprint 1 — Modulo Clientes: migracion + modelo + formulario de captura (CLI-A) → auditoria (CLI-C) → certificacion → deploy
-4. Actualizar este documento al cerrar cada sprint
+*Este documento reemplaza versiones anteriores mezcladas con el estado de Sprint 0 —
+esta es la version consolidada de fin de jornada.*

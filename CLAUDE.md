@@ -81,7 +81,7 @@ El error mas grave: codigo que parece funcionar pero no funciona.
 **Local:** `C:\laragon\www\kredix\`
 **VPS:** mismo VPS que ActivoPOS/SYNTIweb/SYNTImeat — directorio y base de datos EXCLUSIVOS de Kredix, nunca compartidos
 **Repo:** github.com/syntidev/kredix (por crear) | Rama: main
-**Deploy:** git clone (una vez) → git pull (siempre despues) + Nginx + Cloudflare (Full/strict, Origin Certificate)
+**Deploy:** git clone (una vez) → git pull (siempre despues) + Nginx + Cloudflare (modo Full — confirmado en el dashboard, NO strict — la zona synti.cloud tiene otros sitios como meat.synti.cloud sin certificado valido en el origen, subir a strict los rompe)
 
 ### Flujo de trabajo (ciclo por modulo, no por proyecto completo)
 ```
@@ -98,12 +98,15 @@ El error mas grave: codigo que parece funcionar pero no funciona.
 ## STACK SELLADO — NO NEGOCIABLE (salvo decision explicita de Carlos)
 
 ```
-Laravel 11.x        → Framework principal
+Laravel 12.x        → Framework principal
 Inertia.js + Vue 3   → SPA server-driven, sin API REST separada
 MySQL                → Base de datos dedicada "kredix" en el VPS
-Tailwind CSS         → Estilos (decision para este proyecto — distinto de ActivoPOS, que usa CSS Modules)
+Tailwind CSS v3      → Estilos (bajado de v4 en Sprint 2+3: el starter kit de Laravel
+                       Breeze para Vue no soporta v4 CSS-first; paleta Kredix vive en
+                       tailwind.config.js, no en @theme)
 Spatie MediaLibrary  → Fotos de productos y comprobantes de pago
 Spatie ActivityLog   → Trazabilidad de cada abono/ajuste (quien, cuando, comentario)
+Laravel Breeze       → Auth basica (login 3 usuarios), self-signup deshabilitado
 ```
 
 **Referencia de patrones de UI mobile-first:** `C:\laragon\www\syntimeat\` — mismo patron Inertia+Vue probado en produccion para uso tactil en tienda.
