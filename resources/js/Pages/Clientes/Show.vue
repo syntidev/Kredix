@@ -147,6 +147,11 @@ const porcentajeCobrado = computed(() => {
 
 const anchoBarraCobrado = computed(() => Math.min(100, Math.max(0, porcentajeCobrado.value)));
 
+// movimientos ya viene sin eliminados (soft-delete excluido por defecto en la query) --
+// "activo" aqui simplemente significa que sigue en este arreglo
+const tieneCargoBcvActivo = computed(() => Number(props.saldoPendiente) > 0
+    && props.movimientos.some((m) => m.tipo === 'cargo' && m.modalidad_precio === 'bcv'));
+
 const waLink = computed(() => {
     if (!props.cliente.telefono) {
         return null;
@@ -794,6 +799,7 @@ function confirmarYEliminarMov() {
                             {{ formatMoney(saldoPendiente) }}
                         </p>
                         <p class="mt-0.5 text-sm text-kredix-gris">Total cobrado: <span class="tabular-nums font-medium text-kredix-negro">{{ formatMoney(totalCobrado) }}</span></p>
+                        <p v-if="tieneCargoBcvActivo" class="mt-1.5 text-xs font-medium text-amber-700">⚠ Incluye montos en BCV — sujeto a fluctuacion cambiaria</p>
                     </div>
 
                     <div class="mt-3">
@@ -1448,6 +1454,7 @@ function confirmarYEliminarMov() {
                             <component :is="estiloMovimiento(m.tipo).icono" :size="12" />
                             {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
                         </span>
+                        <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="text-xs font-medium text-amber-600">BCV</span>
                         <span class="tabular-nums text-xs text-kredix-gris">saldo {{ formatMoney(m.saldoAcumulado) }}</span>
                     </div>
                 </button>
@@ -1566,6 +1573,7 @@ function confirmarYEliminarMov() {
                                 <component :is="estiloMovimiento(m.tipo).icono" :size="12" />
                                 {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
                             </span>
+                            <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="block text-xs font-normal text-amber-600">BCV</span>
                         </td>
                         <td class="whitespace-nowrap px-2 py-2 text-kredix-gris">
                             <span class="inline-flex items-center gap-1.5">
