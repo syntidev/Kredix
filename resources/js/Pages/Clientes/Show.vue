@@ -966,7 +966,7 @@ function confirmarYEliminarMov() {
         </div>
 
         <div v-if="formMode === 'cargo'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-xl border border-[#e3e8ee] bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)] md:grid-cols-2" @submit.prevent="submitCargo">
+        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" @submit.prevent="submitCargo">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nueva compra</h2>
                 <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
@@ -997,7 +997,7 @@ function confirmarYEliminarMov() {
                     />
                     <ul
                         v-if="sugerenciaProductoIndex === i && sugerenciasProducto.length > 0"
-                        class="absolute top-full z-10 mt-1 w-full rounded-lg border border-[#e3e8ee] bg-white shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]"
+                        class="absolute top-full z-10 mt-1 w-full rounded-lg border border-[#e3e8ee] bg-white shadow-card-lg"
                     >
                         <li v-for="s in sugerenciasProducto" :key="s">
                             <button
@@ -1115,14 +1115,14 @@ function confirmarYEliminarMov() {
             </template>
 
             <div class="mt-1 flex gap-2 md:col-span-2">
-                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
-                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="cargoForm.processing">Guardar compra</button>
+                <button type="button" class="min-h-11 flex-1 rounded-2xl border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
+                <button type="submit" class="min-h-11 flex-1 rounded-2xl bg-cargo-bg text-sm font-semibold text-cargo-text disabled:opacity-60" :disabled="cargoForm.processing">Guardar compra</button>
             </div>
         </form>
         </div>
 
         <div v-if="formMode === 'abono'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-xl border border-[#e3e8ee] bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)] md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
+        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nuevo abono</h2>
                 <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
@@ -1173,8 +1173,8 @@ function confirmarYEliminarMov() {
             </div>
 
             <div class="mt-1 flex gap-2 md:col-span-2">
-                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
-                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-green-600 text-sm font-semibold text-white disabled:opacity-60" :disabled="abonoForm.processing">Guardar abono</button>
+                <button type="button" class="min-h-11 flex-1 rounded-2xl border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
+                <button type="submit" class="min-h-11 flex-1 rounded-2xl bg-abono-bg text-sm font-semibold text-abono-text disabled:opacity-60" :disabled="abonoForm.processing">Guardar abono</button>
             </div>
         </form>
         </div>
