@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ArrowDown, ArrowUp, BarChart3, NotebookPen, Plus, Search, Settings, Users, Wallet } from '@lucide/vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { ArrowDown, ArrowUp, NotebookPen, Plus, Search } from '@lucide/vue';
 import StatTile from '../../Components/StatTile.vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import EventoCartelera from '../../Components/EventoCartelera.vue';
@@ -29,16 +29,6 @@ function buscarCliente() {
     }
     router.get('/clientes', { q: busqueda.value.trim() });
 }
-
-const page = usePage();
-const esAdmin = computed(() => !!page.props.auth?.user?.es_admin);
-
-const tiles = computed(() => [
-    { href: '/clientes', label: 'Clientes', icon: Users, stat: () => `${props.totalClientes} registrados` },
-    { href: '/cartera', label: 'Cartera', icon: Wallet, stat: () => `${props.clientesConSaldo} con saldo` },
-    ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI', icon: BarChart3, stat: null }] : []),
-    { href: '/configuracion', label: 'Configuracion', icon: Settings, stat: null },
-]);
 
 function dotValidacion(estado) {
     if (estado === 'pendiente') return 'bg-amber-500';
@@ -142,19 +132,6 @@ const accionesRapidas = [
                     <p class="text-[11px] text-kredix-gris">{{ c.diasSinAbonar !== null ? `${Math.round(c.diasSinAbonar)} dias sin abonar` : 'nunca ha abonado' }}</p>
                 </div>
                 <p class="shrink-0 text-sm font-medium text-mora-text">{{ formatMoney(c.saldoPendiente) }}</p>
-            </Link>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Link
-                v-for="tile in tiles"
-                :key="tile.href"
-                :href="tile.href"
-                class="flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border border-[#e3e8ee] bg-white p-4 text-center shadow-[0_1px_3px_rgba(0,55,112,0.08)] active:bg-gray-50 md:aspect-auto md:h-32"
-            >
-                <component :is="tile.icon" :size="32" class="text-kredix-rojo" />
-                <span class="text-sm font-semibold text-kredix-negro">{{ tile.label }}</span>
-                <span v-if="tile.stat" class="text-xs text-kredix-gris">{{ tile.stat() }}</span>
             </Link>
         </div>
 

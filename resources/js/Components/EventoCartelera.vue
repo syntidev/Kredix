@@ -36,7 +36,7 @@ function waLink(evento) {
 </script>
 
 <template>
-    <div class="flex items-start gap-3 rounded-lg border-l-4 bg-white p-4 shadow-sm" :class="estilosColor[evento.color].borde">
+    <div class="flex items-start gap-3 rounded-card border-l-4 bg-white p-4 shadow-card-sm" :class="estilosColor[evento.color].borde">
         <component :is="iconos[evento.tipo]" :size="22" class="mt-0.5 shrink-0" :class="estilosColor[evento.color].icono" />
         <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
@@ -63,13 +63,13 @@ function waLink(evento) {
                     :href="waLink(evento)"
                     target="_blank"
                     rel="noopener"
-                    class="flex min-h-9 items-center rounded-lg border border-green-600 px-3 text-xs font-medium text-green-700 active:bg-green-50"
+                    class="flex min-h-9 items-center rounded-2xl border border-green-600 px-3 text-xs font-medium text-green-700 active:bg-green-50"
                 >
                     WhatsApp
                 </a>
                 <Link
                     :href="`/clientes/${evento.cliente_id}`"
-                    class="flex min-h-9 items-center rounded-lg border border-gray-300 px-3 text-xs font-medium text-kredix-negro active:bg-gray-100"
+                    class="flex min-h-9 items-center rounded-2xl border border-gray-300 px-3 text-xs font-medium text-kredix-negro active:bg-gray-100"
                 >
                     Ver ficha
                 </Link>
