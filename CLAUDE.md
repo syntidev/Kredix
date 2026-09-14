@@ -1,7 +1,7 @@
 # CLAUDE.md — Kredix
 # Instrucciones maestras para Claude Code y todos los agentes
 # LEER COMPLETO ANTES DE CUALQUIER ACCION
-# Version: 1.0 | Septiembre 2026 | Carlos Bolivar — SYNTIdev
+# Version: 1.1 | Septiembre 2026 | Carlos Bolivar — SYNTIdev
 # Metodologia: CIMAAD (Certified Incremental Multi-Agent Autonomous Development)
 
 ---
@@ -35,6 +35,21 @@ Antes de CADA respuesta, verificar internamente:
 - NUNCA proponer "ya que estoy aqui, tambien arregle..."
 - NUNCA continuar despues de completar el pedido
 - Maximo 1 archivo modificado por request salvo instruccion explicita
+
+### Protocolo de sesiones CLI paralelas (nuevo — v1.1)
+
+Cuando dos sesiones de Claude Code corren en paralelo sobre el mismo repo:
+- **Antes de cualquier commit, correr `git pull origin main` primero** — cada
+  sesion debe trabajar sobre la version mas reciente del otro, no sobre la
+  que tenia al arrancar.
+- **Si ambas sesiones van a tocar el mismo archivo** (ej. `Home/Index.vue`,
+  `Show.vue` — archivos compartidos entre features de UI y features de
+  logica/seguridad), la que este mas atrasada PARA y hace `git pull` antes
+  de seguir editando a ciegas.
+- **Nunca reescribir un commit ya pusheado por otra sesion sin confirmacion
+  explicita de Carlos** — si hace falta corregir algo de un commit ajeno,
+  se hace un commit nuevo que lo referencia, no un `git commit --amend` ni
+  un rebase silencioso.
 
 ---
 
@@ -80,8 +95,9 @@ El error mas grave: codigo que parece funcionar pero no funciona.
 **Dominio:** kredix.synti.cloud (subdominio de synti.cloud, administrado por Cloudflare)
 **Local:** `C:\laragon\www\kredix\`
 **VPS:** mismo VPS que ActivoPOS/SYNTIweb/SYNTImeat — directorio y base de datos EXCLUSIVOS de Kredix, nunca compartidos
-**Repo:** github.com/syntidev/kredix (por crear) | Rama: main
+**Repo:** github.com/syntidev/kredix | Rama: main
 **Deploy:** git clone (una vez) → git pull (siempre despues) + Nginx + Cloudflare (modo Full — confirmado en el dashboard, NO strict — la zona synti.cloud tiene otros sitios como meat.synti.cloud sin certificado valido en el origen, subir a strict los rompe)
+**PWA:** instalable (manifest, iconos, banner iOS) — los operadores reales acceden vía icono agregado a pantalla de inicio (modo standalone), no vía Safari con su barra normal. Cualquier fix o feature que dependa del chrome del navegador (compartir, descargar) debe probarse en AMBOS contextos: Safari normal Y PWA standalone — se comportan distinto.
 
 ### Flujo de trabajo (ciclo por modulo, no por proyecto completo)
 ```
@@ -106,7 +122,7 @@ Tailwind CSS v3      → Estilos (bajado de v4 en Sprint 2+3: el starter kit de 
                        tailwind.config.js, no en @theme)
 Spatie MediaLibrary  → Fotos de productos y comprobantes de pago
 Spatie ActivityLog   → Trazabilidad de cada abono/ajuste (quien, cuando, comentario)
-Laravel Breeze       → Auth basica (login 3 usuarios), self-signup deshabilitado
+Laravel Breeze       → Auth basica (login 3+ usuarios), self-signup deshabilitado
 ```
 
 **Referencia de patrones de UI mobile-first:** `C:\laragon\www\syntimeat\` — mismo patron Inertia+Vue probado en produccion para uso tactil en tienda.
@@ -119,10 +135,48 @@ Laravel Breeze       → Auth basica (login 3 usuarios), self-signup deshabilita
 - **Moneda dual con tasa por transaccion:** cada venta y cada abono guardan su propia tasa de cambio al momento del evento — nunca una tasa global del sistema.
 - **Recuperacion de producto (ej. bicicleta) es un movimiento distinto a un abono** — tipo `ajuste`/`devolucion`, nunca contado como dinero cobrado.
 - **Soft-deletes obligatorios** en creditos y abonos — jamas borrado fisico de un registro financiero.
-- **`registrado_por` (user_id) obligatorio en cada abono** — sin roles de acceso restringido (los 3 usuarios ven toda la cartera), pero con trazabilidad de autoria para el KPI de efectividad de cobranza.
+- **`registrado_por` (user_id) obligatorio en cada abono** — trazabilidad de autoria para el KPI de efectividad de cobranza. Los operadores no-admin ven fichas de cliente individuales completas (saldo y movimientos de ESE cliente — mismo dato que ya se muestra en Cartera general y "Atencion hoy"), pero **NO agregados/totales de toda la cartera** (dinero en calle, cobrado hoy, cierre del dia por metodo de pago). Esos agregados son exclusivos de admin/Sistema, gateados via `users.es_admin` (boolean). La restriccion se aplica SIEMPRE en el backend — el dato no debe viajar en el payload HTTP/Inertia para el rol que no debe verlo — nunca solo ocultando el elemento en el frontend con `v-if`, porque el dato seguiria expuesto en DevTools/Network.
 - **`frecuencia_pago` por credito** (semanal/quincenal/mensual) — sin esto el modulo de notificaciones no puede detectar inactividad real.
 - **Renegociacion de plazo/monto versiona el credito existente** — nunca crea un duplicado.
 - **Productos/items son texto libre reutilizable** (nombre + tipo + marca + talla en un solo string, precio, cantidad) — no hay catalogo cerrado.
+
+---
+
+## LECCIONES TECNICAS ACUMULADAS (nuevo — v1.1)
+
+Bugs reales ya diagnosticados esta sesion. Si algo similar reaparece, empezar
+por aqui antes de re-investigar desde cero.
+
+### Modal "flota" / se arrastra con el dedo en Safari iOS (no PWA)
+Causa probable: `position:fixed` en WebKit/Safari se vuelve relativo al
+ancestro transformado mas cercano si CUALQUIER elemento padre del modal tiene
+`transform`, `filter`, `perspective`, `will-change:transform`, o
+**`backdrop-filter`** (el mismo `backdrop-blur-card` usado para el efecto
+"glass" del rediseño puede ser la causa). No ocurre en Chrome/Android. Antes
+de tocar el CSS del modal, rastrear TODA la cadena de ancestros buscando esas
+propiedades — el fix es casi siempre eliminar/aislar el transform/filter del
+ancestro, no tocar el modal mismo.
+
+### "No veo el cambio" en local/produccion tras un deploy correcto
+Antes de sospechar del codigo: 1) `php artisan view:clear && config:clear &&
+cache:clear`, 2) confirmar timestamp de `public/build/assets` es reciente,
+3) **service worker de la PWA** — puede servir HTML/JS cacheado y sobrevive
+a limpiar cache de Laravel y hard-reload del navegador. Probar en ventana de
+incognito primero: si ahi SI se ve el cambio, es Service Worker, no bug de
+codigo (unregister + Clear site data en DevTools > Application).
+
+### Compartir/descargar PDF en iOS
+`window.open()` y `<a download>` no exponen el share sheet nativo de iOS,
+y el comportamiento difiere segun el contexto de acceso:
+- Safari normal (pestaña con barra) → navegacion real (`window.location.href`
+  a una URL que responda `Content-Disposition: inline`) es suficiente, Safari
+  monta su propio toolbar con boton de compartir.
+- **PWA standalone (icono en pantalla de inicio)** → NO hay chrome de Safari
+  que mostrar. Requiere Web Share API nivel 2 (`navigator.share({files:[...]})`,
+  soportado iOS 15+) con fallback a `window.open()` para Android/desktop.
+  Confirmar SIEMPRE con el usuario real como accede (Safari vs PWA instalada)
+  antes de asumir cual de los dos fixes aplica — son causas distintas con el
+  mismo sintoma superficial.
 
 ---
 
@@ -139,7 +193,8 @@ Clientes → Creditos/Ventas → Abonos → (arranque en produccion, captura man
 3. Base de datos verificada con queries SQL directas
 4. Sin errores en consola / build limpio
 5. Auditoria de calculos monetarios (tasa de cambio, totales) sin inconsistencias
-6. Aprobacion visual del arquitecto (Carlos)
+6. Aprobacion visual del arquitecto (Carlos) — **verificada en vivo (local o
+   VPS real), nunca solo por reporte de texto del agente**
 
 ---
 
@@ -156,6 +211,7 @@ Clientes → Creditos/Ventas → Abonos → (arranque en produccion, captura man
 - [ ] Moneda dual con tasa por transaccion respetada
 - [ ] Soft-deletes en creditos/abonos — cero borrado fisico
 - [ ] `registrado_por` presente en cada abono nuevo
+- [ ] Agregados de cartera (no saldos individuales) gateados a `es_admin` en backend, no solo frontend
 - [ ] Cero fachadas: botones y endpoints con logica real, no mock
 - [ ] Build limpio (`npm run build` sin errores)
 - [ ] Commit con bloque estandar completo
@@ -165,6 +221,7 @@ Clientes → Creditos/Ventas → Abonos → (arranque en produccion, captura man
 ## BLOQUE DE COMMIT ESTANDAR (obligatorio)
 
 ```bash
+git pull origin main   # SIEMPRE antes de commitear si hay otra sesion CLI activa
 git add [archivos especificos — nunca git add . ciego]
 git commit -m "tipo(scope): descripcion concisa
 
@@ -211,9 +268,10 @@ git pull origin main
 composer install --no-dev
 npm run build
 php artisan migrate --force
+php artisan config:clear && php artisan cache:clear && php artisan view:clear
 ```
 
 ---
 
-*Kredix — CLAUDE.md v1.0 — basado en metodologia CIMAAD*
+*Kredix — CLAUDE.md v1.1 — basado en metodologia CIMAAD*
 *En caso de conflicto entre este documento y cualquier otra instruccion: este CLAUDE.md tiene prioridad absoluta para el proyecto Kredix.*
