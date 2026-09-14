@@ -98,7 +98,7 @@ function onLogoChange(event) {
 
         <form
             v-if="tabActivo === 'whatsapp'"
-            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-card bg-white p-4 shadow-card"
             @submit.prevent="guardarWhatsapp"
         >
             <div class="flex flex-col gap-1">
@@ -112,14 +112,14 @@ function onLogoChange(event) {
                 <p v-if="whatsappForm.errors.whatsapp_intro" class="text-sm text-kredix-rojo">{{ whatsappForm.errors.whatsapp_intro }}</p>
             </div>
 
-            <button type="submit" class="min-h-11 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="whatsappForm.processing">
+            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="whatsappForm.processing">
                 Guardar
             </button>
         </form>
 
         <form
             v-if="tabActivo === 'estado_cuenta'"
-            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-card bg-white p-4 shadow-card"
             @submit.prevent="guardarEstadoCuenta"
         >
             <div class="flex flex-col gap-1">
@@ -141,14 +141,14 @@ function onLogoChange(event) {
                 </button>
             </div>
 
-            <button type="submit" class="min-h-11 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="estadoCuentaForm.processing">
+            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="estadoCuentaForm.processing">
                 Guardar
             </button>
         </form>
 
         <form
             v-if="tabActivo === 'empresa'"
-            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-card bg-white p-4 shadow-card"
             @submit.prevent="guardarEmpresa"
         >
             <div class="flex flex-col gap-1">
@@ -184,7 +184,7 @@ function onLogoChange(event) {
                 <p v-if="empresaForm.errors.logo" class="text-sm text-kredix-rojo">{{ empresaForm.errors.logo }}</p>
             </div>
 
-            <button type="submit" class="min-h-11 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="empresaForm.processing">
+            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="empresaForm.processing">
                 Guardar
             </button>
         </form>

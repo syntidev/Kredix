@@ -183,7 +183,7 @@ function cancelForm() {
                 v-for="p in productosMatch"
                 :key="p.id"
                 :href="`/clientes/${p.cliente_id}`"
-                class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm active:bg-gray-50"
+                class="block rounded-2xl bg-white p-4 shadow-card-sm active:bg-gray-50"
             >
                 <p class="font-medium text-kredix-negro">{{ p.descripcion }}</p>
                 <p class="text-sm text-kredix-gris">{{ p.cliente_nombre }} — {{ formatFecha(p.fecha) }} — {{ p.monto }}</p>
@@ -192,7 +192,7 @@ function cancelForm() {
 
         <form
             v-if="showForm"
-            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            class="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-card bg-white p-4 shadow-card"
             @submit.prevent="submit"
         >
                 <div class="flex flex-col gap-1">
@@ -263,14 +263,14 @@ function cancelForm() {
                 <div class="mt-1 flex gap-2">
                     <button
                         type="button"
-                        class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100"
+                        class="min-h-11 flex-1 rounded-2xl border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100"
                         @click="cancelForm"
                     >
                         Cancelar
                     </button>
                     <button
                         type="submit"
-                        class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60"
+                        class="min-h-11 flex-1 rounded-2xl bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60"
                         :disabled="form.processing"
                     >
                         Guardar
@@ -280,7 +280,7 @@ function cancelForm() {
 
             <p v-if="clientes.data.length === 0" class="text-sm text-kredix-gris">Todavia no hay clientes registrados.</p>
 
-        <div v-else class="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div v-else class="overflow-hidden rounded-card bg-white shadow-card-sm">
             <table class="w-full table-fixed text-left text-sm">
                 <colgroup>
                     <col />
@@ -310,7 +310,7 @@ function cancelForm() {
             </table>
         </div>
 
-        <div v-if="clientes.last_page > 1" class="mt-2 flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3">
+        <div v-if="clientes.last_page > 1" class="mt-2 flex items-center justify-between rounded-card bg-white p-3 shadow-card-sm">
             <button
                 type="button"
                 class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro disabled:opacity-40"

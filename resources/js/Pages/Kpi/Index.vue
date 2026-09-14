@@ -109,7 +109,7 @@ const saludChartOptions = computed(() => ({
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <h1 class="text-xl font-semibold text-kredix-negro">KPI</h1>
 
-        <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div class="rounded-card bg-white shadow-card">
             <button
                 type="button"
                 class="flex min-h-11 w-full items-center justify-between px-4 text-sm font-medium text-kredix-negro"
@@ -148,7 +148,7 @@ const saludChartOptions = computed(() => ({
             </StatCard>
         </div>
 
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="rounded-card bg-white p-4 shadow-card">
             <div class="mb-2 flex items-center justify-between">
                 <h2 class="text-sm font-semibold text-kredix-negro">Otorgado vs cobrado - ultimas 4 semanas</h2>
                 <div class="flex rounded-lg border border-gray-300 text-xs font-medium">
@@ -174,7 +174,7 @@ const saludChartOptions = computed(() => ({
             <VueApexCharts v-else type="bar" height="280" :options="chartOptions" :series="chartSeries" />
         </div>
 
-        <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div class="rounded-card bg-white shadow-card">
             <h2 class="px-4 pt-4 text-sm font-semibold text-kredix-negro">Actividad por cobrador (este mes)</h2>
             <p v-if="actividadCobradores.length === 0" class="px-4 pb-4 pt-2 text-sm text-kredix-gris">Sin actividad este mes.</p>
             <div v-else class="overflow-x-auto">
@@ -201,7 +201,7 @@ const saludChartOptions = computed(() => ({
             </div>
         </div>
 
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="rounded-card bg-white p-4 shadow-card">
             <h2 class="mb-3 text-sm font-semibold text-kredix-negro">Salud de cartera</h2>
             <p v-if="totalSaludCartera === 0" class="text-sm text-kredix-gris">Sin clientes con saldo activo.</p>
             <template v-else>
@@ -223,7 +223,7 @@ const saludChartOptions = computed(() => ({
             </template>
         </div>
 
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="rounded-card bg-white p-4 shadow-card">
             <h2 class="mb-3 text-sm font-semibold text-kredix-negro">Antigüedad de cartera</h2>
             <div class="flex flex-col gap-3">
                 <div v-for="r in rangosCartera" :key="r.rango" class="flex flex-col gap-1">

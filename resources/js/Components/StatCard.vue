@@ -26,7 +26,7 @@ const mostrarAyuda = ref(false);
 </script>
 
 <template>
-    <div class="relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div class="relative rounded-card bg-white p-4 shadow-card">
         <div class="flex items-center gap-1">
             <p class="text-xs uppercase text-kredix-gris">{{ label }}</p>
             <button
@@ -39,7 +39,7 @@ const mostrarAyuda = ref(false);
                 <CircleHelp :size="14" />
             </button>
         </div>
-        <div v-if="ayuda && mostrarAyuda" class="absolute left-4 right-4 top-9 z-10 rounded-lg border border-gray-200 bg-white p-3 text-xs text-kredix-negro shadow-lg">
+        <div v-if="ayuda && mostrarAyuda" class="absolute left-4 right-4 top-9 z-10 rounded-2xl border border-gray-200 bg-white p-3 text-xs text-kredix-negro shadow-card-lg">
             {{ ayuda }}
         </div>
         <div class="mt-2 flex items-center gap-3">

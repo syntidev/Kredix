@@ -54,8 +54,6 @@ Notificaciones       🔒 no iniciado
 
 - Formularios "Registrar contacto" y "Editar movimiento" en Clientes/Show — no
   migrados al grid 2 columnas (si se hizo en Nuevo cargo/abono, no en estos)
-- Form "Nuevo cliente" en /clientes — sigue angosto
-- /configuracion sin `<Head title>` propio
 - Columna "Tasa" en tabla desktop muestra solo simbolo %, no el valor real
 - Etiqueta "Tasa cambio (opcional)" sigue diciendo "opcional" cuando el override
   manual esta activo (ahi si es obligatoria)
