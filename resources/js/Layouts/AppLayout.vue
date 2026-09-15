@@ -29,12 +29,13 @@ function guardarTasa() {
     });
 }
 
-// nav desktop: 5 primarios (4 + KPI si admin) + dropdown "Ajustes"
+// nav desktop: 6 primarios (5 + KPI si admin) + dropdown "Ajustes"
 const links = computed(() => [
     { href: '/home', label: 'Inicio' },
     { href: '/clientes', label: 'Clientes' },
     { href: '/cartera', label: 'Cartera' },
     { href: '/cartelera', label: 'Cartelera' },
+    { href: '/conciliacion', label: 'Conciliacion' },
     ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
 ]);
 
@@ -56,6 +57,7 @@ const tabsCore = computed(() => [
 ]);
 
 const masItems = computed(() => [
+    { href: '/conciliacion', label: 'Conciliacion' },
     ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
     { href: '/configuracion', label: 'Configuracion' },
     ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CarteleraController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\ConciliacionController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KpiController;
@@ -32,6 +33,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
     Route::get('/cartera', [ClienteController::class, 'cartera'])->name('cartera');
     Route::get('/cartelera', [CarteleraController::class, 'index'])->name('cartelera');
+    Route::get('/conciliacion', [ConciliacionController::class, 'index'])->name('conciliacion.index');
     Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion.index');
     Route::put('/configuracion/whatsapp', [ConfiguracionController::class, 'updateWhatsapp'])->name('configuracion.whatsapp');
     Route::put('/configuracion/estado-cuenta', [ConfiguracionController::class, 'updateEstadoCuenta'])->name('configuracion.estado-cuenta');

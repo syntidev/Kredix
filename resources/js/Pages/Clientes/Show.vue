@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ArrowDown, ArrowUp, Download, FileText, ImageOff, MessageCircle, NotebookPen, Pencil, Plus, Repeat, Search, Trash2, X } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
+import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
 import UserAvatar from '../../Components/UserAvatar.vue';
@@ -811,8 +812,7 @@ const algunModalAbierto = computed(() => formMode.value !== null
     || mostrarConfirmarDescarte.value
     || editandoCliente.value
     || eliminandoCliente.value
-    || eliminandoMovId.value !== null
-    || comprobanteLightboxUrl.value !== null);
+    || eliminandoMovId.value !== null);
 
 let overflowBodyPrevio = null;
 
@@ -823,20 +823,6 @@ watch(algunModalAbierto, (abierto) => {
     } else {
         document.body.style.overflow = overflowBodyPrevio ?? '';
     }
-});
-
-function onKeydownGlobal(event) {
-    if (event.key === 'Escape') {
-        comprobanteLightboxUrl.value = null;
-    }
-}
-
-onMounted(() => {
-    window.addEventListener('keydown', onKeydownGlobal);
-});
-
-onUnmounted(() => {
-    window.removeEventListener('keydown', onKeydownGlobal);
 });
 </script>
 
@@ -1829,12 +1815,7 @@ onUnmounted(() => {
             </div>
         </div>
 
-        <div v-if="comprobanteLightboxUrl" class="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4" @click.self="comprobanteLightboxUrl = null">
-            <button type="button" class="absolute right-4 top-4 rounded-full bg-white/90 p-2 text-kredix-negro" @click="comprobanteLightboxUrl = null">
-                <X :size="20" />
-            </button>
-            <img :src="comprobanteLightboxUrl" alt="comprobante ampliado" class="max-h-full max-w-full rounded-lg object-contain" />
-        </div>
+        <ComprobanteLightbox :url="comprobanteLightboxUrl" @close="comprobanteLightboxUrl = null" />
     </div>
     </div>
 </template>
