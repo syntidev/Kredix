@@ -104,6 +104,7 @@ const editClienteForm = useForm({
     telefono: props.cliente.telefono,
     email: props.cliente.email ?? '',
     cedula: props.cliente.cedula ?? '',
+    direccion: props.cliente.direccion ?? '',
     notas: props.cliente.notas ?? '',
     contacto_alterno_nombre: props.cliente.contacto_alterno_nombre ?? '',
     contacto_alterno_telefono: props.cliente.contacto_alterno_telefono ?? '',
@@ -115,6 +116,7 @@ function abrirEditarCliente() {
     editClienteForm.telefono = props.cliente.telefono;
     editClienteForm.email = props.cliente.email ?? '';
     editClienteForm.cedula = props.cliente.cedula ?? '';
+    editClienteForm.direccion = props.cliente.direccion ?? '';
     editClienteForm.notas = props.cliente.notas ?? '';
     editClienteForm.contacto_alterno_nombre = props.cliente.contacto_alterno_nombre ?? '';
     editClienteForm.contacto_alterno_telefono = props.cliente.contacto_alterno_telefono ?? '';
@@ -818,6 +820,7 @@ watch(algunModalAbierto, (abierto) => {
                     <div>
                         <p class="font-medium text-kredix-negro">{{ cliente.nombre }}</p>
                         <p class="text-sm text-kredix-gris">{{ formatPhoneDisplay(cliente.telefono) }}</p>
+                        <p v-if="cliente.direccion" class="text-sm text-kredix-gris">{{ cliente.direccion }}</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
@@ -1680,6 +1683,12 @@ watch(algunModalAbierto, (abierto) => {
                     <label class="text-sm font-medium text-kredix-negro">Cedula</label>
                     <input v-model="editClienteForm.cedula" type="text" placeholder="Ej: 8390140, sin puntos" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                     <p v-if="editClienteForm.errors.cedula" class="text-sm text-kredix-rojo">{{ editClienteForm.errors.cedula }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Direccion <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <textarea v-model="editClienteForm.direccion" rows="2" class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
+                    <p v-if="editClienteForm.errors.direccion" class="text-sm text-kredix-rojo">{{ editClienteForm.errors.direccion }}</p>
                 </div>
 
                 <div class="flex flex-col gap-1">

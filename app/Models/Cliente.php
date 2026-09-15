@@ -14,6 +14,7 @@ class Cliente extends Model
         'telefono',
         'email',
         'cedula',
+        'direccion',
         'mensaje_pdf',
         'notas',
         'contacto_alterno_nombre',

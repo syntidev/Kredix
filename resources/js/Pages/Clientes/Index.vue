@@ -94,6 +94,7 @@ const form = useForm({
     telefono: '',
     email: '',
     cedula: '',
+    direccion: '',
     notas: '',
     contacto_alterno_nombre: '',
     contacto_alterno_telefono: '',
@@ -239,6 +240,17 @@ function cancelForm() {
                         class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                     />
                     <p v-if="form.errors.cedula" class="text-sm text-kredix-rojo">{{ form.errors.cedula }}</p>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label for="direccion" class="text-sm font-medium text-kredix-negro">Direccion <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <textarea
+                        id="direccion"
+                        v-model="form.direccion"
+                        rows="2"
+                        class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                    ></textarea>
+                    <p v-if="form.errors.direccion" class="text-sm text-kredix-rojo">{{ form.errors.direccion }}</p>
                 </div>
 
                 <div class="flex flex-col gap-1">
