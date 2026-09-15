@@ -23,6 +23,28 @@ class ClienteController extends Controller
 
     private const MAX_RESULTADOS_BUSQUEDA = 8;
 
+    // "Hector palacios" debe encontrar "Hector Jose Palacios" -- un LIKE de
+    // frase completa se rompe si falta o sobra una palabra intermedia. Toda
+    // busqueda por NOMBRE (texto libre, no cedula/telefono que son match
+    // literal) parte el query en palabras y exige TODAS presentes (orden
+    // y posicion no importan), un solo punto de verdad para los 3 buscadores
+    // de nombre del sistema (Home, Clientes, Cartera)
+    private function tokensDeBusqueda(string $q): array
+    {
+        return array_values(array_filter(preg_split('/\s+/', trim($q))));
+    }
+
+    // aplica el filtro multi-token AND sobre $campo dentro de un query builder
+    // ya abierto (whereNested), reutilizable por buscar()/index()
+    private function whereNombreTokenizado($query, string $campo, array $tokens): void
+    {
+        $query->where(function ($sub) use ($campo, $tokens) {
+            foreach ($tokens as $token) {
+                $sub->where($campo, 'like', "%{$token}%");
+            }
+        });
+    }
+
     // usado por el buscador en vivo del Home (accion rapida) -- mismo filtro
     // nombre/cedula/telefono que index(), version liviana en JSON sin
     // paginacion ni el resto de props de la pagina Clientes/Index
@@ -34,11 +56,13 @@ class ClienteController extends Controller
             return response()->json([]);
         }
 
+        $tokens = $this->tokensDeBusqueda($q);
+
         return response()->json(
             Cliente::query()
-                ->where(function ($query) use ($q) {
-                    $query->where('nombre', 'like', "%{$q}%")
-                        ->orWhere('cedula', 'like', "%{$q}%")
+                ->where(function ($query) use ($q, $tokens) {
+                    $this->whereNombreTokenizado($query, 'nombre', $tokens);
+                    $query->orWhere('cedula', 'like', "%{$q}%")
                         ->orWhere('telefono', 'like', "%{$q}%");
                 })
                 ->orderBy('nombre')
@@ -64,8 +88,8 @@ class ClienteController extends Controller
             ->leftJoinSub($saldos, 'saldos', 'saldos.cliente_id', '=', 'clientes.id')
             ->select('clientes.*', DB::raw('COALESCE(saldos.saldo, 0) as saldo_pendiente'))
             ->when($q, fn ($query) => $query->where(function ($query) use ($q) {
-                $query->where('nombre', 'like', "%{$q}%")
-                    ->orWhere('cedula', 'like', "%{$q}%")
+                $this->whereNombreTokenizado($query, 'nombre', $this->tokensDeBusqueda($q));
+                $query->orWhere('cedula', 'like', "%{$q}%")
                     ->orWhere('telefono', 'like', "%{$q}%")
                     ->orWhere('email', 'like', "%{$q}%");
             }))
@@ -88,7 +112,7 @@ class ClienteController extends Controller
 
         $productosMatch = $q
             ? MovimientoCuenta::where('tipo', 'cargo')
-                ->where('descripcion', 'like', "%{$q}%")
+                ->where(fn ($query) => $this->whereNombreTokenizado($query, 'descripcion', $this->tokensDeBusqueda($q)))
                 ->with('cliente:id,nombre')
                 ->orderByDesc('fecha')
                 ->get()
@@ -370,8 +394,12 @@ class ClienteController extends Controller
         $clientesFiltrados = $clientes
             ->when($q, fn ($coll) => $coll->filter(function ($c) use ($q) {
                 $needle = mb_strtolower($q);
+                $tokensNombre = $this->tokensDeBusqueda($needle);
+                $nombre = mb_strtolower($c['nombre'] ?? '');
+                $coincideNombre = count($tokensNombre) > 0
+                    && collect($tokensNombre)->every(fn ($token) => str_contains($nombre, $token));
 
-                return str_contains(mb_strtolower($c['nombre'] ?? ''), $needle)
+                return $coincideNombre
                     || str_contains(mb_strtolower($c['cedula'] ?? ''), $needle)
                     || str_contains(mb_strtolower($c['telefono'] ?? ''), $needle);
             }))
