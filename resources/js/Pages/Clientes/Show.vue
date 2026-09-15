@@ -5,11 +5,13 @@ import { ArrowDown, ArrowUp, Download, FileText, ImageOff, MessageCircle, Notebo
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
+import EstadoValidacionLed from '../../Components/EstadoValidacionLed.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
 import UserAvatar from '../../Components/UserAvatar.vue';
 import { colorDias } from '../../lib/colorDias';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
+import { estadoValidacionEfectivo } from '../../lib/estadoValidacion';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
 import { formatPhoneDisplay } from '../../lib/formatPhone';
@@ -602,14 +604,6 @@ function toggleValidacion() {
             editEstadoValidacion.value = editEstadoValidacion.value === 'pendiente' ? 'validado' : 'pendiente';
         },
     });
-}
-
-// estado_validacion en null no siempre significa "no aplica" -- un abono con
-// comprobante real creado antes de que este campo existiera tambien queda null en
-// la BD; si tiene comprobante, se trata como "pendiente" por defecto (misma regla
-// que usa openEditMov para decidir si mostrar el toggle)
-function estadoValidacionEfectivo(m) {
-    return (m.tipo === 'abono' && m.comprobante_url) ? (m.estado_validacion ?? 'pendiente') : null;
 }
 
 function dotValidacion(estado) {
@@ -1553,9 +1547,15 @@ watch(algunModalAbierto, (abierto) => {
                     </div>
                     <div class="flex justify-between">
                         <span class="text-kredix-gris">Metodo</span>
-                        <span class="inline-flex items-center gap-1.5 text-kredix-negro">
-                            <span v-if="dotValidacion(estadoValidacionEfectivo(m))" class="h-1.5 w-1.5 rounded-full" :class="dotValidacion(estadoValidacionEfectivo(m))"></span>
+                        <span class="text-kredix-negro">
                             {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}
+                        </span>
+                    </div>
+                    <div v-if="estadoValidacionEfectivo(m)" class="flex items-center justify-between">
+                        <span class="text-kredix-gris">Estado</span>
+                        <span class="inline-flex items-center gap-1.5 text-kredix-negro">
+                            {{ estadoValidacionEfectivo(m) === 'validado' ? 'Validado' : 'Pendiente' }}
+                            <EstadoValidacionLed :movimiento-id="m.id" :estado="estadoValidacionEfectivo(m)" />
                         </span>
                     </div>
                     <div v-if="m.registrado_por" class="flex justify-between">
@@ -1601,6 +1601,7 @@ watch(algunModalAbierto, (abierto) => {
                     <col class="w-[56px]" />
                     <col class="w-[104px]" />
                     <col class="w-[136px]" />
+                    <col class="w-[92px]" />
                     <col class="w-[100px]" />
                     <col class="w-[64px]" />
                 </colgroup>
@@ -1612,6 +1613,7 @@ watch(algunModalAbierto, (abierto) => {
                         <th class="px-2 py-2 text-right">Cant.</th>
                         <th class="px-2 py-2 text-right">Precio/Monto</th>
                         <th class="px-2 py-2">Metodo</th>
+                        <th class="px-2 py-2">Estado</th>
                         <th class="px-2 py-2 text-right">Saldo</th>
                         <th class="px-2 py-2"></th>
                     </tr>
@@ -1667,11 +1669,15 @@ watch(algunModalAbierto, (abierto) => {
                             <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="block text-xs font-normal text-amber-600">BCV</span>
                         </td>
                         <td class="whitespace-nowrap px-2 py-2 text-kredix-gris">
-                            <span class="inline-flex items-center gap-1.5">
-                                <span v-if="dotValidacion(estadoValidacionEfectivo(m))" class="h-1.5 w-1.5 rounded-full" :class="dotValidacion(estadoValidacionEfectivo(m))"></span>
-                                {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}
-                            </span>
+                            <span>{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}</span>
                             <span v-if="m.registrado_por" class="block text-xs">{{ m.registrado_por }}</span>
+                        </td>
+                        <td class="whitespace-nowrap px-2 py-2">
+                            <span v-if="estadoValidacionEfectivo(m)" class="inline-flex items-center gap-1.5 text-kredix-gris">
+                                {{ estadoValidacionEfectivo(m) === 'validado' ? 'Validado' : 'Pendiente' }}
+                                <EstadoValidacionLed :movimiento-id="m.id" :estado="estadoValidacionEfectivo(m)" />
+                            </span>
+                            <span v-else class="text-kredix-gris">-</span>
                         </td>
                         <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
                         <td class="px-1 py-2 text-right">

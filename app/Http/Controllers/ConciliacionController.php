@@ -58,6 +58,7 @@ class ConciliacionController extends Controller
                 'id' => $m->id,
                 'cliente_id' => $m->cliente_id,
                 'cliente_nombre' => $m->cliente?->nombre,
+                'tipo' => $m->tipo,
                 'fecha' => $m->fecha?->toDateString(),
                 'metodo_pago' => $m->metodo_pago,
                 'referencia' => $m->referencia,

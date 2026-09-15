@@ -4,6 +4,8 @@ import { Head, router } from '@inertiajs/vue3';
 import { ChevronDown, Filter, ImageOff } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
+import EstadoValidacionLed from '../../Components/EstadoValidacionLed.vue';
+import { estadoValidacionEfectivo } from '../../lib/estadoValidacion';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
 
@@ -187,13 +189,20 @@ const comprobanteLightboxUrl = ref(null);
                     </div>
                     <div class="flex shrink-0 items-center gap-2">
                         <span class="tabular-nums text-sm font-semibold text-kredix-negro">{{ formatMoney(m.monto) }}</span>
-                        <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white" :class="dotValidacion(m.estado_validacion)">
-                            {{ m.estado_validacion === 'validado' ? 'Validado' : (m.estado_validacion === 'pendiente' ? 'Pendiente' : '-') }}
+                        <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white" :class="dotValidacion(estadoValidacionEfectivo(m))">
+                            {{ estadoValidacionEfectivo(m) === 'validado' ? 'Validado' : (estadoValidacionEfectivo(m) === 'pendiente' ? 'Pendiente' : '-') }}
                         </span>
                     </div>
                 </button>
 
                 <div v-if="detalleAbierto === m.id" class="mt-2 flex flex-col gap-1.5 border-t border-gray-100 pt-2 text-xs">
+                    <div v-if="estadoValidacionEfectivo(m)" class="flex items-center justify-between">
+                        <span class="text-kredix-gris">Estado</span>
+                        <span class="inline-flex items-center gap-1.5 text-kredix-negro">
+                            {{ estadoValidacionEfectivo(m) === 'validado' ? 'Validado' : 'Pendiente' }}
+                            <EstadoValidacionLed :movimiento-id="m.id" :estado="estadoValidacionEfectivo(m)" />
+                        </span>
+                    </div>
                     <div class="flex justify-between"><span class="text-kredix-gris">Metodo</span><span class="text-kredix-negro">{{ etiquetaMetodo(m.metodo_pago) }}</span></div>
                     <div class="flex justify-between"><span class="text-kredix-gris">Referencia</span><span class="text-kredix-negro">{{ m.referencia ?? '-' }}</span></div>
                     <div v-if="m.registrado_por" class="flex justify-between"><span class="text-kredix-gris">Registrado por</span><span class="text-kredix-gris">{{ m.registrado_por }}</span></div>
@@ -238,10 +247,11 @@ const comprobanteLightboxUrl = ref(null);
                         <td class="px-3 py-3 text-kredix-negro">{{ etiquetaMetodo(m.metodo_pago) }}</td>
                         <td class="break-words px-3 py-3 text-kredix-negro">{{ m.referencia ?? '-' }}</td>
                         <td class="px-3 py-3">
-                            <span class="inline-flex items-center gap-1.5">
-                                <span class="h-2 w-2 rounded-full" :class="dotValidacion(m.estado_validacion)"></span>
-                                {{ m.estado_validacion === 'validado' ? 'Validado' : (m.estado_validacion === 'pendiente' ? 'Pendiente' : '-') }}
+                            <span v-if="estadoValidacionEfectivo(m)" class="inline-flex items-center gap-1.5">
+                                {{ estadoValidacionEfectivo(m) === 'validado' ? 'Validado' : 'Pendiente' }}
+                                <EstadoValidacionLed :movimiento-id="m.id" :estado="estadoValidacionEfectivo(m)" />
                             </span>
+                            <span v-else>-</span>
                         </td>
                         <td class="tabular-nums px-3 py-3 text-right font-medium text-kredix-negro">{{ formatMoney(m.monto) }}</td>
                         <td class="px-3 py-3">

@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, NotebookPen, Plus, Search } from '@lucide/vue';
 import StatTile from '../../Components/StatTile.vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import EventoCartelera from '../../Components/EventoCartelera.vue';
+import EstadoValidacionLed from '../../Components/EstadoValidacionLed.vue';
 import { formatMoney } from '../../lib/formatMoney';
 import { formatPhoneDisplay } from '../../lib/formatPhone';
 import { formatTiempoRelativo } from '../../lib/formatTiempoRelativo';
@@ -103,12 +104,6 @@ const metodoExpandido = ref(null);
 
 function toggleMetodo(metodoPago) {
     metodoExpandido.value = metodoExpandido.value === metodoPago ? null : metodoPago;
-}
-
-function toggleValidacionAbono(abono) {
-    // redirect()->back() en el controller devuelve las props de Home ya
-    // actualizadas -- no hace falta mutar estado local, Inertia refresca solo
-    router.patch(`/movimientos/${abono.id}/validacion`, {}, { preserveScroll: true });
 }
 
 // Abono/Cargo/Gestion reusan los modales YA existentes en Clientes/Show.vue --
@@ -232,15 +227,7 @@ const accionesRapidas = [
                 </button>
                 <div v-if="metodoExpandido === fila.metodoPago" class="flex flex-col divide-y divide-gray-100 border-t border-gray-100">
                     <div v-for="abono in fila.abonos" :key="abono.id" class="flex items-center gap-2 p-3">
-                        <button
-                            v-if="abono.estadoValidacion"
-                            type="button"
-                            class="shrink-0 rounded-full p-1 active:bg-gray-100"
-                            :title="abono.estadoValidacion === 'pendiente' ? 'Marcar como validado' : 'Marcar como pendiente'"
-                            @click="toggleValidacionAbono(abono)"
-                        >
-                            <span class="block h-2.5 w-2.5 rounded-full" :class="dotValidacion(abono.estadoValidacion)"></span>
-                        </button>
+                        <EstadoValidacionLed :movimiento-id="abono.id" :estado="abono.estadoValidacion" />
                         <Link :href="`/clientes/${abono.clienteId}`" class="flex min-w-0 flex-1 items-center justify-between gap-2 active:opacity-70">
                             <span class="min-w-0 truncate text-sm text-kredix-negro">{{ abono.clienteNombre }}</span>
                             <span class="flex shrink-0 items-center gap-2 text-xs text-kredix-gris">
