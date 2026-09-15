@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useForm, Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
@@ -113,6 +113,12 @@ function openForm() {
     form.clearErrors();
     showForm.value = true;
 }
+
+// accion rapida "Cliente" del Home (?nuevo=1) -- mismo patron que ?accion=
+// en Show.vue para abono/cargo/gestion
+onMounted(() => {
+    if (new URLSearchParams(window.location.search).get('nuevo') === '1') openForm();
+});
 
 function cancelForm() {
     form.reset();

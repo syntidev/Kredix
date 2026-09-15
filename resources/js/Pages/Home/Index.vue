@@ -115,7 +115,7 @@ function toggleValidacionAbono(abono) {
 // como son por-cliente, la accion rapida activa un modo de busqueda
 // (accionSeleccionada) y el modal se autoabre en Show.vue via ?accion=
 const accionesRapidas = [
-    { accion: null, href: '/clientes', label: 'Cliente', icon: Plus, bg: 'bg-white', color: 'text-kredix-gris' },
+    { accion: null, href: '/clientes?nuevo=1', label: 'Cliente', icon: Plus, bg: 'bg-white', color: 'text-kredix-gris' },
     { accion: 'abono', label: 'Abono', icon: ArrowDown, bg: 'bg-abono-bg', color: 'text-abono-text', ring: 'ring-abono-fill' },
     { accion: 'cargo', label: 'Cargo', icon: ArrowUp, bg: 'bg-cargo-bg', color: 'text-cargo-text', ring: 'ring-cargo-fill' },
     { accion: 'gestion', label: 'Gestion', icon: NotebookPen, bg: 'bg-white', color: 'text-kredix-gris', ring: 'ring-kredix-negro' },
