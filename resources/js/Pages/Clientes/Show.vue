@@ -1598,12 +1598,12 @@ watch(algunModalAbierto, (abierto) => {
                     <col class="w-[92px]" />
                     <col class="w-[72px]" />
                     <col />
-                    <col class="w-[56px]" />
-                    <col class="w-[104px]" />
-                    <col class="w-[136px]" />
-                    <col class="w-[92px]" />
+                    <col class="w-[44px]" />
                     <col class="w-[100px]" />
-                    <col class="w-[64px]" />
+                    <col class="w-[100px]" />
+                    <col class="w-[56px]" />
+                    <col class="w-[84px]" />
+                    <col class="w-[60px]" />
                 </colgroup>
                 <thead class="bg-gray-100 text-xs uppercase text-kredix-gris">
                     <tr>
@@ -1668,15 +1668,16 @@ watch(algunModalAbierto, (abierto) => {
                             </span>
                             <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="block text-xs font-normal text-amber-600">BCV</span>
                         </td>
-                        <td class="whitespace-nowrap px-2 py-2 text-kredix-gris">
+                        <td class="break-words px-2 py-2 text-kredix-gris">
                             <span>{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}</span>
                             <span v-if="m.registrado_por" class="block text-xs">{{ m.registrado_por }}</span>
                         </td>
-                        <td class="whitespace-nowrap px-2 py-2">
-                            <span v-if="estadoValidacionEfectivo(m)" class="inline-flex items-center gap-1.5 text-kredix-gris">
-                                {{ estadoValidacionEfectivo(m) === 'validado' ? 'Validado' : 'Pendiente' }}
-                                <EstadoValidacionLed :movimiento-id="m.id" :estado="estadoValidacionEfectivo(m)" />
-                            </span>
+                        <td class="px-2 py-2">
+                            <EstadoValidacionLed
+                                v-if="estadoValidacionEfectivo(m)"
+                                :movimiento-id="m.id"
+                                :estado="estadoValidacionEfectivo(m)"
+                            />
                             <span v-else class="text-kredix-gris">-</span>
                         </td>
                         <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
