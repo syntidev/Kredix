@@ -755,16 +755,29 @@ function cancelarDescarte() {
 }
 
 const eliminandoMovId = ref(null);
+const movimientoAEliminar = ref(null);
+const eliminarMovPaso = ref(1);
 const motivoEliminacionMov = ref('');
 const eliminandoMovProcesando = ref(false);
 
+// paso 1: confirmacion explicita de que la accion es ELIMINAR (no editar) --
+// incidente real donde un usuario elimino movimientos creyendo que los
+// editaba, mismo patron de 2 pasos ya usado para eliminar cliente
 function confirmarEliminarMov(m) {
     eliminandoMovId.value = m.id;
+    movimientoAEliminar.value = m;
+    eliminarMovPaso.value = 1;
     motivoEliminacionMov.value = '';
+}
+
+function avanzarEliminarMov() {
+    eliminarMovPaso.value = 2;
 }
 
 function cancelarEliminarMov() {
     eliminandoMovId.value = null;
+    movimientoAEliminar.value = null;
+    eliminarMovPaso.value = 1;
     motivoEliminacionMov.value = '';
 }
 
@@ -1740,7 +1753,23 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="eliminandoMovId" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="cancelarEliminarMov">
-            <div class="w-full max-w-sm rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+            <div v-if="eliminarMovPaso === 1" class="w-full max-w-sm rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+                <p class="font-medium text-kredix-negro">¿Seguro que deseas ELIMINAR este movimiento?</p>
+                <p class="mt-2 text-lg font-semibold text-kredix-negro">
+                    {{ movimientoAEliminar?.descripcion }}
+                    <span v-if="movimientoAEliminar?.monto"> — {{ formatMoney(movimientoAEliminar.monto) }}</span>
+                </p>
+                <p class="mt-2 text-sm text-kredix-gris">Esta accion requiere un administrador para revertirla.</p>
+                <div class="mt-4 flex gap-2">
+                    <button type="button" autofocus class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white active:opacity-80" @click="cancelarEliminarMov">
+                        Cancelar
+                    </button>
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-kredix-rojo text-sm font-medium text-kredix-rojo active:bg-red-50" @click="avanzarEliminarMov">
+                        Si, eliminar
+                    </button>
+                </div>
+            </div>
+            <div v-else class="w-full max-w-sm rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
                 <p class="font-medium text-kredix-negro">¿Eliminar este movimiento?</p>
                 <p class="mt-1 text-sm text-kredix-gris">No se borra de la base de datos, solo deja de contar en el saldo y de aparecer en el estado de cuenta.</p>
                 <div class="mt-3 flex flex-col gap-1">
