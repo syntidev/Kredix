@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ArrowDown, ArrowUp, Download, FileText, ImageOff, MessageCircle, NotebookPen, Pencil, Plus, Repeat, Search, Trash2, X } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
@@ -801,11 +801,14 @@ function confirmarYEliminarMov() {
 // (a diferencia de Components/Modal.vue, que si lo hace). Un solo computed
 // cubre los 8: formMode no-null son 4 (cargo/abono/gestion/editar), el resto
 // un booleano/id cada uno.
+const comprobanteLightboxUrl = ref(null);
+
 const algunModalAbierto = computed(() => formMode.value !== null
     || mostrarConfirmarDescarte.value
     || editandoCliente.value
     || eliminandoCliente.value
-    || eliminandoMovId.value !== null);
+    || eliminandoMovId.value !== null
+    || comprobanteLightboxUrl.value !== null);
 
 let overflowBodyPrevio = null;
 
@@ -816,6 +819,20 @@ watch(algunModalAbierto, (abierto) => {
     } else {
         document.body.style.overflow = overflowBodyPrevio ?? '';
     }
+});
+
+function onKeydownGlobal(event) {
+    if (event.key === 'Escape') {
+        comprobanteLightboxUrl.value = null;
+    }
+}
+
+onMounted(() => {
+    window.addEventListener('keydown', onKeydownGlobal);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', onKeydownGlobal);
 });
 </script>
 
@@ -1547,11 +1564,11 @@ watch(algunModalAbierto, (abierto) => {
                     <p v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</p>
                     <p v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="text-kredix-gris">{{ m.comentario }}</p>
                     <div v-if="m.comprobante_url || m.producto_url" class="flex gap-3">
-                        <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="flex items-center gap-1 text-kredix-rojo underline">
+                        <button v-if="m.comprobante_url" type="button" class="flex items-center gap-1 text-kredix-rojo underline" @click.stop="comprobanteLightboxUrl = m.comprobante_url">
                             <img v-if="!imgErrores[`mc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`mc${m.id}`)" />
                             <ImageOff v-else :size="18" class="text-kredix-gris" />
                             comprobante
-                        </a>
+                        </button>
                         <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="flex items-center gap-1 text-kredix-rojo underline">
                             <img v-if="!imgErrores[`mp${m.id}`]" :src="m.producto_thumb_url" alt="foto producto" class="h-8 w-8 rounded object-cover" @error="onImgError(`mp${m.id}`)" />
                             <ImageOff v-else :size="18" class="text-kredix-gris" />
@@ -1617,11 +1634,11 @@ watch(algunModalAbierto, (abierto) => {
                                 {{ m.descripcion }}
                                 <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="block text-xs text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
                                 <span v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="block text-xs text-kredix-gris">{{ m.comentario }}</span>
-                                <a v-if="m.comprobante_url" :href="m.comprobante_url" target="_blank" class="mt-1 flex items-center gap-1 text-xs text-kredix-rojo underline">
+                                <button v-if="m.comprobante_url" type="button" class="mt-1 flex items-center gap-1 text-xs text-kredix-rojo underline" @click.stop="comprobanteLightboxUrl = m.comprobante_url">
                                     <img v-if="!imgErrores[`dc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`dc${m.id}`)" />
                                     <ImageOff v-else :size="16" class="text-kredix-gris" />
                                     comprobante
-                                </a>
+                                </button>
                                 <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="mt-1 flex items-center gap-1 text-xs text-kredix-rojo underline">
                                     <img v-if="!imgErrores[`dp${m.id}`]" :src="m.producto_thumb_url" alt="foto producto" class="h-8 w-8 rounded object-cover" @error="onImgError(`dp${m.id}`)" />
                                     <ImageOff v-else :size="16" class="text-kredix-gris" />
@@ -1795,6 +1812,13 @@ watch(algunModalAbierto, (abierto) => {
                     </button>
                 </div>
             </div>
+        </div>
+
+        <div v-if="comprobanteLightboxUrl" class="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4" @click.self="comprobanteLightboxUrl = null">
+            <button type="button" class="absolute right-4 top-4 rounded-full bg-white/90 p-2 text-kredix-negro" @click="comprobanteLightboxUrl = null">
+                <X :size="20" />
+            </button>
+            <img :src="comprobanteLightboxUrl" alt="comprobante ampliado" class="max-h-full max-w-full rounded-lg object-contain" />
         </div>
     </div>
     </div>
