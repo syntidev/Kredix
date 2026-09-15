@@ -170,6 +170,7 @@ class ClienteController extends Controller
                 'moneda' => $m->moneda,
                 'tasa_cambio' => $m->tasa_cambio,
                 'metodo_pago' => $m->metodo_pago,
+                'referencia' => $m->referencia,
                 'comentario' => $m->comentario,
                 'registrado_por' => $m->registradoPor?->name,
                 'estado_validacion' => $m->estado_validacion,

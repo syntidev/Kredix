@@ -470,6 +470,7 @@ const abonoForm = useForm({
     // desde el modal de Editar si hace falta corregirla despues
     tasa_cambio: props.tasaBcvCargo?.rate ?? '',
     metodo_pago: 'efectivo',
+    referencia: '',
     comentario: '',
     comprobante: null,
 });
@@ -499,6 +500,7 @@ function submitAbono() {
             abonoForm.fecha = today();
             abonoForm.moneda = 'usd';
             abonoForm.metodo_pago = 'efectivo';
+            abonoForm.referencia = '';
             esAjuste.value = false;
             formMode.value = null;
         },
@@ -556,6 +558,7 @@ const editForm = useForm({
     moneda: 'usd',
     tasa_cambio: '',
     metodo_pago: 'efectivo',
+    referencia: '',
     comentario: '',
     comprobante: null,
     foto_producto: null,
@@ -577,6 +580,7 @@ function openEditMov(m) {
     editForm.moneda = m.moneda;
     editForm.tasa_cambio = m.tasa_cambio ?? '';
     editForm.metodo_pago = m.metodo_pago ?? 'efectivo';
+    editForm.referencia = m.referencia ?? '';
     editForm.comentario = m.comentario ?? '';
     editForm.comprobante = null;
     editForm.foto_producto = null;
@@ -1242,6 +1246,12 @@ onUnmounted(() => {
                 </select>
             </div>
 
+            <div v-if="abonoForm.metodo_pago !== 'efectivo'" class="flex flex-col gap-1 md:col-span-2">
+                <label class="text-sm font-medium text-kredix-negro">Referencia</label>
+                <input v-model="abonoForm.referencia" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <p v-if="abonoForm.errors.referencia" class="text-sm text-kredix-rojo">{{ abonoForm.errors.referencia }}</p>
+            </div>
+
             <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Comentario</label>
                 <textarea v-model="abonoForm.comentario" rows="2" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
@@ -1422,6 +1432,11 @@ onUnmounted(() => {
                         <option value="punto_venta">Punto de Venta</option>
                     </select>
                 </div>
+                <div v-if="editForm.metodo_pago !== 'efectivo'" class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Referencia</label>
+                    <input v-model="editForm.referencia" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="editForm.errors.referencia" class="text-sm text-kredix-rojo">{{ editForm.errors.referencia }}</p>
+                </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Comentario</label>
                     <textarea v-model="editForm.comentario" rows="2" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
@@ -1554,7 +1569,7 @@ onUnmounted(() => {
                         <span class="text-kredix-gris">Metodo</span>
                         <span class="inline-flex items-center gap-1.5 text-kredix-negro">
                             <span v-if="dotValidacion(estadoValidacionEfectivo(m))" class="h-1.5 w-1.5 rounded-full" :class="dotValidacion(estadoValidacionEfectivo(m))"></span>
-                            {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}
+                            {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}
                         </span>
                     </div>
                     <div v-if="m.registrado_por" class="flex justify-between">
@@ -1668,7 +1683,7 @@ onUnmounted(() => {
                         <td class="whitespace-nowrap px-2 py-2 text-kredix-gris">
                             <span class="inline-flex items-center gap-1.5">
                                 <span v-if="dotValidacion(estadoValidacionEfectivo(m))" class="h-1.5 w-1.5 rounded-full" :class="dotValidacion(estadoValidacionEfectivo(m))"></span>
-                                {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}
+                                {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}
                             </span>
                             <span v-if="m.registrado_por" class="block text-xs">{{ m.registrado_por }}</span>
                         </td>

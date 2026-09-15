@@ -115,12 +115,14 @@ class MovimientoCuentaController extends Controller
             'tasa_cambio' => ['nullable', 'numeric', 'min:0.0001'],
             'monto' => [Rule::requiredIf($requiereMonto), 'nullable', 'numeric', 'min:0.01'],
             'metodo_pago' => [Rule::requiredIf($requiereMonto), 'nullable', 'in:efectivo,zelle,binance,transferencia,pago_movil,bancamiga_divisa,punto_venta'],
+            'referencia' => [Rule::requiredIf($requiereMonto && $request->input('metodo_pago') !== 'efectivo'), 'nullable', 'string', 'max:255'],
             'comentario' => ['required', 'string', 'max:1000'],
             'comprobante' => ['nullable', 'image', 'max:5120'],
         ], [
             'comentario.required' => 'comentario requerido',
             'monto.required' => 'monto requerido',
             'metodo_pago.required' => 'metodo de pago requerido',
+            'referencia.required' => 'referencia requerida para este metodo de pago',
             'tipo_contacto.required' => 'tipo de contacto requerido',
         ]);
 
@@ -137,6 +139,7 @@ class MovimientoCuentaController extends Controller
             'moneda' => 'usd',
             'tasa_cambio' => $validated['tasa_cambio'] ?? null,
             'metodo_pago' => $validated['metodo_pago'] ?? null,
+            'referencia' => $validated['metodo_pago'] !== 'efectivo' ? ($validated['referencia'] ?? null) : null,
             'comentario' => $validated['comentario'] ?? null,
             'registrado_por' => auth()->id(),
             'estado_validacion' => ($tipo === 'abono' && $request->hasFile('comprobante')) ? 'pendiente' : null,
@@ -169,6 +172,7 @@ class MovimientoCuentaController extends Controller
             'frecuencia_pago' => [Rule::requiredIf($esCargo), 'nullable', 'in:semanal,quincenal,mensual'],
             'monto' => [Rule::requiredIf($requiereMonto), 'nullable', 'numeric', 'min:0.01'],
             'metodo_pago' => [Rule::requiredIf($requiereMonto), 'nullable', 'in:efectivo,zelle,binance,transferencia,pago_movil,bancamiga_divisa,punto_venta'],
+            'referencia' => [Rule::requiredIf($requiereMonto && $request->input('metodo_pago') !== 'efectivo'), 'nullable', 'string', 'max:255'],
             'comentario' => [Rule::requiredIf(! $esCargo), 'nullable', 'string', 'max:1000'],
             'comprobante' => ['nullable', 'image', 'max:5120'],
             'foto_producto' => ['nullable', 'image', 'max:5120'],
@@ -177,6 +181,7 @@ class MovimientoCuentaController extends Controller
             'comentario.required' => 'comentario requerido',
             'monto.required' => 'monto requerido',
             'metodo_pago.required' => 'metodo de pago requerido',
+            'referencia.required' => 'referencia requerida para este metodo de pago',
             'cantidad.required' => 'cantidad requerida',
             'precio_unitario.required' => 'precio unitario requerido',
             'plazo_meses.required' => 'plazo requerido',
@@ -191,7 +196,7 @@ class MovimientoCuentaController extends Controller
         $antes = $movimiento->only([
             'fecha', 'descripcion', 'tipo_contacto', 'fecha_prometida', 'cantidad', 'precio_unitario',
             'modalidad_precio', 'plazo_meses', 'frecuencia_pago', 'monto', 'moneda', 'tasa_cambio',
-            'metodo_pago', 'comentario',
+            'metodo_pago', 'referencia', 'comentario',
         ]);
 
         $movimiento->update([
@@ -208,6 +213,7 @@ class MovimientoCuentaController extends Controller
             'moneda' => $validated['moneda'],
             'tasa_cambio' => $validated['tasa_cambio'] ?? null,
             'metodo_pago' => $validated['metodo_pago'] ?? null,
+            'referencia' => ($validated['metodo_pago'] ?? null) !== 'efectivo' ? ($validated['referencia'] ?? null) : null,
             'comentario' => $validated['comentario'] ?? null,
         ]);
 

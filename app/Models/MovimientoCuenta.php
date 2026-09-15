@@ -33,6 +33,7 @@ class MovimientoCuenta extends Model implements HasMedia
         'moneda',
         'tasa_cambio',
         'metodo_pago',
+        'referencia',
         'comentario',
         'registrado_por',
         'estado_validacion',
