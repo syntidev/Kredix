@@ -248,10 +248,11 @@ class MovimientoCuentaController extends Controller
 
     public function validar(Request $request, MovimientoCuenta $movimiento)
     {
-        // la fuente de verdad es si tiene un comprobante real adjunto, no si la
-        // columna estado_validacion ya fue poblada -- abonos creados antes de que
-        // este campo existiera tienen comprobante pero estado_validacion en null
-        abort_if($movimiento->tipo !== 'abono' || ! $movimiento->getFirstMedia('comprobantes'), 422, 'Este movimiento no requiere validacion');
+        // requiere validacion cualquier abono electronico (metodo_pago != efectivo),
+        // tenga o no comprobante adjunto -- abonos historicos importados antes del
+        // flujo de comprobantes tambien necesitan conciliarse; efectivo nunca la
+        // requiere (mismo criterio que estadoValidacionEfectivo en el frontend)
+        abort_if($movimiento->tipo !== 'abono' || $movimiento->metodo_pago === 'efectivo', 422, 'Este movimiento no requiere validacion');
 
         $nuevoEstado = ($movimiento->estado_validacion ?? 'pendiente') === 'pendiente' ? 'validado' : 'pendiente';
 

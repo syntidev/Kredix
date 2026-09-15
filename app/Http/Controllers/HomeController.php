@@ -42,9 +42,14 @@ class HomeController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        // mismo criterio que estadoValidacionEfectivo() en Clientes/Show.vue: solo
-        // un abono con comprobante real adjunto requiere validacion
-        $estadoValidacionEfectivo = fn (MovimientoCuenta $m) => $m->getFirstMedia('comprobantes')
+        // estado_validacion null no significa "no aplica" -- movimientos
+        // historicos (importados antes de este campo) quedaron en null en la
+        // BD pero siguen sin validar, se tratan como 'pendiente' (mismo
+        // criterio que estadoValidacionEfectivo() en resources/js/lib/estadoValidacion.js).
+        // El gate ya no es "tiene comprobante adjunto" (un abono electronico
+        // historico sin foto tambien necesita conciliarse) sino metodo_pago:
+        // efectivo nunca requiere validacion, el resto siempre la requiere.
+        $estadoValidacionEfectivo = fn (MovimientoCuenta $m) => $m->metodo_pago !== 'efectivo'
             ? ($m->estado_validacion ?? 'pendiente')
             : null;
 

@@ -29,7 +29,16 @@ class ConciliacionController extends Controller
             ->when($desde, fn ($query) => $query->whereDate('fecha', '>=', $desde))
             ->when($hasta, fn ($query) => $query->whereDate('fecha', '<=', $hasta))
             ->when($metodo && in_array($metodo, self::METODOS_ELECTRONICOS, true), fn ($query) => $query->where('metodo_pago', $metodo))
-            ->when($estado === 'pendiente', fn ($query) => $query->where('estado_validacion', 'pendiente'))
+            // estado_validacion null en un abono es "todavia no fue validado" --
+            // mismo significado que 'pendiente' explicito (movimientos historicos
+            // importados antes de este campo quedaron en null). ajuste_devolucion
+            // nunca requiere validacion, por eso el null ahi no cuenta como pendiente
+            ->when($estado === 'pendiente', fn ($query) => $query->where(function ($sub) {
+                $sub->where('estado_validacion', 'pendiente')
+                    ->orWhere(function ($sub2) {
+                        $sub2->where('tipo', 'abono')->whereNull('estado_validacion');
+                    });
+            }))
             ->when($estado === 'validado', fn ($query) => $query->where('estado_validacion', 'validado'))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = $this->tokensDeBusqueda($q);
@@ -62,7 +71,7 @@ class ConciliacionController extends Controller
                 'fecha' => $m->fecha?->toDateString(),
                 'metodo_pago' => $m->metodo_pago,
                 'referencia' => $m->referencia,
-                'estado_validacion' => $m->estado_validacion,
+                'estado_validacion' => $m->tipo === 'abono' ? ($m->estado_validacion ?? 'pendiente') : $m->estado_validacion,
                 'monto' => $m->monto,
                 'comprobante_url' => $m->getFirstMediaUrl('comprobantes') ?: null,
                 'comprobante_thumb_url' => $m->getFirstMediaUrl('comprobantes', 'thumb') ?: null,
