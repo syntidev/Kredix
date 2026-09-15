@@ -48,6 +48,10 @@ function toggleActivo(usuario) {
     router.patch(`/usuarios/${usuario.id}/toggle-activo`, {}, { preserveScroll: true });
 }
 
+function toggleAccesoConciliacion(usuario) {
+    router.patch(`/usuarios/${usuario.id}/toggle-acceso-conciliacion`, {}, { preserveScroll: true });
+}
+
 const reseteandoUsuario = ref(null);
 
 function confirmarReset(usuario) {
@@ -141,11 +145,22 @@ function confirmarYResetear() {
                     <p class="font-medium text-kredix-negro">
                         {{ usuario.name }}
                         <span v-if="usuario.es_admin" class="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-kredix-gris">admin</span>
+                        <span v-if="!usuario.es_admin && usuario.acceso_conciliacion" class="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">conciliacion</span>
                         <span v-if="!usuario.activo" class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">inactivo</span>
                     </p>
                     <p class="text-sm text-kredix-gris">{{ usuario.email }}</p>
                 </div>
                 <div class="flex gap-1 sm:shrink-0">
+                    <button
+                        v-if="!usuario.es_admin"
+                        type="button"
+                        class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm font-medium active:bg-gray-100"
+                        :class="usuario.acceso_conciliacion ? 'text-green-700' : 'text-kredix-gris'"
+                        :title="usuario.acceso_conciliacion ? 'Quitar acceso a Conciliacion' : 'Dar acceso a Conciliacion'"
+                        @click="toggleAccesoConciliacion(usuario)"
+                    >
+                        Conciliacion {{ usuario.acceso_conciliacion ? 'ON' : 'OFF' }}
+                    </button>
                     <button
                         type="button"
                         class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"

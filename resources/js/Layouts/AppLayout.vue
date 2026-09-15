@@ -10,6 +10,7 @@ const page = usePage();
 const usuarioMobileAbierto = ref(false);
 
 const esAdmin = computed(() => !!page.props.auth?.user?.es_admin);
+const puedeVerConciliacion = computed(() => esAdmin.value || !!page.props.auth?.user?.acceso_conciliacion);
 
 const tasaBadgeAbierto = ref(false);
 const tasaForm = useForm({ rate: '' });
@@ -35,7 +36,7 @@ const links = computed(() => [
     { href: '/clientes', label: 'Clientes' },
     { href: '/cartera', label: 'Cartera' },
     { href: '/cartelera', label: 'Cartelera' },
-    { href: '/conciliacion', label: 'Conciliacion' },
+    ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
     ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
 ]);
 
@@ -57,7 +58,7 @@ const tabsCore = computed(() => [
 ]);
 
 const masItems = computed(() => [
-    { href: '/conciliacion', label: 'Conciliacion' },
+    ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
     ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
     { href: '/configuracion', label: 'Configuracion' },
     ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),

@@ -33,7 +33,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
     Route::get('/cartera', [ClienteController::class, 'cartera'])->name('cartera');
     Route::get('/cartelera', [CarteleraController::class, 'index'])->name('cartelera');
-    Route::get('/conciliacion', [ConciliacionController::class, 'index'])->name('conciliacion.index');
+    Route::get('/conciliacion', [ConciliacionController::class, 'index'])->middleware('acceso_conciliacion')->name('conciliacion.index');
     Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion.index');
     Route::put('/configuracion/whatsapp', [ConfiguracionController::class, 'updateWhatsapp'])->name('configuracion.whatsapp');
     Route::put('/configuracion/estado-cuenta', [ConfiguracionController::class, 'updateEstadoCuenta'])->name('configuracion.estado-cuenta');
@@ -59,6 +59,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
         Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
         Route::patch('/usuarios/{usuario}/toggle-activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.toggle-activo');
+        Route::patch('/usuarios/{usuario}/toggle-acceso-conciliacion', [UsuarioController::class, 'toggleAccesoConciliacion'])->name('usuarios.toggle-acceso-conciliacion');
         Route::patch('/usuarios/{usuario}/reset-password', [UsuarioController::class, 'resetPassword'])->name('usuarios.reset-password');
         Route::patch('/tasa-bcv', [TasaBcvController::class, 'update'])->name('tasa-bcv.update');
     });
