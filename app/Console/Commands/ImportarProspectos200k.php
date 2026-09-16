@@ -43,6 +43,35 @@ class ImportarProspectos200k extends Command
         $actualizados = 0;
         $incompletos = 0;
 
+        // BUG CRITICO corregido (2026-09-16): CI/telefono solos NO identifican una
+        // persona en este archivo -- es un formulario de evento donde una persona
+        // registra a varios familiares con SU MISMO telefono/CI y nombres distintos
+        // (real: CI 12225261 tiene "Zonia Marcano", "Bonaldi (Zonia Marcano)", "Yuma
+        // (Zonia Marcano)", "Efren (Zonia Marcano)" -- 4 personas). Clave de upsert:
+        // nombre normalizado Y (CI exacto O telefono exacto) -- un duplicado real
+        // (misma fila repetida literal, ej. "Luis Marcano" x5 identico) SI colapsa.
+        //
+        // BUG CRITICO #2 corregido (2026-09-16): el dry-run comparaba cada fila
+        // SOLO contra la base de datos real -- con la tabla vacia, dos filas
+        // duplicadas del MISMO archivo (ej. "Luis Marcano" x5) nunca se detectaban
+        // entre si, porque ninguna de las dos anteriores habia sido escrita todavia.
+        // Ahora se mantiene un indice en memoria ($vistos) sembrado con lo que ya
+        // hay en la base, y cada fila (se escriba o no) se agrega a ese indice --
+        // dry-run y --ejecutar corren la misma logica de deteccion, solo difiere si
+        // el resultado se persiste.
+        // ponytail: matching O(n^2) en memoria sobre $vistos, correcto mientras el
+        // archivo se mida en miles (caso actual: ~700/evento); si un solo archivo
+        // llega a decenas de miles de filas, indexar $vistos por ci/telefono en vez
+        // de recorrerlo entero por fila.
+        $vistos = Prospecto200k::all()->map(fn (Prospecto200k $p) => [
+            'nombreNorm' => mb_strtolower($p->nombre, 'UTF-8'),
+            'ci' => $p->ci,
+            'telefono' => $p->telefono,
+            'correo' => $p->correo,
+            'correoNorm' => $p->correo ? mb_strtolower(trim($p->correo), 'UTF-8') : null,
+            'model' => $p,
+        ])->all();
+
         foreach ($filas as $fila) {
             $nombre = trim(preg_replace('/\s+/', ' ', (string) ($fila[0] ?? '')));
             if ($nombre === '') {
@@ -52,6 +81,7 @@ class ImportarProspectos200k extends Command
             $ci = Prospecto200k::normalizarCi((string) ($fila[1] ?? ''));
             $telefono = Prospecto200k::normalizarTelefono((string) ($fila[2] ?? ''));
             $correo = trim((string) ($fila[3] ?? '')) ?: null;
+            $correoNorm = $correo ? mb_strtolower(trim($correo), 'UTF-8') : null;
 
             if (! $ci && ! $telefono) {
                 $incompletos++;
@@ -59,55 +89,45 @@ class ImportarProspectos200k extends Command
 
             $nombreNorm = mb_strtolower($nombre, 'UTF-8');
 
-            // BUG CRITICO corregido (2026-09-16): CI/telefono solos NO identifican
-            // una persona en este archivo -- es un formulario de evento donde una
-            // persona registra a varios familiares con SU MISMO telefono/CI y
-            // nombres distintos (real: CI 12225261 tiene "Zonia Marcano", "Bonaldi
-            // (Zonia Marcano)", "Yuma (Zonia Marcano)", "Efren (Zonia Marcano)" --
-            // 4 personas). El import anterior las fusiono en 1 sola fila, perdiendo
-            // 3 registros reales. Clave de upsert ahora: nombre normalizado Y (CI
-            // exacto O telefono exacto) -- un duplicado real (misma fila repetida
-            // literal, ej. "Luis Marcano" x5 identico) SI colapsa a 1 registro
-            if ($ci || $telefono) {
-                $existente = Prospecto200k::whereRaw('LOWER(nombre) = ?', [$nombreNorm])
-                    ->where(function ($query) use ($ci, $telefono) {
-                        if ($ci) {
-                            $query->orWhere('ci', $ci);
-                        }
-                        if ($telefono) {
-                            $query->orWhere('telefono', $telefono);
-                        }
-                    })
-                    ->first();
-            } else {
-                // sin CI ni telefono no hay señal confiable de identidad -- solo
-                // se trata como "la misma fila" si nombre Y correo tambien
-                // coinciden exacto (duplicado literal completo), nunca solo por
-                // nombre (asi se evita el fallback que fusionaba filas sin datos)
-                $existente = Prospecto200k::whereNull('ci')->whereNull('telefono')
-                    ->whereRaw('LOWER(nombre) = ?', [$nombreNorm])
-                    ->where(function ($query) use ($correo) {
-                        $correo
-                            ? $query->whereRaw('LOWER(TRIM(correo)) = ?', [mb_strtolower(trim($correo), 'UTF-8')])
-                            : $query->whereNull('correo');
-                    })
-                    ->first();
+            $idxExistente = null;
+            foreach ($vistos as $i => $visto) {
+                if ($visto['nombreNorm'] !== $nombreNorm) {
+                    continue;
+                }
+                if ($ci || $telefono) {
+                    if (($ci && $visto['ci'] === $ci) || ($telefono && $visto['telefono'] === $telefono)) {
+                        $idxExistente = $i;
+                        break;
+                    }
+                } elseif (! $visto['ci'] && ! $visto['telefono'] && $visto['correoNorm'] === $correoNorm) {
+                    // sin CI ni telefono no hay señal confiable de identidad -- solo
+                    // se trata como "la misma fila" si nombre Y correo tambien
+                    // coinciden exacto (duplicado literal completo), nunca solo nombre
+                    $idxExistente = $i;
+                    break;
+                }
             }
 
-            if ($existente) {
+            if ($idxExistente !== null) {
                 $actualizados++;
-                if ($ejecutar) {
-                    $existente->update([
+                $vistos[$idxExistente]['ci'] = $vistos[$idxExistente]['ci'] ?: $ci;
+                $vistos[$idxExistente]['telefono'] = $vistos[$idxExistente]['telefono'] ?: $telefono;
+                $vistos[$idxExistente]['correo'] = $vistos[$idxExistente]['correo'] ?: $correo;
+                $vistos[$idxExistente]['correoNorm'] = $vistos[$idxExistente]['correo'] ? mb_strtolower(trim($vistos[$idxExistente]['correo']), 'UTF-8') : null;
+
+                if ($ejecutar && $vistos[$idxExistente]['model']) {
+                    $vistos[$idxExistente]['model']->update([
                         'lote' => $lote,
-                        'ci' => $existente->ci ?: $ci,
-                        'telefono' => $existente->telefono ?: $telefono,
-                        'correo' => $existente->correo ?: $correo,
+                        'ci' => $vistos[$idxExistente]['ci'],
+                        'telefono' => $vistos[$idxExistente]['telefono'],
+                        'correo' => $vistos[$idxExistente]['correo'],
                     ]);
                 }
             } else {
                 $nuevos++;
+                $model = null;
                 if ($ejecutar) {
-                    Prospecto200k::create([
+                    $model = Prospecto200k::create([
                         'nombre' => $nombre,
                         'ci' => $ci,
                         'telefono' => $telefono,
@@ -116,6 +136,14 @@ class ImportarProspectos200k extends Command
                         'estado' => 'pendiente',
                     ]);
                 }
+                $vistos[] = [
+                    'nombreNorm' => $nombreNorm,
+                    'ci' => $ci,
+                    'telefono' => $telefono,
+                    'correo' => $correo,
+                    'correoNorm' => $correoNorm,
+                    'model' => $model,
+                ];
             }
         }
 
