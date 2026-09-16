@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ArrowDown, ArrowUp, Download, FileText, ImageOff, MessageCircle, NotebookPen, Pencil, Plus, Repeat, Search, Trash2, X } from '@lucide/vue';
+import { ArrowDown, ArrowUp, Download, FileText, ImageOff, Link2, MessageCircle, NotebookPen, Pencil, Plus, Repeat, Search, Trash2, X } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
@@ -904,7 +904,7 @@ watch(algunModalAbierto, (abierto) => {
                         <option v-for="u in usuarios" :key="u.id" :value="u.id">{{ u.name }}</option>
                     </select>
                     <button type="button" title="Buscar en Eventos" class="rounded-lg p-1.5 text-kredix-gris active:bg-gray-100 disabled:opacity-50" :disabled="buscandoEnEventos" @click="buscarEnEventos">
-                        <Search :size="16" />
+                        <Link2 :size="16" />
                     </button>
                     <button type="button" title="Editar cliente" class="rounded-lg p-1.5 text-kredix-gris active:bg-gray-100" @click="abrirEditarCliente">
                         <Pencil :size="16" />
@@ -1855,7 +1855,7 @@ watch(algunModalAbierto, (abierto) => {
                     <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cerrarEventosModal">
                         {{ prospectoEncontrado ? 'Cancelar' : 'Cerrar' }}
                     </button>
-                    <button v-if="prospectoEncontrado" type="button" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white" @click="confirmarFusion">
+                    <button v-if="prospectoEncontrado" type="button" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white" @click="confirmarFusion">
                         Confirmar
                     </button>
                 </div>

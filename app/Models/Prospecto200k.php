@@ -64,9 +64,11 @@ class Prospecto200k extends Model
         return $digitos !== '' ? $digitos : null;
     }
 
-    // Nivel 1 CI, Nivel 2 telefono, Nivel 3 similitud de nombre (umbral 85%,
-    // similar_text() nativo de PHP) -- para en el primer nivel con resultado.
-    // ponytail: scan lineal en Nivel 3 sobre prospectos pendientes, correcto
+    // Nivel 1 CI, Nivel 2 telefono, Nivel 3 correo exacto, Nivel 4 similitud de
+    // nombre (umbral 85%, similar_text() nativo de PHP) -- para en el primer
+    // nivel con resultado. Correo exacto va antes que la similitud difusa de
+    // nombre porque es una señal fuerte (igualdad literal), no una aproximacion.
+    // ponytail: scan lineal en Nivel 4 sobre prospectos pendientes, correcto
     // mientras la tabla se mida en miles (caso actual: ~690); si el acumulado de
     // eventos crece a decenas de miles, mover a busqueda por indice de trigramas.
     public static function buscarMatchParaCliente(Cliente $cliente): ?self
@@ -87,6 +89,14 @@ class Prospecto200k extends Model
 
         if ($cliente->telefono) {
             $match = (clone $base)->where('telefono', $cliente->telefono)->first();
+            if ($match) {
+                return $match;
+            }
+        }
+
+        if ($cliente->email) {
+            $correoCliente = mb_strtolower(trim($cliente->email), 'UTF-8');
+            $match = (clone $base)->whereRaw('LOWER(TRIM(correo)) = ?', [$correoCliente])->first();
             if ($match) {
                 return $match;
             }
