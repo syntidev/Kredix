@@ -57,15 +57,41 @@ class ImportarProspectos200k extends Command
                 $incompletos++;
             }
 
-            // clave de upsert: CI si la fila la trae, si no telefono, si no
-            // (dato pobre) nombre exacto -- sin esto una fila sin CI ni telefono
-            // se duplicaria en cada re-importacion del mismo archivo
-            if ($ci) {
-                $existente = Prospecto200k::where('ci', $ci)->first();
-            } elseif ($telefono) {
-                $existente = Prospecto200k::where('telefono', $telefono)->first();
+            $nombreNorm = mb_strtolower($nombre, 'UTF-8');
+
+            // BUG CRITICO corregido (2026-09-16): CI/telefono solos NO identifican
+            // una persona en este archivo -- es un formulario de evento donde una
+            // persona registra a varios familiares con SU MISMO telefono/CI y
+            // nombres distintos (real: CI 12225261 tiene "Zonia Marcano", "Bonaldi
+            // (Zonia Marcano)", "Yuma (Zonia Marcano)", "Efren (Zonia Marcano)" --
+            // 4 personas). El import anterior las fusiono en 1 sola fila, perdiendo
+            // 3 registros reales. Clave de upsert ahora: nombre normalizado Y (CI
+            // exacto O telefono exacto) -- un duplicado real (misma fila repetida
+            // literal, ej. "Luis Marcano" x5 identico) SI colapsa a 1 registro
+            if ($ci || $telefono) {
+                $existente = Prospecto200k::whereRaw('LOWER(nombre) = ?', [$nombreNorm])
+                    ->where(function ($query) use ($ci, $telefono) {
+                        if ($ci) {
+                            $query->orWhere('ci', $ci);
+                        }
+                        if ($telefono) {
+                            $query->orWhere('telefono', $telefono);
+                        }
+                    })
+                    ->first();
             } else {
-                $existente = Prospecto200k::whereNull('ci')->whereNull('telefono')->where('nombre', $nombre)->first();
+                // sin CI ni telefono no hay señal confiable de identidad -- solo
+                // se trata como "la misma fila" si nombre Y correo tambien
+                // coinciden exacto (duplicado literal completo), nunca solo por
+                // nombre (asi se evita el fallback que fusionaba filas sin datos)
+                $existente = Prospecto200k::whereNull('ci')->whereNull('telefono')
+                    ->whereRaw('LOWER(nombre) = ?', [$nombreNorm])
+                    ->where(function ($query) use ($correo) {
+                        $correo
+                            ? $query->whereRaw('LOWER(TRIM(correo)) = ?', [mb_strtolower(trim($correo), 'UTF-8')])
+                            : $query->whereNull('correo');
+                    })
+                    ->first();
             }
 
             if ($existente) {
