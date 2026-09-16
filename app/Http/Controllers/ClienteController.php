@@ -7,6 +7,7 @@ use App\Models\Cliente;
 use App\Models\Configuracion;
 use App\Models\MovimientoCuenta;
 use App\Models\PlanCuota;
+use App\Models\Prospecto200k;
 use App\Models\ReglaPlazo;
 use App\Models\User;
 use App\Services\TasaBcvService;
@@ -497,6 +498,49 @@ class ClienteController extends Controller
                 $fail('La cedula no debe empezar con cero.');
             }
         };
+    }
+
+    public function buscarEnEventos(Cliente $cliente)
+    {
+        $prospecto = Prospecto200k::buscarMatchParaCliente($cliente);
+
+        return response()->json([
+            'prospecto' => $prospecto ? [
+                'id' => $prospecto->id,
+                'nombre' => $prospecto->nombre,
+                'ci' => $prospecto->ci,
+                'telefono' => $prospecto->telefono,
+                'correo' => $prospecto->correo,
+                'lote' => $prospecto->lote,
+            ] : null,
+        ]);
+    }
+
+    public function fusionarProspecto(Request $request, Cliente $cliente)
+    {
+        $validated = $request->validate([
+            'prospecto_id' => ['required', 'exists:prospectos_200k,id'],
+            'campos' => ['required', 'array'],
+            'campos.*' => ['in:nombre,ci,telefono,correo'],
+        ]);
+
+        $prospecto = Prospecto200k::where('id', $validated['prospecto_id'])->where('procesado', false)->firstOrFail();
+
+        // mapa campo del prospecto -> columna del cliente, solo los que el
+        // usuario marco explicitamente "usar valor de Eventos"
+        $mapaColumnas = ['nombre' => 'nombre', 'ci' => 'cedula', 'telefono' => 'telefono', 'correo' => 'email'];
+        $updates = [];
+        foreach ($validated['campos'] as $campo) {
+            $updates[$mapaColumnas[$campo]] = $prospecto->{$campo};
+        }
+
+        if ($updates !== []) {
+            $cliente->update($updates);
+        }
+
+        $prospecto->update(['procesado' => true, 'cliente_id' => $cliente->id]);
+
+        return redirect()->back();
     }
 
     public function destroy(Cliente $cliente)

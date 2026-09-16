@@ -140,6 +140,53 @@ function submitEditarCliente() {
     });
 }
 
+const buscandoEnEventos = ref(false);
+const eventosAbierto = ref(false);
+const prospectoEncontrado = ref(null);
+const eventosSinMatch = ref(false);
+const seleccionFusion = ref({ nombre: false, ci: false, telefono: false, correo: false });
+
+async function buscarEnEventos() {
+    buscandoEnEventos.value = true;
+    try {
+        const response = await fetch(`/clientes/${props.cliente.id}/buscar-en-eventos`, {
+            headers: { Accept: 'application/json' },
+        });
+        const data = await response.json();
+        prospectoEncontrado.value = data.prospecto;
+        eventosSinMatch.value = !data.prospecto;
+        // preseleccionado: usar valor de Eventos solo cuando el campo actual del
+        // cliente esta vacio -- si ya tiene dato, "mantener actual" por defecto
+        seleccionFusion.value = {
+            nombre: false,
+            ci: !props.cliente.cedula && !!data.prospecto?.ci,
+            telefono: !props.cliente.telefono && !!data.prospecto?.telefono,
+            correo: !props.cliente.email && !!data.prospecto?.correo,
+        };
+        eventosAbierto.value = true;
+    } finally {
+        buscandoEnEventos.value = false;
+    }
+}
+
+function cerrarEventosModal() {
+    eventosAbierto.value = false;
+    prospectoEncontrado.value = null;
+    eventosSinMatch.value = false;
+}
+
+function confirmarFusion() {
+    const campos = Object.entries(seleccionFusion.value).filter(([, usar]) => usar).map(([campo]) => campo);
+
+    router.post(`/clientes/${props.cliente.id}/fusionar-prospecto`, {
+        prospecto_id: prospectoEncontrado.value.id,
+        campos,
+    }, {
+        preserveScroll: true,
+        onSuccess: cerrarEventosModal,
+    });
+}
+
 const eliminandoCliente = ref(false);
 const eliminarPaso = ref(1);
 
@@ -847,6 +894,9 @@ watch(algunModalAbierto, (abierto) => {
                         <option value="">Sin asignar</option>
                         <option v-for="u in usuarios" :key="u.id" :value="u.id">{{ u.name }}</option>
                     </select>
+                    <button type="button" title="Buscar en Eventos" class="rounded-lg p-1.5 text-kredix-gris active:bg-gray-100 disabled:opacity-50" :disabled="buscandoEnEventos" @click="buscarEnEventos">
+                        <Search :size="16" />
+                    </button>
                     <button type="button" title="Editar cliente" class="rounded-lg p-1.5 text-kredix-gris active:bg-gray-100" @click="abrirEditarCliente">
                         <Pencil :size="16" />
                     </button>
@@ -1748,6 +1798,50 @@ watch(algunModalAbierto, (abierto) => {
                     <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="editClienteForm.processing">Guardar cambios</button>
                 </div>
             </form>
+        </div>
+
+        <div v-if="eventosAbierto" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
+            <div class="flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+                <h2 class="font-medium text-kredix-negro">Buscar en Eventos</h2>
+
+                <p v-if="eventosSinMatch" class="text-sm text-kredix-gris">Sin coincidencias.</p>
+
+                <template v-else-if="prospectoEncontrado">
+                    <p class="text-xs text-kredix-gris">Lote: {{ prospectoEncontrado.lote }}</p>
+
+                    <div v-for="campo in [
+                        { key: 'nombre', label: 'Nombre', actual: cliente.nombre },
+                        { key: 'ci', label: 'Cedula', actual: cliente.cedula },
+                        { key: 'telefono', label: 'Telefono', actual: cliente.telefono },
+                        { key: 'correo', label: 'Correo', actual: cliente.email },
+                    ]" :key="campo.key" class="flex flex-col gap-1 border-t border-gray-100 pt-2">
+                        <p class="text-sm font-medium text-kredix-negro">{{ campo.label }}</p>
+                        <label class="flex items-center gap-2 text-sm text-kredix-gris">
+                            <input type="radio" :name="`fusion-${campo.key}`" :checked="!seleccionFusion[campo.key]" @change="seleccionFusion[campo.key] = false" />
+                            Mantener actual: {{ campo.actual || '—' }}
+                        </label>
+                        <label class="flex items-center gap-2 text-sm text-kredix-gris" :class="{ 'opacity-40': !prospectoEncontrado[campo.key] }">
+                            <input
+                                type="radio"
+                                :name="`fusion-${campo.key}`"
+                                :checked="seleccionFusion[campo.key]"
+                                :disabled="!prospectoEncontrado[campo.key]"
+                                @change="seleccionFusion[campo.key] = true"
+                            />
+                            Usar valor de Eventos: {{ prospectoEncontrado[campo.key] || '—' }}
+                        </label>
+                    </div>
+                </template>
+
+                <div class="mt-1 flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cerrarEventosModal">
+                        {{ prospectoEncontrado ? 'Cancelar' : 'Cerrar' }}
+                    </button>
+                    <button v-if="prospectoEncontrado" type="button" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white" @click="confirmarFusion">
+                        Confirmar
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div v-if="eliminandoCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">

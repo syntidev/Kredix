@@ -9,6 +9,7 @@ use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MovimientoCuentaController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProspectoController;
 use App\Http\Controllers\TasaBcvController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +43,11 @@ Route::middleware('auth')->group(function () {
     Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
 
     Route::get('/clientes/{cliente}', [ClienteController::class, 'show'])->name('clientes.show');
+    Route::get('/clientes/{cliente}/buscar-en-eventos', [ClienteController::class, 'buscarEnEventos'])->name('clientes.buscar-en-eventos');
+    Route::post('/clientes/{cliente}/fusionar-prospecto', [ClienteController::class, 'fusionarProspecto'])->name('clientes.fusionar-prospecto');
+
+    Route::get('/prospectos', [ProspectoController::class, 'index'])->name('prospectos.index');
+    Route::post('/prospectos/{prospecto}/promover', [ProspectoController::class, 'promover'])->name('prospectos.promover');
     // {nombreSlug} es puramente cosmetico -- Cliente $cliente (route model binding
     // por id) sigue siendo la unica fuente real para resolver el cliente; iOS/WebKit
     // ignora el filename= del Content-Disposition al guardar desde el visor nativo

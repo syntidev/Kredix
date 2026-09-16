@@ -36,6 +36,7 @@ const links = computed(() => [
     { href: '/clientes', label: 'Clientes' },
     { href: '/cartera', label: 'Cartera' },
     { href: '/cartelera', label: 'Cartelera' },
+    { href: '/prospectos', label: 'Prospectos' },
     ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
     ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
 ]);
@@ -58,6 +59,7 @@ const tabsCore = computed(() => [
 ]);
 
 const masItems = computed(() => [
+    { href: '/prospectos', label: 'Prospectos' },
     ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
     ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
     { href: '/configuracion', label: 'Configuracion' },
