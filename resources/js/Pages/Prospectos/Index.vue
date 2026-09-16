@@ -9,6 +9,8 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
     q: { type: String, default: '' },
     resultados: { type: Array, default: () => [] },
+    total: { type: Number, default: 0 },
+    limite: { type: Number, default: 25 },
 });
 
 const q = ref(props.q);
@@ -45,6 +47,9 @@ function crearCliente(prospecto) {
         <p v-else-if="resultados.length === 0" class="text-sm text-kredix-gris">Sin resultados.</p>
 
         <div v-else class="flex flex-col gap-2">
+            <p v-if="total > limite" class="text-sm text-kredix-gris">
+                Mostrando los primeros {{ limite }} de {{ total }} resultados — afina tu busqueda.
+            </p>
             <div
                 v-for="prospecto in resultados"
                 :key="prospecto.id"
