@@ -45,7 +45,7 @@ class ProspectoController extends Controller
 
     public function promover(Prospecto200k $prospecto)
     {
-        abort_if($prospecto->procesado, 409, 'Este prospecto ya fue promovido a cliente.');
+        abort_if($prospecto->estado === 'fusionado', 409, 'Este prospecto ya fue promovido a cliente.');
 
         $cliente = Cliente::create([
             'nombre' => mb_strtoupper($prospecto->nombre, 'UTF-8'),
@@ -54,7 +54,7 @@ class ProspectoController extends Controller
             'cedula' => $prospecto->ci,
         ]);
 
-        $prospecto->update(['procesado' => true, 'cliente_id' => $cliente->id]);
+        $prospecto->update(['estado' => 'fusionado', 'cliente_id' => $cliente->id]);
 
         return redirect()->route('clientes.show', $cliente->id);
     }

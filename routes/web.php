@@ -45,6 +45,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/clientes/{cliente}', [ClienteController::class, 'show'])->name('clientes.show');
     Route::get('/clientes/{cliente}/buscar-en-eventos', [ClienteController::class, 'buscarEnEventos'])->name('clientes.buscar-en-eventos');
     Route::post('/clientes/{cliente}/fusionar-prospecto', [ClienteController::class, 'fusionarProspecto'])->name('clientes.fusionar-prospecto');
+    Route::post('/clientes/{cliente}/descartar-prospecto', [ClienteController::class, 'descartarProspecto'])->name('clientes.descartar-prospecto');
 
     Route::get('/prospectos', [ProspectoController::class, 'index'])->name('prospectos.index');
     Route::post('/prospectos/{prospecto}/promover', [ProspectoController::class, 'promover'])->name('prospectos.promover');

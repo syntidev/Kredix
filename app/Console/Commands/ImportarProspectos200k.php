@@ -87,7 +87,7 @@ class ImportarProspectos200k extends Command
                         'telefono' => $telefono,
                         'correo' => $correo,
                         'lote' => $lote,
-                        'procesado' => false,
+                        'estado' => 'pendiente',
                     ]);
                 }
             }

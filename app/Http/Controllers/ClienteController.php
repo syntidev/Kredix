@@ -8,6 +8,7 @@ use App\Models\Configuracion;
 use App\Models\MovimientoCuenta;
 use App\Models\PlanCuota;
 use App\Models\Prospecto200k;
+use App\Models\ProspectoDescarte;
 use App\Models\ReglaPlazo;
 use App\Models\User;
 use App\Services\TasaBcvService;
@@ -524,7 +525,7 @@ class ClienteController extends Controller
             'campos.*' => ['in:nombre,ci,telefono,correo'],
         ]);
 
-        $prospecto = Prospecto200k::where('id', $validated['prospecto_id'])->where('procesado', false)->firstOrFail();
+        $prospecto = Prospecto200k::where('id', $validated['prospecto_id'])->where('estado', 'pendiente')->firstOrFail();
 
         // mapa campo del prospecto -> columna del cliente, solo los que el
         // usuario marco explicitamente "usar valor de Eventos"
@@ -538,7 +539,21 @@ class ClienteController extends Controller
             $cliente->update($updates);
         }
 
-        $prospecto->update(['procesado' => true, 'cliente_id' => $cliente->id]);
+        $prospecto->update(['estado' => 'fusionado', 'cliente_id' => $cliente->id]);
+
+        return redirect()->back();
+    }
+
+    public function descartarProspecto(Request $request, Cliente $cliente)
+    {
+        $validated = $request->validate([
+            'prospecto_id' => ['required', 'exists:prospectos_200k,id'],
+        ]);
+
+        ProspectoDescarte::firstOrCreate([
+            'cliente_id' => $cliente->id,
+            'prospecto_id' => $validated['prospecto_id'],
+        ]);
 
         return redirect()->back();
     }

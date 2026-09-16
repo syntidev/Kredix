@@ -60,7 +60,7 @@ function crearCliente(prospecto) {
                         <p class="mt-1 text-xs text-kredix-gris">Lote: {{ prospecto.lote }}</p>
                     </div>
                     <button
-                        v-if="!prospecto.procesado"
+                        v-if="prospecto.estado !== 'fusionado'"
                         type="button"
                         class="flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-kredix-negro px-3 text-xs font-medium text-white active:opacity-80"
                         @click="crearCliente(prospecto)"

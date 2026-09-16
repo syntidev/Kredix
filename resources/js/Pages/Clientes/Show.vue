@@ -187,6 +187,15 @@ function confirmarFusion() {
     });
 }
 
+function descartarMatch() {
+    router.post(`/clientes/${props.cliente.id}/descartar-prospecto`, {
+        prospecto_id: prospectoEncontrado.value.id,
+    }, {
+        preserveScroll: true,
+        onSuccess: cerrarEventosModal,
+    });
+}
+
 const eliminandoCliente = ref(false);
 const eliminarPaso = ref(1);
 
@@ -1832,6 +1841,15 @@ watch(algunModalAbierto, (abierto) => {
                         </label>
                     </div>
                 </template>
+
+                <button
+                    v-if="prospectoEncontrado"
+                    type="button"
+                    class="text-left text-sm font-medium text-kredix-gris underline"
+                    @click="descartarMatch"
+                >
+                    No es el mismo cliente
+                </button>
 
                 <div class="mt-1 flex gap-2">
                     <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cerrarEventosModal">

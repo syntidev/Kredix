@@ -14,15 +14,16 @@ class Prospecto200k extends Model
         'telefono',
         'correo',
         'lote',
-        'procesado',
+        'estado',
         'cliente_id',
     ];
 
-    protected $casts = [
-        'procesado' => 'boolean',
-    ];
-
     private const UMBRAL_SIMILITUD_NOMBRE = 85.0;
+
+    public function descartes()
+    {
+        return $this->hasMany(ProspectoDescarte::class, 'prospecto_id');
+    }
 
     // mismo criterio E.164 que clientes.telefono (ver migracion
     // normalize_clientes_telefono_a_e164) -- sin esto el match de Nivel 2
@@ -47,8 +48,11 @@ class Prospecto200k extends Model
         return '+'.$digitos;
     }
 
-    // clientes.cedula solo guarda digitos (ver Cliente::validarFormatoCedula),
-    // el excel de eventos trae "V-12345678", puntos, espacios -- se limpia igual
+    // clientes.cedula solo guarda digitos (ver Cliente::validarFormatoCedula) --
+    // el prefijo de nacionalidad V-/E- NO se conserva, se descarta junto con
+    // puntos/comas/espacios: mismo criterio que ya aplica esa validacion (la
+    // cedula se identifica solo por sus digitos en todo Kredix, nunca por
+    // nacionalidad), asi que "V-12345678" y "E-12345678" normalizan igual
     public static function normalizarCi(?string $ci): ?string
     {
         if (! $ci) {
@@ -62,15 +66,20 @@ class Prospecto200k extends Model
 
     // Nivel 1 CI, Nivel 2 telefono, Nivel 3 similitud de nombre (umbral 85%,
     // similar_text() nativo de PHP) -- para en el primer nivel con resultado.
-    // ponytail: scan lineal en Nivel 3 sobre prospectos no procesados, correcto
-    // mientras la tabla se mida en miles (caso actual: ~722); si el acumulado de
+    // ponytail: scan lineal en Nivel 3 sobre prospectos pendientes, correcto
+    // mientras la tabla se mida en miles (caso actual: ~690); si el acumulado de
     // eventos crece a decenas de miles, mover a busqueda por indice de trigramas.
     public static function buscarMatchParaCliente(Cliente $cliente): ?self
     {
-        $base = static::where('procesado', false);
+        $base = static::where('estado', 'pendiente')
+            ->whereDoesntHave('descartes', fn ($q) => $q->where('cliente_id', $cliente->id));
 
-        if ($cliente->cedula) {
-            $match = (clone $base)->where('ci', $cliente->cedula)->first();
+        // clientes.cedula puede traer formato legacy sin normalizar (importados
+        // via app:importar-lote-clientes, CSV crudo) -- ej "8.390.140" -- se
+        // normaliza aqui igual que el dato del prospecto, no solo al importar
+        $ciCliente = self::normalizarCi($cliente->cedula);
+        if ($ciCliente) {
+            $match = (clone $base)->where('ci', $ciCliente)->first();
             if ($match) {
                 return $match;
             }
