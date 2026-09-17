@@ -535,11 +535,16 @@ class ClienteController extends Controller
             $updates[$mapaColumnas[$campo]] = $prospecto->{$campo};
         }
 
-        if ($updates !== []) {
-            $cliente->update($updates);
-        }
+        // transaccion: si el update del cliente falla, el prospecto no debe
+        // quedar marcado fusionado (ver bug 2026-09-17 -- cliente 4 quedo con
+        // cedula vacia pese a prospecto marcado fusionado)
+        DB::transaction(function () use ($cliente, $updates, $prospecto) {
+            if ($updates !== []) {
+                $cliente->update($updates);
+            }
 
-        $prospecto->update(['estado' => 'fusionado', 'cliente_id' => $cliente->id]);
+            $prospecto->update(['estado' => 'fusionado', 'cliente_id' => $cliente->id]);
+        });
 
         return redirect()->back();
     }
