@@ -9,6 +9,7 @@ import EstadoValidacionLed from '../../Components/EstadoValidacionLed.vue';
 import { formatMoney } from '../../lib/formatMoney';
 import { formatPhoneDisplay } from '../../lib/formatPhone';
 import { formatTiempoRelativo } from '../../lib/formatTiempoRelativo';
+import { METODO_PAGO_LABEL } from '../../lib/metodoPago';
 
 defineOptions({ layout: AppLayout });
 
@@ -85,16 +86,6 @@ const ESTILO_ACTIVIDAD = {
 function estiloActividad(tipo) {
     return ESTILO_ACTIVIDAD[tipo] ?? ESTILO_ACTIVIDAD.abono;
 }
-
-const METODO_PAGO_LABEL = {
-    efectivo: 'Efectivo',
-    zelle: 'Zelle',
-    binance: 'Binance',
-    transferencia: 'Transferencia',
-    pago_movil: 'Pago Movil',
-    bancamiga_divisa: 'Bancamiga Divisa',
-    punto_venta: 'Punto de Venta',
-};
 
 const totalCierreDelDia = computed(() => props.cierreDelDia.some((fila) => fila.total === null)
     ? null

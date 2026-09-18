@@ -15,6 +15,7 @@ import { estadoValidacionEfectivo } from '../../lib/estadoValidacion';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
 import { formatPhoneDisplay } from '../../lib/formatPhone';
+import { etiquetaMetodoPago } from '../../lib/metodoPago';
 
 defineOptions({ layout: AppLayout });
 
@@ -1282,6 +1283,8 @@ watch(algunModalAbierto, (abierto) => {
                     <option value="pago_movil">Pago Movil</option>
                     <option value="bancamiga_divisa">Bancamiga Divisa</option>
                     <option value="punto_venta">Punto de Venta</option>
+                    <option value="intercambio">Intercambio</option>
+                    <option value="devolucion">Devolucion</option>
                 </select>
             </div>
 
@@ -1469,6 +1472,8 @@ watch(algunModalAbierto, (abierto) => {
                         <option value="pago_movil">Pago Movil</option>
                         <option value="bancamiga_divisa">Bancamiga Divisa</option>
                         <option value="punto_venta">Punto de Venta</option>
+                        <option value="intercambio">Intercambio</option>
+                        <option value="devolucion">Devolucion</option>
                     </select>
                 </div>
                 <div v-if="editForm.metodo_pago !== 'efectivo'" class="flex flex-col gap-1">
@@ -1607,7 +1612,7 @@ watch(algunModalAbierto, (abierto) => {
                     <div class="flex justify-between">
                         <span class="text-kredix-gris">Metodo</span>
                         <span class="text-kredix-negro">
-                            {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}
+                            {{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ? etiquetaMetodoPago(m.metodo_pago) : '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}
                         </span>
                     </div>
                     <div v-if="estadoValidacionEfectivo(m)" class="flex items-center justify-between">
@@ -1728,7 +1733,7 @@ watch(algunModalAbierto, (abierto) => {
                             <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="block text-xs font-normal text-amber-600">BCV</span>
                         </td>
                         <td class="break-words px-2 py-2 text-kredix-gris">
-                            <span>{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ?? '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}</span>
+                            <span>{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ? etiquetaMetodoPago(m.metodo_pago) : '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}</span>
                             <span v-if="m.registrado_por" class="block text-xs">{{ m.registrado_por }}</span>
                         </td>
                         <td class="px-2 py-2">
