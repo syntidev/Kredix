@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { BarChart3, Bell, ChevronDown, Home, LogOut, MoreHorizontal, Settings, Users, Wallet } from '@lucide/vue';
+import { BarChart3, Bell, ChevronDown, Home, LogOut, MoreHorizontal, Settings, Users, Wallet, Wrench } from '@lucide/vue';
 import InstallPrompt from '../Components/InstallPrompt.vue';
 import UserAvatar from '../Components/UserAvatar.vue';
 
@@ -11,6 +11,10 @@ const usuarioMobileAbierto = ref(false);
 
 const esAdmin = computed(() => !!page.props.auth?.user?.es_admin);
 const puedeVerConciliacion = computed(() => esAdmin.value || !!page.props.auth?.user?.acceso_conciliacion);
+// rol_taller es una DMZ: el backend (RestringeRolTaller) ya bloquea el acceso
+// real a cualquier ruta fuera de /taller -- esto solo evita mostrar links
+// muertos, la seguridad real vive en el middleware
+const esTaller = computed(() => !!page.props.auth?.user?.rol_taller);
 
 const tasaBadgeAbierto = ref(false);
 const tasaForm = useForm({ rate: '' });
@@ -30,42 +34,69 @@ function guardarTasa() {
     });
 }
 
-// nav desktop: 6 primarios (5 + KPI si admin) + dropdown "Ajustes"
-const links = computed(() => [
-    { href: '/home', label: 'Inicio' },
-    { href: '/clientes', label: 'Clientes' },
-    { href: '/cartera', label: 'Cartera' },
-    { href: '/cartelera', label: 'Cartelera' },
-    { href: '/prospectos', label: 'Prospectos' },
-    ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
-    ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
-]);
+// nav desktop: 6 primarios (5 + KPI si admin) + dropdown "Ajustes" -- rol_taller
+// colapsa todo esto a un unico link "Taller", ver esTaller arriba
+const links = computed(() => {
+    if (esTaller.value) {
+        return [{ href: '/taller', label: 'Taller' }];
+    }
 
-const ajustesItems = computed(() => [
-    { href: '/configuracion', label: 'Configuracion' },
-    ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),
-    { href: '/profile', label: 'Mi Perfil' },
-]);
+    return [
+        { href: '/home', label: 'Inicio' },
+        { href: '/clientes', label: 'Clientes' },
+        { href: '/cartera', label: 'Cartera' },
+        { href: '/cartelera', label: 'Cartelera' },
+        { href: '/prospectos', label: 'Prospectos' },
+        { href: '/taller', label: 'Taller' },
+        ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
+        ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
+    ];
+});
+
+const ajustesItems = computed(() => {
+    if (esTaller.value) {
+        return [];
+    }
+
+    return [
+        { href: '/configuracion', label: 'Configuracion' },
+        ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),
+        { href: '/profile', label: 'Mi Perfil' },
+    ];
+});
 
 const ajustesAbierto = ref(false);
 
 // nav mobile: 4 tabs fijos + "Mas" (5 iconos maximo) -- KPI, Configuracion,
-// Usuarios y Perfil viven todos dentro de "Mas" para no romper el limite de 5
-const tabsCore = computed(() => [
-    { href: '/home', label: 'Inicio', icon: Home },
-    { href: '/clientes', label: 'Clientes', icon: Users },
-    { href: '/cartera', label: 'Cartera', icon: Wallet },
-    { href: '/cartelera', label: 'Cartelera', icon: Bell },
-]);
+// Usuarios y Perfil viven todos dentro de "Mas" para no romper el limite de 5.
+// rol_taller colapsa a un unico tab "Taller", sin "Mas" (nada que mostrar ahi)
+const tabsCore = computed(() => {
+    if (esTaller.value) {
+        return [{ href: '/taller', label: 'Taller', icon: Wrench }];
+    }
 
-const masItems = computed(() => [
-    { href: '/prospectos', label: 'Prospectos' },
-    ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
-    ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
-    { href: '/configuracion', label: 'Configuracion' },
-    ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),
-    { href: '/profile', label: 'Mi Perfil' },
-]);
+    return [
+        { href: '/home', label: 'Inicio', icon: Home },
+        { href: '/clientes', label: 'Clientes', icon: Users },
+        { href: '/cartera', label: 'Cartera', icon: Wallet },
+        { href: '/cartelera', label: 'Cartelera', icon: Bell },
+    ];
+});
+
+const masItems = computed(() => {
+    if (esTaller.value) {
+        return [];
+    }
+
+    return [
+        { href: '/prospectos', label: 'Prospectos' },
+        ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
+        ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
+        { href: '/configuracion', label: 'Configuracion' },
+        ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),
+        { href: '/profile', label: 'Mi Perfil' },
+    ];
+});
 
 const masAbierto = ref(false);
 
@@ -101,7 +132,7 @@ function logout() {
                             {{ link.label }}
                         </Link>
 
-                        <div class="relative">
+                        <div v-if="ajustesItems.length > 0" class="relative">
                             <button
                                 type="button"
                                 class="flex items-center gap-1 text-sm font-medium"
@@ -206,6 +237,7 @@ function logout() {
                 <span v-if="isActive(tab.href)" class="text-xs font-semibold">{{ tab.label }}</span>
             </Link>
             <button
+                v-if="masItems.length > 0"
                 type="button"
                 aria-label="Mas"
                 class="flex items-center justify-center gap-1.5 rounded-full"

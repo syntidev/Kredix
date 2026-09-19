@@ -52,6 +52,10 @@ function toggleAccesoConciliacion(usuario) {
     router.patch(`/usuarios/${usuario.id}/toggle-acceso-conciliacion`, {}, { preserveScroll: true });
 }
 
+function toggleRolTaller(usuario) {
+    router.patch(`/usuarios/${usuario.id}/toggle-rol-taller`, {}, { preserveScroll: true });
+}
+
 const reseteandoUsuario = ref(null);
 
 function confirmarReset(usuario) {
@@ -146,6 +150,7 @@ function confirmarYResetear() {
                         {{ usuario.name }}
                         <span v-if="usuario.es_admin" class="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-kredix-gris">admin</span>
                         <span v-if="!usuario.es_admin && usuario.acceso_conciliacion" class="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">conciliacion</span>
+                        <span v-if="usuario.rol_taller" class="ml-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">taller</span>
                         <span v-if="!usuario.activo" class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">inactivo</span>
                     </p>
                     <p class="text-sm text-kredix-gris">{{ usuario.email }}</p>
@@ -160,6 +165,15 @@ function confirmarYResetear() {
                         @click="toggleAccesoConciliacion(usuario)"
                     >
                         Conciliacion {{ usuario.acceso_conciliacion ? 'ON' : 'OFF' }}
+                    </button>
+                    <button
+                        type="button"
+                        class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm font-medium active:bg-gray-100"
+                        :class="usuario.rol_taller ? 'text-orange-700' : 'text-kredix-gris'"
+                        :title="usuario.rol_taller ? 'Quitar rol Taller (acceso exclusivo)' : 'Dar rol Taller (acceso exclusivo, oculta el resto del sistema)'"
+                        @click="toggleRolTaller(usuario)"
+                    >
+                        Taller {{ usuario.rol_taller ? 'ON' : 'OFF' }}
                     </button>
                     <button
                         type="button"

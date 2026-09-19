@@ -26,6 +26,7 @@ class User extends Authenticatable
         'activo',
         'es_oculto',
         'acceso_conciliacion',
+        'rol_taller',
     ];
 
     /**
@@ -52,6 +53,7 @@ class User extends Authenticatable
             'activo' => 'boolean',
             'es_oculto' => 'boolean',
             'acceso_conciliacion' => 'boolean',
+            'rol_taller' => 'boolean',
         ];
     }
 }

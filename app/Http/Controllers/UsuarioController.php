@@ -13,7 +13,7 @@ class UsuarioController extends Controller
     public function index()
     {
         return Inertia::render('Usuarios/Index', [
-            'usuarios' => User::where('email', '!=', 'carbolivar@gmail.com')->orderBy('name')->get(['id', 'name', 'email', 'es_admin', 'activo', 'acceso_conciliacion']),
+            'usuarios' => User::where('email', '!=', 'carbolivar@gmail.com')->orderBy('name')->get(['id', 'name', 'email', 'es_admin', 'activo', 'acceso_conciliacion', 'rol_taller']),
         ]);
     }
 
@@ -52,6 +52,13 @@ class UsuarioController extends Controller
     public function toggleAccesoConciliacion(User $usuario)
     {
         $usuario->update(['acceso_conciliacion' => ! $usuario->acceso_conciliacion]);
+
+        return redirect()->route('usuarios.index');
+    }
+
+    public function toggleRolTaller(User $usuario)
+    {
+        $usuario->update(['rol_taller' => ! $usuario->rol_taller]);
 
         return redirect()->route('usuarios.index');
     }

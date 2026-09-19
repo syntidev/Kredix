@@ -10,6 +10,7 @@ use App\Http\Controllers\MovimientoCuentaController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProspectoController;
+use App\Http\Controllers\TallerController;
 use App\Http\Controllers\TasaBcvController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -56,6 +57,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/clientes/{cliente}/estado-cuenta-{nombreSlug}.pdf', [ClienteController::class, 'estadoCuenta'])->name('clientes.estado-cuenta');
     Route::patch('/clientes/{cliente}/mensaje-pdf', [ClienteController::class, 'actualizarMensajePdf'])->name('clientes.mensaje-pdf');
     Route::patch('/clientes/{cliente}/responsable', [ClienteController::class, 'actualizarResponsable'])->name('clientes.responsable');
+    Route::get('/taller', [TallerController::class, 'index'])->name('taller.index');
+    Route::get('/taller/nuevo', [TallerController::class, 'create'])->name('taller.create');
+    Route::post('/taller', [TallerController::class, 'store'])->name('taller.store');
+    Route::get('/taller/{ticket}', [TallerController::class, 'show'])->name('taller.show');
+    Route::put('/taller/{ticket}', [TallerController::class, 'update'])->name('taller.update');
+    Route::patch('/taller/{ticket}/marcar-atendido', [TallerController::class, 'marcarAtendido'])->name('taller.marcar-atendido');
+    Route::post('/taller/{ticket}/fotos/{coleccion}', [TallerController::class, 'subirFotos'])->name('taller.fotos.store');
+    Route::post('/taller/{ticket}/repuestos', [TallerController::class, 'agregarRepuesto'])->name('taller.repuestos.store');
+    Route::delete('/taller/{ticket}/repuestos/{repuesto}', [TallerController::class, 'eliminarRepuesto'])->name('taller.repuestos.destroy');
+
     Route::post('/movimientos', [MovimientoCuentaController::class, 'store'])->name('movimientos.store');
     Route::put('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'update'])->name('movimientos.update');
     Route::patch('/movimientos/{movimiento}/validacion', [MovimientoCuentaController::class, 'validar'])->name('movimientos.validar');
@@ -67,6 +78,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
         Route::patch('/usuarios/{usuario}/toggle-activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.toggle-activo');
         Route::patch('/usuarios/{usuario}/toggle-acceso-conciliacion', [UsuarioController::class, 'toggleAccesoConciliacion'])->name('usuarios.toggle-acceso-conciliacion');
+        Route::patch('/usuarios/{usuario}/toggle-rol-taller', [UsuarioController::class, 'toggleRolTaller'])->name('usuarios.toggle-rol-taller');
         Route::patch('/usuarios/{usuario}/reset-password', [UsuarioController::class, 'resetPassword'])->name('usuarios.reset-password');
         Route::patch('/tasa-bcv', [TasaBcvController::class, 'update'])->name('tasa-bcv.update');
     });
