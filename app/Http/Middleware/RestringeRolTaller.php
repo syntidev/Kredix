@@ -22,7 +22,7 @@ class RestringeRolTaller
     // '/login': si el usuario ya esta autenticado, es la propia guardia 'guest'
     // de Laravel la que debe decidir que hacer (redirige a /dashboard) -- este
     // middleware no debe interponerse antes de que esa logica corra
-    private const PERMITIDAS_SIN_REDIRIGIR = ['/logout', '/login', '/productos', '/clientes/buscar'];
+    private const PERMITIDAS_SIN_REDIRIGIR = ['/logout', '/login', '/productos', '/clientes/buscar', '/clientes/rapido'];
 
     public function handle(Request $request, Closure $next): Response
     {

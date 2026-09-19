@@ -33,6 +33,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
     Route::get('/clientes/buscar', [ClienteController::class, 'buscar'])->name('clientes.buscar');
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
+    Route::post('/clientes/rapido', [ClienteController::class, 'storeRapido'])->name('clientes.store-rapido');
     Route::get('/cartera', [ClienteController::class, 'cartera'])->name('cartera');
     Route::get('/cartelera', [CarteleraController::class, 'index'])->name('cartelera');
     Route::get('/conciliacion', [ConciliacionController::class, 'index'])->middleware('acceso_conciliacion')->name('conciliacion.index');

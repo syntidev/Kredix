@@ -11,10 +11,12 @@ const props = defineProps({
     estado: { type: String, default: null },
 });
 
+// activo: color propio de cada estado (negro=neutral, naranja/verde=semaforo).
+// rojo se reserva para mora/urgencia en el resto de Kredix, no aplica aqui
 const FILTROS = [
-    { valor: null, etiqueta: 'Todos' },
-    { valor: 'en_proceso', etiqueta: 'En proceso' },
-    { valor: 'atendido', etiqueta: 'Atendido' },
+    { valor: null, etiqueta: 'Todos', activo: 'border-kredix-negro bg-kredix-negro/10 text-kredix-negro' },
+    { valor: 'en_proceso', etiqueta: 'En proceso', activo: 'border-orange-500 bg-orange-50 text-orange-700' },
+    { valor: 'atendido', etiqueta: 'Atendido', activo: 'border-green-600 bg-green-50 text-green-700' },
 ];
 
 function filtrar(valor) {
@@ -41,7 +43,7 @@ const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 
                 <Wrench :size="20" />
                 Taller — bitacora
             </h1>
-            <Link href="/taller/nuevo" class="min-h-11 rounded-lg bg-kredix-rojo px-4 text-sm font-medium leading-[2.75rem] text-white active:opacity-80">
+            <Link href="/taller/nuevo" class="min-h-11 rounded-lg bg-kredix-negro px-4 text-sm font-medium leading-[2.75rem] text-white active:opacity-80">
                 + Nuevo ticket
             </Link>
         </div>
@@ -52,7 +54,7 @@ const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 
                 :key="f.etiqueta"
                 type="button"
                 class="min-h-9 rounded-full border px-3 text-sm font-medium"
-                :class="estado === f.valor ? 'border-kredix-rojo bg-kredix-rojo/10 text-kredix-rojo' : 'border-gray-300 text-kredix-gris'"
+                :class="estado === f.valor ? f.activo : 'border-gray-300 text-kredix-gris'"
                 @click="filtrar(f.valor)"
             >
                 {{ f.etiqueta }}

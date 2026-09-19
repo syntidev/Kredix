@@ -1,8 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import axios from 'axios';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
+import PhoneInput from '../../Components/PhoneInput.vue';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
 
 defineOptions({ layout: AppLayout });
@@ -66,6 +68,47 @@ function elegirCliente(cliente) {
 function quitarCliente() {
     clienteSeleccionado.value = null;
     form.cliente_id = null;
+}
+
+// --- crear cliente nuevo sin salir del modal (walk-in sin alta previa) ---
+const creandoCliente = ref(false);
+const nuevoClienteNombre = ref('');
+const nuevoClienteTelefono = ref('');
+const nuevoClienteError = ref('');
+const guardandoCliente = ref(false);
+
+function abrirCrearCliente() {
+    creandoCliente.value = true;
+    nuevoClienteNombre.value = busquedaCliente.value;
+    nuevoClienteError.value = '';
+}
+
+function cancelarCrearCliente() {
+    creandoCliente.value = false;
+    nuevoClienteNombre.value = '';
+    nuevoClienteTelefono.value = '';
+    nuevoClienteError.value = '';
+}
+
+async function guardarClienteNuevo() {
+    nuevoClienteError.value = '';
+    guardandoCliente.value = true;
+    try {
+        const { data } = await axios.post('/clientes/rapido', {
+            nombre: nuevoClienteNombre.value,
+            telefono: nuevoClienteTelefono.value,
+        });
+        elegirCliente(data);
+        creandoCliente.value = false;
+        nuevoClienteNombre.value = '';
+        nuevoClienteTelefono.value = '';
+    } catch (error) {
+        nuevoClienteError.value = error.response?.data?.errors?.nombre?.[0]
+            ?? error.response?.data?.errors?.telefono?.[0]
+            ?? 'No se pudo crear el cliente.';
+    } finally {
+        guardandoCliente.value = false;
+    }
 }
 
 // --- talla de rin: lista fija + "Otro" texto libre ---
@@ -171,6 +214,35 @@ function submit() {
                         >
                             {{ c.nombre }}
                         </button>
+                    </div>
+
+                    <button v-if="!creandoCliente" type="button" class="self-start text-sm text-kredix-negro underline" @click="abrirCrearCliente">
+                        + Crear cliente nuevo
+                    </button>
+
+                    <div v-if="creandoCliente" class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p class="text-sm font-medium text-kredix-negro">Cliente nuevo (sin alta previa)</p>
+                        <input
+                            v-model="nuevoClienteNombre"
+                            type="text"
+                            placeholder="Nombre"
+                            class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                        />
+                        <PhoneInput v-model="nuevoClienteTelefono" />
+                        <p v-if="nuevoClienteError" class="text-sm text-kredix-rojo">{{ nuevoClienteError }}</p>
+                        <div class="flex gap-2">
+                            <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelarCrearCliente">
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60"
+                                :disabled="guardandoCliente || !nuevoClienteNombre.trim()"
+                                @click="guardarClienteNuevo"
+                            >
+                                Crear y continuar
+                            </button>
+                        </div>
                     </div>
                 </template>
                 <p v-if="form.errors.cliente_id" class="text-sm text-kredix-rojo">{{ form.errors.cliente_id }}</p>

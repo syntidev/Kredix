@@ -447,6 +447,26 @@ class ClienteController extends Controller
         return redirect()->route('clientes.show', $cliente->id);
     }
 
+    // version liviana de store() para crear un cliente sin salir de un flujo
+    // que no es la ficha de cliente (ej. "Crear cliente nuevo" dentro del
+    // buscador de Nuevo ticket en Taller) -- responde JSON en vez de redirigir
+    public function storeRapido(Request $request)
+    {
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
+        ], [
+            'nombre.required' => 'nombre requerido',
+            'telefono.regex' => 'telefono invalido, selecciona el pais y completa el numero',
+        ]);
+
+        $validated['nombre'] = mb_strtoupper($validated['nombre'], 'UTF-8');
+
+        $cliente = Cliente::create($validated);
+
+        return response()->json(['id' => $cliente->id, 'nombre' => $cliente->nombre, 'telefono' => $cliente->telefono]);
+    }
+
     public function update(Request $request, Cliente $cliente)
     {
         $validated = $request->validate([
