@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
+import { AlertTriangle, Check } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
@@ -175,15 +176,18 @@ function submit() {
 
         <h1 class="text-xl font-semibold text-kredix-negro">Nuevo ticket</h1>
 
-        <form class="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submit">
+        <form
+            class="flex flex-col gap-3 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]"
+            @submit.prevent="submit"
+        >
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Tipo de ticket</label>
                 <div class="flex gap-2">
-                    <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="esServicioCliente ? 'border-kredix-rojo text-kredix-rojo' : 'border-gray-300 text-kredix-gris'">
+                    <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="esServicioCliente ? 'border-kredix-negro text-kredix-negro' : 'border-gray-300 text-kredix-gris'">
                         <input v-model="form.tipo" type="radio" value="servicio_cliente" class="h-4 w-4" />
                         Servicio a cliente
                     </label>
-                    <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="!esServicioCliente ? 'border-kredix-rojo text-kredix-rojo' : 'border-gray-300 text-kredix-gris'">
+                    <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="!esServicioCliente ? 'border-kredix-negro text-kredix-negro' : 'border-gray-300 text-kredix-gris'">
                         <input v-model="form.tipo" type="radio" value="armado_interno" class="h-4 w-4" />
                         Armado interno
                     </label>
@@ -194,7 +198,7 @@ function submit() {
                 <label class="text-sm font-medium text-kredix-negro">Cliente</label>
                 <div v-if="clienteSeleccionado" class="flex items-center justify-between rounded-lg border border-gray-300 px-3 py-2">
                     <span class="text-sm text-kredix-negro">{{ clienteSeleccionado.nombre }}</span>
-                    <button type="button" class="text-xs text-kredix-rojo underline" @click="quitarCliente">Cambiar</button>
+                    <button type="button" class="text-xs text-kredix-negro underline" @click="quitarCliente">Cambiar</button>
                 </div>
                 <template v-else>
                     <input
@@ -303,48 +307,64 @@ function submit() {
 
             <div class="flex flex-col gap-2">
                 <label class="text-sm font-medium text-kredix-negro">Diagnostico</label>
-                <div v-for="(d, i) in form.diagnostico" :key="d.item" class="flex flex-col gap-2 rounded-lg bg-gray-50 p-3">
-                    <div class="flex items-center justify-between">
+                <div v-for="(d, i) in form.diagnostico" :key="d.item" class="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+                    <div class="flex items-center justify-between gap-2">
                         <span class="text-sm font-medium text-kredix-negro">{{ d.item }}</span>
-                        <div class="flex gap-1">
+                        <div class="inline-flex shrink-0 rounded-lg border border-gray-300 p-0.5">
                             <button
                                 type="button"
-                                class="min-h-9 rounded-lg border px-3 text-xs font-medium"
-                                :class="d.estado === 'bien' ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-300 text-kredix-gris'"
+                                class="flex min-h-9 items-center gap-1 rounded-md px-2.5 text-xs font-semibold transition-colors"
+                                :class="d.estado === 'bien' ? 'bg-green-600 text-white' : 'text-kredix-gris'"
                                 @click="toggleItem(i, 'bien')"
                             >
+                                <Check :size="14" />
                                 Bien
                             </button>
                             <button
                                 type="button"
-                                class="min-h-9 rounded-lg border px-3 text-xs font-medium"
-                                :class="d.estado === 'atencion' ? 'border-amber-600 bg-amber-50 text-amber-700' : 'border-gray-300 text-kredix-gris'"
+                                class="flex min-h-9 items-center gap-1 rounded-md px-2.5 text-xs font-semibold transition-colors"
+                                :class="d.estado === 'atencion' ? 'bg-amber-500 text-white' : 'text-kredix-gris'"
                                 @click="toggleItem(i, 'atencion')"
                             >
+                                <AlertTriangle :size="14" />
                                 Requiere atencion
                             </button>
                         </div>
                     </div>
-                    <textarea
-                        v-if="d.estado === 'atencion'"
-                        v-model="d.nota"
-                        rows="2"
-                        placeholder="Especifica que se observo..."
-                        class="rounded-lg border border-gray-300 px-3 py-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none"
-                    ></textarea>
+                    <Transition
+                        enter-active-class="transition duration-150 ease-out"
+                        enter-from-class="opacity-0 -translate-y-1"
+                        enter-to-class="opacity-100 translate-y-0"
+                        leave-active-class="transition duration-100 ease-in"
+                        leave-from-class="opacity-100 translate-y-0"
+                        leave-to-class="opacity-0 -translate-y-1"
+                    >
+                        <textarea
+                            v-if="d.estado === 'atencion'"
+                            v-model="d.nota"
+                            rows="2"
+                            placeholder="Especifica que se observo..."
+                            class="rounded-lg border border-gray-300 px-3 py-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                        ></textarea>
+                    </Transition>
                 </div>
             </div>
 
             <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Fotos de entrada (opcional)</label>
+                <label class="text-sm font-medium text-kredix-negro">Fotos de entrada <span class="font-normal text-kredix-gris">(opcional)</span></label>
                 <input type="file" accept="image/*" multiple class="text-sm" @change="onFotosEntradaChange" />
                 <p v-if="fotosEntradaError" class="text-sm text-kredix-rojo">{{ fotosEntradaError }}</p>
                 <p v-if="form.errors['fotos_entrada.0']" class="text-sm text-kredix-rojo">{{ form.errors['fotos_entrada.0'] }}</p>
             </div>
 
-            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="form.processing">
-                Guardar ticket
-            </button>
+            <div class="mt-1 flex gap-2">
+                <Link href="/taller" class="flex min-h-11 flex-1 items-center justify-center rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100">
+                    Cancelar
+                </Link>
+                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="form.processing">
+                    Guardar ticket
+                </button>
+            </div>
         </form>
     </div>
 </template>
