@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
-import { AlertTriangle, Check, Zap } from '@lucide/vue';
+import { AlertTriangle, Check, UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
@@ -233,8 +233,14 @@ function submit() {
                         </button>
                     </div>
 
-                    <button v-if="!creandoCliente" type="button" class="self-start text-sm text-kredix-negro underline" @click="abrirCrearCliente">
-                        + Crear cliente nuevo
+                    <button
+                        v-if="!creandoCliente"
+                        type="button"
+                        class="flex min-h-9 self-start shrink-0 items-center gap-1.5 rounded-lg bg-kredix-negro px-3 text-xs font-medium text-white active:opacity-80"
+                        @click="abrirCrearCliente"
+                    >
+                        <UserPlus :size="14" />
+                        Crear cliente nuevo
                     </button>
 
                     <div v-if="creandoCliente" class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">

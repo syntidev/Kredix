@@ -117,7 +117,7 @@ class TallerController extends Controller
             'ticket' => [
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'talla_rin', 'es_electrica',
-                    'tipo_servicio', 'monto_servicio', 'diagnostico', 'estado', 'mecanico_id',
+                    'tipo_servicio', 'monto_servicio', 'diagnostico', 'estado', 'mecanico_id', 'trabajo_realizado',
                 ]),
                 'cliente' => $ticket->cliente,
                 'mecanico' => $ticket->mecanico,
@@ -163,6 +163,19 @@ class TallerController extends Controller
         return redirect()->route('taller.show', $ticket->id);
     }
 
+    public function guardarTrabajoRealizado(Request $request, TicketTaller $ticket)
+    {
+        $validated = $request->validate([
+            'trabajo_realizado' => ['required', 'string', 'max:2000'],
+        ], [
+            'trabajo_realizado.required' => 'trabajo realizado requerido',
+        ]);
+
+        $ticket->update($validated);
+
+        return redirect()->route('taller.show', $ticket->id);
+    }
+
     public function subirFotos(Request $request, TicketTaller $ticket, string $coleccion)
     {
         abort_unless(in_array($coleccion, ['entrada', 'salida'], true), 404);
@@ -203,6 +216,10 @@ class TallerController extends Controller
 
     public function marcarAtendido(TicketTaller $ticket)
     {
+        if (blank($ticket->trabajo_realizado)) {
+            return back()->withErrors(['trabajo_realizado' => 'Debes registrar el trabajo realizado antes de marcar el ticket como atendido.']);
+        }
+
         if ($ticket->getMedia('salida')->isEmpty()) {
             return back()->withErrors(['fotos_salida' => 'Falta al menos 1 foto de salida para poder marcar el ticket como atendido.']);
         }

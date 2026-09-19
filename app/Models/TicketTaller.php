@@ -24,6 +24,7 @@ class TicketTaller extends Model implements HasMedia
         'talla_rin',
         'es_electrica',
         'motivo_ingreso',
+        'trabajo_realizado',
         'tipo_servicio',
         'monto_servicio',
         'diagnostico',

@@ -88,6 +88,14 @@ function eliminarRepuesto(repuesto) {
     router.delete(`/taller/${props.ticket.id}/repuestos/${repuesto.id}`, { preserveScroll: true });
 }
 
+// --- trabajo realizado (seccion de cierre, requisito para marcar atendido
+// igual que la foto de salida) ---
+const trabajoRealizadoForm = useForm({ trabajo_realizado: props.ticket.trabajo_realizado ?? '' });
+
+function guardarTrabajoRealizado() {
+    trabajoRealizadoForm.patch(`/taller/${props.ticket.id}/trabajo-realizado`, { preserveScroll: true });
+}
+
 // --- fotos (entrada ya viene poblada; aqui solo se sube salida, aunque el
 // mismo endpoint sirve para ambas colecciones si hiciera falta agregar mas
 // fotos de entrada despues) ---
@@ -127,12 +135,14 @@ function marcarAtendido() {
     router.patch(`/taller/${props.ticket.id}/marcar-atendido`, {}, {
         preserveScroll: true,
         onError: (errors) => {
-            errorAtendido.value = errors.fotos_salida ?? 'No se pudo marcar como atendido.';
+            errorAtendido.value = errors.trabajo_realizado ?? errors.fotos_salida ?? 'No se pudo marcar como atendido.';
         },
     });
 }
 
-const puedeMarcarAtendido = computed(() => props.ticket.fotos_salida.length > 0);
+const faltaFotoSalida = computed(() => props.ticket.fotos_salida.length === 0);
+const faltaTrabajoRealizado = computed(() => !props.ticket.trabajo_realizado?.trim());
+const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTrabajoRealizado.value);
 </script>
 
 <template>
@@ -163,7 +173,13 @@ const puedeMarcarAtendido = computed(() => props.ticket.fotos_salida.length > 0)
             </button>
         </div>
         <p v-if="errorAtendido" class="text-sm text-kredix-rojo">{{ errorAtendido }}</p>
-        <p v-if="!atendido && !puedeMarcarAtendido" class="text-sm text-kredix-gris">Falta al menos 1 foto de salida para poder cerrar el ticket.</p>
+        <p v-if="!atendido && !puedeMarcarAtendido" class="text-sm text-kredix-gris">
+            Falta
+            <template v-if="faltaTrabajoRealizado && faltaFotoSalida">registrar el trabajo realizado y subir al menos 1 foto de salida</template>
+            <template v-else-if="faltaTrabajoRealizado">registrar el trabajo realizado</template>
+            <template v-else>al menos 1 foto de salida</template>
+            para poder cerrar el ticket.
+        </p>
 
         <div class="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
             <div class="flex items-center justify-between">
@@ -309,6 +325,22 @@ const puedeMarcarAtendido = computed(() => props.ticket.fotos_salida.length > 0)
                 <button type="submit" class="flex min-h-11 items-center justify-center gap-1 rounded-lg bg-kredix-negro px-3 text-sm font-medium text-white disabled:opacity-60" :disabled="repuestoForm.processing">
                     <Plus :size="14" />
                     Agregar
+                </button>
+            </form>
+        </div>
+
+        <div class="flex flex-col gap-2 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+            <h2 class="font-medium text-kredix-negro">Trabajo realizado</h2>
+            <form class="flex flex-col gap-2" @submit.prevent="guardarTrabajoRealizado">
+                <textarea
+                    v-model="trabajoRealizadoForm.trabajo_realizado"
+                    rows="3"
+                    placeholder="Que se hizo en general (ej: ajuste de frenos, cambio de cadena, lubricacion completa)..."
+                    class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                ></textarea>
+                <p v-if="trabajoRealizadoForm.errors.trabajo_realizado" class="text-sm text-kredix-rojo">{{ trabajoRealizadoForm.errors.trabajo_realizado }}</p>
+                <button type="submit" class="min-h-11 self-start rounded-lg bg-kredix-negro px-4 text-sm font-semibold text-white disabled:opacity-60" :disabled="trabajoRealizadoForm.processing">
+                    Guardar
                 </button>
             </form>
         </div>
