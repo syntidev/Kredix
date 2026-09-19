@@ -25,6 +25,7 @@ function diagnosticoVacio() {
 const form = useForm({
     tipo: 'servicio_cliente',
     cliente_id: null,
+    motivo_ingreso: '',
     bici_marca_modelo: '',
     talla_rin: '',
     es_electrica: false,
@@ -193,6 +194,17 @@ function submit() {
                         Armado interno
                     </label>
                 </div>
+            </div>
+
+            <div v-if="esServicioCliente" class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Motivo de ingreso <span class="font-normal text-kredix-gris">(por que llego)</span></label>
+                <textarea
+                    v-model="form.motivo_ingreso"
+                    rows="2"
+                    placeholder="Ej: se cae la cadena, frena mal, ruido raro en el pedal..."
+                    class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                ></textarea>
+                <p v-if="form.errors.motivo_ingreso" class="text-sm text-kredix-rojo">{{ form.errors.motivo_ingreso }}</p>
             </div>
 
             <div v-if="esServicioCliente" class="flex flex-col gap-1">

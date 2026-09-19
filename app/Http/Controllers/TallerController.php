@@ -71,6 +71,7 @@ class TallerController extends Controller
         $validated = $request->validate([
             'tipo' => ['required', 'in:servicio_cliente,armado_interno'],
             'cliente_id' => [Rule::requiredIf($esServicioCliente), 'nullable', 'exists:clientes,id'],
+            'motivo_ingreso' => [Rule::requiredIf($esServicioCliente), 'nullable', 'string', 'max:1000'],
             'bici_marca_modelo' => ['required', 'string', 'max:255'],
             'talla_rin' => ['required', 'string', 'max:255'],
             'es_electrica' => ['nullable', 'boolean'],
@@ -82,11 +83,14 @@ class TallerController extends Controller
             'diagnostico.*.estado' => ['required_with:diagnostico', 'in:bien,atencion'],
             'diagnostico.*.nota' => ['nullable', 'string', 'max:1000'],
             'fotos_entrada.*' => ['nullable', 'image', 'max:5120'],
+        ], [
+            'motivo_ingreso.required' => 'motivo de ingreso requerido',
         ]);
 
         $ticket = TicketTaller::create([
             'tipo' => $validated['tipo'],
             'cliente_id' => $esServicioCliente ? $validated['cliente_id'] : null,
+            'motivo_ingreso' => $esServicioCliente ? $validated['motivo_ingreso'] : null,
             'bici_marca_modelo' => $validated['bici_marca_modelo'],
             'talla_rin' => $validated['talla_rin'],
             'es_electrica' => $validated['es_electrica'] ?? false,
@@ -112,8 +116,8 @@ class TallerController extends Controller
         return Inertia::render('Taller/Show', [
             'ticket' => [
                 ...$ticket->only([
-                    'id', 'tipo', 'bici_marca_modelo', 'talla_rin', 'tipo_servicio',
-                    'monto_servicio', 'diagnostico', 'estado', 'mecanico_id',
+                    'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'talla_rin', 'es_electrica',
+                    'tipo_servicio', 'monto_servicio', 'diagnostico', 'estado', 'mecanico_id',
                 ]),
                 'cliente' => $ticket->cliente,
                 'mecanico' => $ticket->mecanico,
@@ -132,6 +136,7 @@ class TallerController extends Controller
         $esServicioCliente = $ticket->tipo === 'servicio_cliente';
 
         $validated = $request->validate([
+            'motivo_ingreso' => [Rule::requiredIf($esServicioCliente), 'nullable', 'string', 'max:1000'],
             'bici_marca_modelo' => ['required', 'string', 'max:255'],
             'talla_rin' => ['required', 'string', 'max:255'],
             'tipo_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'in:basico,full,vip,otro'],
@@ -141,9 +146,12 @@ class TallerController extends Controller
             'diagnostico.*.item' => ['required_with:diagnostico', 'string', 'max:255'],
             'diagnostico.*.estado' => ['required_with:diagnostico', 'in:bien,atencion'],
             'diagnostico.*.nota' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'motivo_ingreso.required' => 'motivo de ingreso requerido',
         ]);
 
         $ticket->update([
+            'motivo_ingreso' => $esServicioCliente ? $validated['motivo_ingreso'] : null,
             'bici_marca_modelo' => $validated['bici_marca_modelo'],
             'talla_rin' => $validated['talla_rin'],
             'tipo_servicio' => $esServicioCliente ? $validated['tipo_servicio'] : null,

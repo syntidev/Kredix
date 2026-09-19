@@ -24,6 +24,7 @@ const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 
 const editando = ref(false);
 
 const editForm = useForm({
+    motivo_ingreso: props.ticket.motivo_ingreso ?? '',
     bici_marca_modelo: props.ticket.bici_marca_modelo,
     talla_rin: props.ticket.talla_rin,
     tipo_servicio: props.ticket.tipo_servicio ?? 'basico',
@@ -174,6 +175,10 @@ const puedeMarcarAtendido = computed(() => props.ticket.fotos_salida.length > 0)
                 <p class="text-sm text-kredix-gris">
                     {{ esServicioCliente ? (ticket.cliente?.nombre ?? '-') : 'Armado interno' }} · {{ formatFecha(ticket.created_at) }}
                 </p>
+                <div v-if="esServicioCliente" class="flex flex-col gap-1">
+                    <p class="text-sm font-medium text-kredix-negro">Motivo de ingreso</p>
+                    <p class="text-sm text-kredix-gris">{{ ticket.motivo_ingreso || '-' }}</p>
+                </div>
                 <p class="text-sm text-kredix-negro">{{ ticket.bici_marca_modelo }} · Rin {{ ticket.talla_rin }}</p>
                 <p v-if="esServicioCliente" class="text-sm text-kredix-negro">
                     {{ TIPO_SERVICIO_LABEL[ticket.tipo_servicio] ?? ticket.tipo_servicio }} — {{ formatMoney(ticket.monto_servicio) }}
@@ -192,6 +197,11 @@ const puedeMarcarAtendido = computed(() => props.ticket.fotos_salida.length > 0)
             </template>
 
             <form v-else class="flex flex-col gap-3" @submit.prevent="guardarEdicion">
+                <div v-if="esServicioCliente" class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Motivo de ingreso <span class="font-normal text-kredix-gris">(por que llego)</span></label>
+                    <textarea v-model="editForm.motivo_ingreso" rows="2" class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
+                    <p v-if="editForm.errors.motivo_ingreso" class="text-sm text-kredix-rojo">{{ editForm.errors.motivo_ingreso }}</p>
+                </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Bicicleta (marca y modelo)</label>
                     <input v-model="editForm.bici_marca_modelo" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
@@ -261,7 +271,7 @@ const puedeMarcarAtendido = computed(() => props.ticket.fotos_salida.length > 0)
 
                 <div class="flex gap-2">
                     <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="editando = false">Cancelar</button>
-                    <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="editForm.processing">Guardar</button>
+                    <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="editForm.processing">Guardar</button>
                 </div>
             </form>
         </div>
