@@ -33,6 +33,8 @@ class TallerController extends Controller
             'tipo' => $ticket->tipo,
             'cliente' => $ticket->cliente?->nombre,
             'bici_marca_modelo' => $ticket->bici_marca_modelo,
+            'categoria_bici' => $ticket->categoria_bici,
+            'talla_rin' => $ticket->talla_rin,
             'es_electrica' => $ticket->es_electrica,
             'tipo_servicio' => $ticket->tipo_servicio,
             'mecanico' => $ticket->mecanico?->name,
@@ -73,7 +75,8 @@ class TallerController extends Controller
             'cliente_id' => [Rule::requiredIf($esServicioCliente), 'nullable', 'exists:clientes,id'],
             'motivo_ingreso' => [Rule::requiredIf($esServicioCliente), 'nullable', 'string', 'max:1000'],
             'bici_marca_modelo' => ['required', 'string', 'max:255'],
-            'talla_rin' => ['required', 'string', 'max:255'],
+            'categoria_bici' => ['required', 'in:ruta,mtb,otro'],
+            'talla_rin' => ['nullable', 'string', 'max:255'],
             'es_electrica' => ['nullable', 'boolean'],
             'tipo_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'in:basico,full,vip,otro'],
             'monto_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'numeric', 'min:0'],
@@ -85,6 +88,7 @@ class TallerController extends Controller
             'fotos_entrada.*' => ['nullable', 'image', 'max:5120'],
         ], [
             'motivo_ingreso.required' => 'motivo de ingreso requerido',
+            'categoria_bici.required' => 'categoria de bici requerida',
         ]);
 
         $ticket = TicketTaller::create([
@@ -92,7 +96,8 @@ class TallerController extends Controller
             'cliente_id' => $esServicioCliente ? $validated['cliente_id'] : null,
             'motivo_ingreso' => $esServicioCliente ? $validated['motivo_ingreso'] : null,
             'bici_marca_modelo' => $validated['bici_marca_modelo'],
-            'talla_rin' => $validated['talla_rin'],
+            'categoria_bici' => $validated['categoria_bici'],
+            'talla_rin' => $validated['talla_rin'] ?? '',
             'es_electrica' => $validated['es_electrica'] ?? false,
             'tipo_servicio' => $esServicioCliente ? $validated['tipo_servicio'] : null,
             'monto_servicio' => $esServicioCliente ? $validated['monto_servicio'] : null,
@@ -116,7 +121,7 @@ class TallerController extends Controller
         return Inertia::render('Taller/Show', [
             'ticket' => [
                 ...$ticket->only([
-                    'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'talla_rin', 'es_electrica',
+                    'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',
                     'tipo_servicio', 'monto_servicio', 'diagnostico', 'estado', 'mecanico_id', 'trabajo_realizado',
                 ]),
                 'cliente' => $ticket->cliente,
@@ -138,7 +143,7 @@ class TallerController extends Controller
         $validated = $request->validate([
             'motivo_ingreso' => [Rule::requiredIf($esServicioCliente), 'nullable', 'string', 'max:1000'],
             'bici_marca_modelo' => ['required', 'string', 'max:255'],
-            'talla_rin' => ['required', 'string', 'max:255'],
+            'talla_rin' => ['nullable', 'string', 'max:255'],
             'tipo_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'in:basico,full,vip,otro'],
             'monto_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'numeric', 'min:0'],
             'mecanico_id' => ['required', 'exists:users,id'],
@@ -153,7 +158,7 @@ class TallerController extends Controller
         $ticket->update([
             'motivo_ingreso' => $esServicioCliente ? $validated['motivo_ingreso'] : null,
             'bici_marca_modelo' => $validated['bici_marca_modelo'],
-            'talla_rin' => $validated['talla_rin'],
+            'talla_rin' => $validated['talla_rin'] ?? '',
             'tipo_servicio' => $esServicioCliente ? $validated['tipo_servicio'] : null,
             'monto_servicio' => $esServicioCliente ? $validated['monto_servicio'] : null,
             'mecanico_id' => $validated['mecanico_id'],

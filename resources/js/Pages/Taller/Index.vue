@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Wrench, Zap } from '@lucide/vue';
+import { Bike, Mountain, Route, Wrench, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import { formatFecha } from '../../lib/formatFecha';
 
@@ -32,6 +32,9 @@ function labelEstado(estado) {
 }
 
 const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 'Otro' };
+
+const CATEGORIA_ICONO = { ruta: Route, mtb: Mountain, otro: Bike };
+const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
 </script>
 
 <template>
@@ -77,13 +80,20 @@ const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 
                             {{ t.cliente ?? 'Armado interno' }}
                             <span v-if="t.tipo_servicio" class="ml-1 text-sm font-normal text-kredix-gris">{{ TIPO_SERVICIO_LABEL[t.tipo_servicio] ?? t.tipo_servicio }}</span>
                         </p>
-                        <p class="flex items-center gap-1 truncate text-sm text-kredix-gris">
-                            {{ t.bici_marca_modelo }}
+                        <p class="flex flex-wrap items-center gap-1 text-sm text-kredix-gris">
+                            <span class="truncate">{{ t.bici_marca_modelo }}</span>
+                            <span v-if="CATEGORIA_ICONO[t.categoria_bici]" class="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-kredix-negro">
+                                <component :is="CATEGORIA_ICONO[t.categoria_bici]" :size="10" />
+                                {{ CATEGORIA_LABEL[t.categoria_bici] }}
+                            </span>
+                            <span v-if="t.talla_rin" class="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-kredix-negro">
+                                Rin {{ t.talla_rin }}
+                            </span>
                             <span v-if="t.es_electrica" class="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
                                 <Zap :size="10" />
                                 E-BIKE
                             </span>
-                            · {{ formatFecha(t.fecha) }}
+                            <span class="shrink-0">· {{ formatFecha(t.fecha) }}</span>
                         </p>
                     </div>
                 </div>

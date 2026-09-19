@@ -19,6 +19,7 @@ const esServicioCliente = computed(() => props.ticket.tipo === 'servicio_cliente
 const atendido = computed(() => props.ticket.estado === 'atendido');
 
 const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 'Otro' };
+const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
 
 // --- edicion de campos basicos ---
 const editando = ref(false);
@@ -195,7 +196,11 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                     <p class="text-sm font-medium text-kredix-negro">Motivo de ingreso</p>
                     <p class="text-sm text-kredix-gris">{{ ticket.motivo_ingreso || '-' }}</p>
                 </div>
-                <p class="text-sm text-kredix-negro">{{ ticket.bici_marca_modelo }} · Rin {{ ticket.talla_rin }}</p>
+                <p class="text-sm text-kredix-negro">
+                    {{ ticket.bici_marca_modelo }}
+                    <span v-if="CATEGORIA_LABEL[ticket.categoria_bici]">· {{ CATEGORIA_LABEL[ticket.categoria_bici] }}</span>
+                    <span v-if="ticket.talla_rin">· Rin {{ ticket.talla_rin }}</span>
+                </p>
                 <p v-if="esServicioCliente" class="text-sm text-kredix-negro">
                     {{ TIPO_SERVICIO_LABEL[ticket.tipo_servicio] ?? ticket.tipo_servicio }} — {{ formatMoney(ticket.monto_servicio) }}
                 </p>
@@ -223,7 +228,7 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                     <input v-model="editForm.bici_marca_modelo" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 </div>
                 <div class="flex flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Talla de rin</label>
+                    <label class="text-sm font-medium text-kredix-negro">Talla de rin <span class="font-normal text-kredix-gris">(opcional)</span></label>
                     <input v-model="editForm.talla_rin" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 </div>
                 <div v-if="esServicioCliente" class="flex flex-col gap-1">

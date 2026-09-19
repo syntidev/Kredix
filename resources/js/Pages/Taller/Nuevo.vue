@@ -15,7 +15,12 @@ defineProps({
 });
 
 const CHECKLIST_ITEMS = ['Cadena', 'Frenos', 'Rayos', 'Cauchos', 'Rolineras', 'Cambios'];
-const TALLAS_RIN = ['Ruta', 'MTB', 'Rin 20', 'Rin 16'];
+const CATEGORIAS_BICI = [
+    { valor: 'ruta', etiqueta: 'Ruta' },
+    { valor: 'mtb', etiqueta: 'MTB' },
+    { valor: 'otro', etiqueta: 'Otro' },
+];
+const TALLAS_RIN_CORTAS = ['16', '20', '24', '26', '29'];
 const MONTOS_SERVICIO = { basico: 15, full: 20, vip: 25 };
 
 function diagnosticoVacio() {
@@ -27,6 +32,7 @@ const form = useForm({
     cliente_id: null,
     motivo_ingreso: '',
     bici_marca_modelo: '',
+    categoria_bici: '',
     talla_rin: '',
     es_electrica: false,
     tipo_servicio: 'basico',
@@ -114,7 +120,8 @@ async function guardarClienteNuevo() {
     }
 }
 
-// --- talla de rin: lista fija + "Otro" texto libre ---
+// --- talla de rin (opcional, solo tamano de rueda): lista corta + "Otro"
+// texto libre -- independiente de categoria_bici ---
 const tallaSeleccion = ref('');
 const tallaOtro = ref('');
 
@@ -278,10 +285,19 @@ function submit() {
             </div>
 
             <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Talla de rin</label>
-                <select v-model="tallaSeleccion" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @change="onTallaChange">
+                <label class="text-sm font-medium text-kredix-negro">Categoria</label>
+                <select v-model="form.categoria_bici" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
                     <option value="" disabled>Selecciona...</option>
-                    <option v-for="t in TALLAS_RIN" :key="t" :value="t">{{ t }}</option>
+                    <option v-for="c in CATEGORIAS_BICI" :key="c.valor" :value="c.valor">{{ c.etiqueta }}</option>
+                </select>
+                <p v-if="form.errors.categoria_bici" class="text-sm text-kredix-rojo">{{ form.errors.categoria_bici }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Talla de rin <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                <select v-model="tallaSeleccion" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @change="onTallaChange">
+                    <option value="">Sin especificar</option>
+                    <option v-for="t in TALLAS_RIN_CORTAS" :key="t" :value="t">{{ t }}</option>
                     <option value="Otro">Otro</option>
                 </select>
                 <input

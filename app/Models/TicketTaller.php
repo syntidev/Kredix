@@ -22,6 +22,7 @@ class TicketTaller extends Model implements HasMedia
         'cliente_id',
         'bici_marca_modelo',
         'talla_rin',
+        'categoria_bici',
         'es_electrica',
         'motivo_ingreso',
         'trabajo_realizado',
