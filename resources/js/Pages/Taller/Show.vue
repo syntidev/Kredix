@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, Check, Plus, Trash2 } from '@lucide/vue';
+import { AlertTriangle, Check, Plus, Trash2, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import { formatFecha } from '../../lib/formatFecha';
@@ -27,7 +27,9 @@ const editando = ref(false);
 const editForm = useForm({
     motivo_ingreso: props.ticket.motivo_ingreso ?? '',
     bici_marca_modelo: props.ticket.bici_marca_modelo,
+    categoria_bici: props.ticket.categoria_bici,
     talla_rin: props.ticket.talla_rin,
+    es_electrica: props.ticket.es_electrica,
     tipo_servicio: props.ticket.tipo_servicio ?? 'basico',
     monto_servicio: props.ticket.monto_servicio,
     mecanico_id: props.ticket.mecanico_id,
@@ -228,9 +230,23 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                     <input v-model="editForm.bici_marca_modelo" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 </div>
                 <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Categoria</label>
+                    <select v-model="editForm.categoria_bici" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                        <option value="ruta">Ruta</option>
+                        <option value="mtb">MTB</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                    <p v-if="editForm.errors.categoria_bici" class="text-sm text-kredix-rojo">{{ editForm.errors.categoria_bici }}</p>
+                </div>
+                <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Talla de rin <span class="font-normal text-kredix-gris">(opcional)</span></label>
                     <input v-model="editForm.talla_rin" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 </div>
+                <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro">
+                    <input v-model="editForm.es_electrica" type="checkbox" class="h-4 w-4" />
+                    <Zap :size="16" class="text-amber-500" />
+                    ¿Es electrica / asistida (e-bike)?
+                </label>
                 <div v-if="esServicioCliente" class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Tipo de servicio</label>
                     <select v-model="editForm.tipo_servicio" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">

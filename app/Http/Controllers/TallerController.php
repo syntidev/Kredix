@@ -143,7 +143,9 @@ class TallerController extends Controller
         $validated = $request->validate([
             'motivo_ingreso' => [Rule::requiredIf($esServicioCliente), 'nullable', 'string', 'max:1000'],
             'bici_marca_modelo' => ['required', 'string', 'max:255'],
+            'categoria_bici' => ['required', 'in:ruta,mtb,otro'],
             'talla_rin' => ['nullable', 'string', 'max:255'],
+            'es_electrica' => ['nullable', 'boolean'],
             'tipo_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'in:basico,full,vip,otro'],
             'monto_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'numeric', 'min:0'],
             'mecanico_id' => ['required', 'exists:users,id'],
@@ -153,12 +155,15 @@ class TallerController extends Controller
             'diagnostico.*.nota' => ['nullable', 'string', 'max:1000'],
         ], [
             'motivo_ingreso.required' => 'motivo de ingreso requerido',
+            'categoria_bici.required' => 'categoria de bici requerida',
         ]);
 
         $ticket->update([
             'motivo_ingreso' => $esServicioCliente ? $validated['motivo_ingreso'] : null,
             'bici_marca_modelo' => $validated['bici_marca_modelo'],
+            'categoria_bici' => $validated['categoria_bici'],
             'talla_rin' => $validated['talla_rin'] ?? '',
+            'es_electrica' => $validated['es_electrica'] ?? false,
             'tipo_servicio' => $esServicioCliente ? $validated['tipo_servicio'] : null,
             'monto_servicio' => $esServicioCliente ? $validated['monto_servicio'] : null,
             'mecanico_id' => $validated['mecanico_id'],
