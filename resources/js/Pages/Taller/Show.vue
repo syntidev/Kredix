@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, Check, Plus, Trash2, Zap } from '@lucide/vue';
+import { AlertTriangle, Check, Pencil, Plus, Trash2, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import { formatFecha } from '../../lib/formatFecha';
@@ -187,7 +187,9 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
         <div class="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Datos del ticket</h2>
-                <button v-if="!editando" type="button" class="text-sm text-kredix-negro underline" @click="editando = true">Editar</button>
+                <button v-if="!editando" type="button" title="Editar" class="rounded-lg p-1.5 text-kredix-gris active:bg-gray-100" @click="editando = true">
+                    <Pencil :size="16" />
+                </button>
             </div>
 
             <template v-if="!editando">

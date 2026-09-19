@@ -82,11 +82,11 @@ function irAPagina(pagina) {
 
         <div v-if="filtros.usaDefault" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
             Mostrando solo <strong>Critico</strong> y <strong>Atencion</strong> de los ultimos 90 dias de actividad.
-            <button type="button" class="ml-1 font-medium underline" @click="verHistorico">Ver cartera historica completa</button>
+            <button type="button" class="ml-1 min-h-9 rounded-lg border border-amber-300 bg-white px-2 text-xs font-medium text-amber-800 active:bg-amber-100" @click="verHistorico">Ver cartera historica completa</button>
         </div>
         <div v-else class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 text-sm text-kredix-gris">
             <span>Mostrando cartera fuera del default de 90 dias / severidad.</span>
-            <button type="button" class="font-medium text-kredix-rojo underline" @click="verHistorico">Reiniciar a vista por defecto</button>
+            <button type="button" class="min-h-9 rounded-lg border border-gray-300 px-3 text-xs font-medium text-kredix-negro active:bg-gray-100" @click="verHistorico">Reiniciar a vista por defecto</button>
         </div>
 
         <div class="flex flex-wrap gap-2">

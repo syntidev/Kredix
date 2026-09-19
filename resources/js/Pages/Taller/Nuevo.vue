@@ -218,7 +218,7 @@ function submit() {
                 <label class="text-sm font-medium text-kredix-negro">Cliente</label>
                 <div v-if="clienteSeleccionado" class="flex items-center justify-between rounded-lg border border-gray-300 px-3 py-2">
                     <span class="text-sm text-kredix-negro">{{ clienteSeleccionado.nombre }}</span>
-                    <button type="button" class="text-xs text-kredix-negro underline" @click="quitarCliente">Cambiar</button>
+                    <button type="button" class="min-h-9 shrink-0 rounded-lg border border-gray-300 px-3 text-xs font-medium text-kredix-negro active:bg-gray-100" @click="quitarCliente">Cambiar</button>
                 </div>
                 <template v-else>
                     <input

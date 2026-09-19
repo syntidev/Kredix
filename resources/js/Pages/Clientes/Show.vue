@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ArrowDown, ArrowUp, Download, FileText, ImageOff, Link2, MessageCircle, NotebookPen, Pencil, Plus, Repeat, Search, Trash2, X } from '@lucide/vue';
+import { ArrowDown, ArrowUp, ChevronDown, Download, FileText, ImageOff, Link2, MessageCircle, NotebookPen, Pencil, Plus, Repeat, Search, Trash2, X } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
@@ -985,10 +985,12 @@ watch(algunModalAbierto, (abierto) => {
 
             <button
                 type="button"
-                class="mt-3 text-sm font-medium text-kredix-gris underline"
+                class="mt-3 flex min-h-9 w-fit items-center gap-1 rounded-lg border border-gray-300 px-3 text-xs font-medium text-kredix-gris active:bg-gray-100"
+                :aria-expanded="mostrarMensajePdf"
                 @click="mostrarMensajePdf = !mostrarMensajePdf"
             >
                 Personalizar mensaje del PDF
+                <ChevronDown :size="14" class="transition-transform" :class="mostrarMensajePdf ? 'rotate-180' : ''" />
             </button>
             <div v-if="mostrarMensajePdf" class="mt-1 flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Mensaje personalizado para el PDF <span class="font-normal text-kredix-gris">(opcional)</span></label>
@@ -1850,7 +1852,7 @@ watch(algunModalAbierto, (abierto) => {
                 <button
                     v-if="prospectoEncontrado"
                     type="button"
-                    class="text-left text-sm font-medium text-kredix-gris underline"
+                    class="min-h-11 self-start rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-gris active:bg-gray-100"
                     @click="descartarMatch"
                 >
                     No es el mismo cliente

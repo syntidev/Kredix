@@ -192,7 +192,7 @@ const accionesRapidas = [
         <div v-if="eventosUrgentes.length > 0" class="flex flex-col gap-3">
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-kredix-negro">Atencion hoy</h2>
-                <Link href="/cartelera" class="text-sm font-medium text-kredix-rojo underline">Ver todos</Link>
+                <Link href="/cartelera" class="flex min-h-9 items-center rounded-2xl border border-gray-300 px-3 text-xs font-medium text-kredix-negro active:bg-gray-100">Ver todos</Link>
             </div>
             <EventoCartelera v-for="evento in eventosUrgentes" :key="evento.cliente_id + evento.tipo" :evento="evento" />
         </div>
