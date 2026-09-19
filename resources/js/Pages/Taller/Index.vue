@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Wrench } from '@lucide/vue';
+import { Wrench, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import { formatFecha } from '../../lib/formatFecha';
 
@@ -77,7 +77,14 @@ const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 
                             {{ t.cliente ?? 'Armado interno' }}
                             <span v-if="t.tipo_servicio" class="ml-1 text-sm font-normal text-kredix-gris">{{ TIPO_SERVICIO_LABEL[t.tipo_servicio] ?? t.tipo_servicio }}</span>
                         </p>
-                        <p class="truncate text-sm text-kredix-gris">{{ t.bici_marca_modelo }} · {{ formatFecha(t.fecha) }}</p>
+                        <p class="flex items-center gap-1 truncate text-sm text-kredix-gris">
+                            {{ t.bici_marca_modelo }}
+                            <span v-if="t.es_electrica" class="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                                <Zap :size="10" />
+                                E-BIKE
+                            </span>
+                            · {{ formatFecha(t.fecha) }}
+                        </p>
                     </div>
                 </div>
                 <div class="shrink-0 text-right">

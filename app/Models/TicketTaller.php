@@ -22,6 +22,7 @@ class TicketTaller extends Model implements HasMedia
         'cliente_id',
         'bici_marca_modelo',
         'talla_rin',
+        'es_electrica',
         'tipo_servicio',
         'monto_servicio',
         'diagnostico',
@@ -33,6 +34,7 @@ class TicketTaller extends Model implements HasMedia
     protected $casts = [
         'monto_servicio' => 'decimal:2',
         'diagnostico' => 'array',
+        'es_electrica' => 'boolean',
     ];
 
     public function cliente(): BelongsTo

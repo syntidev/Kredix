@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
-import { AlertTriangle, Check } from '@lucide/vue';
+import { AlertTriangle, Check, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
@@ -27,6 +27,7 @@ const form = useForm({
     cliente_id: null,
     bici_marca_modelo: '',
     talla_rin: '',
+    es_electrica: false,
     tipo_servicio: 'basico',
     monto_servicio: MONTOS_SERVICIO.basico,
     mecanico_id: '',
@@ -275,6 +276,12 @@ function submit() {
                 />
                 <p v-if="form.errors.talla_rin" class="text-sm text-kredix-rojo">{{ form.errors.talla_rin }}</p>
             </div>
+
+            <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro">
+                <input v-model="form.es_electrica" type="checkbox" class="h-4 w-4" />
+                <Zap :size="16" class="text-amber-500" />
+                ¿Es electrica / asistida (e-bike)?
+            </label>
 
             <div v-if="esServicioCliente" class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Tipo de servicio</label>
