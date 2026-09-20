@@ -82,7 +82,7 @@ const submit = () => {
                 <Link
                     v-if="canResetPassword"
                     :href="route('password.request')"
-                    class="text-sm text-kredix-gris underline hover:text-kredix-negro"
+                    class="flex min-h-11 items-center rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"
                 >
                     ¿Olvidaste tu contrasena?
                 </Link>

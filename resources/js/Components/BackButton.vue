@@ -8,7 +8,7 @@ defineProps({
 </script>
 
 <template>
-    <Link :href="href" class="inline-flex min-h-11 w-fit items-center gap-1.5 self-start rounded-lg bg-gray-100 px-3 text-sm font-medium text-kredix-negro active:bg-gray-200">
+    <Link :href="href" class="inline-flex min-h-11 w-fit items-center justify-center gap-1.5 self-start rounded-lg bg-kredix-negro px-4 text-sm font-medium text-white shadow-card active:opacity-80">
         <span aria-hidden="true">←</span>
         {{ label }}
     </Link>

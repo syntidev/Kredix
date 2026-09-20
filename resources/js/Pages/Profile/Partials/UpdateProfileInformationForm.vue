@@ -69,18 +69,16 @@ const form = useForm({
                 <InputError :message="form.errors.email" />
             </div>
 
-            <div v-if="mustVerifyEmail && user.email_verified_at === null">
-                <p class="text-sm text-kredix-negro">
-                    Tu correo no esta verificado.
-                    <Link
-                        :href="route('verification.send')"
-                        method="post"
-                        as="button"
-                        class="text-sm text-kredix-gris underline hover:text-kredix-negro"
-                    >
-                        Reenviar correo de verificacion.
-                    </Link>
-                </p>
+            <div v-if="mustVerifyEmail && user.email_verified_at === null" class="flex flex-col gap-2">
+                <p class="text-sm text-kredix-negro">Tu correo no esta verificado.</p>
+                <Link
+                    :href="route('verification.send')"
+                    method="post"
+                    as="button"
+                    class="flex min-h-11 w-fit items-center rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"
+                >
+                    Reenviar correo de verificacion
+                </Link>
 
                 <div
                     v-show="status === 'verification-link-sent'"

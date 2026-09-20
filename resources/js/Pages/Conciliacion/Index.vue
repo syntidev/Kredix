@@ -206,7 +206,7 @@ const comprobanteLightboxUrl = ref(null);
                     <div class="flex justify-between"><span class="text-kredix-gris">Metodo</span><span class="text-kredix-negro">{{ etiquetaMetodo(m.metodo_pago) }}</span></div>
                     <div class="flex justify-between"><span class="text-kredix-gris">Referencia</span><span class="text-kredix-negro">{{ m.referencia ?? '-' }}</span></div>
                     <div v-if="m.registrado_por" class="flex justify-between"><span class="text-kredix-gris">Registrado por</span><span class="text-kredix-gris">{{ m.registrado_por }}</span></div>
-                    <button v-if="m.comprobante_url" type="button" class="mt-1 flex w-fit items-center gap-1.5 text-kredix-rojo underline" @click="comprobanteLightboxUrl = m.comprobante_url">
+                    <button v-if="m.comprobante_url" type="button" class="mt-1 flex w-fit items-center gap-1.5 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro" @click="comprobanteLightboxUrl = m.comprobante_url">
                         <img v-if="!imgErrores[`c${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`c${m.id}`)" />
                         <ImageOff v-else :size="16" class="text-kredix-gris" />
                         comprobante
@@ -255,7 +255,7 @@ const comprobanteLightboxUrl = ref(null);
                         </td>
                         <td class="tabular-nums px-3 py-3 text-right font-medium text-kredix-negro">{{ formatMoney(m.monto) }}</td>
                         <td class="px-3 py-3">
-                            <button v-if="m.comprobante_url" type="button" class="flex items-center gap-1.5 text-kredix-rojo underline" @click="comprobanteLightboxUrl = m.comprobante_url">
+                            <button v-if="m.comprobante_url" type="button" class="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro" @click="comprobanteLightboxUrl = m.comprobante_url">
                                 <img v-if="!imgErrores[`c${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`c${m.id}`)" />
                                 <ImageOff v-else :size="16" class="text-kredix-gris" />
                                 ver

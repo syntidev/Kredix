@@ -1111,7 +1111,7 @@ watch(algunModalAbierto, (abierto) => {
             <div v-for="(producto, i) in cargoForm.productos" :key="i" class="flex flex-col gap-2 rounded-lg bg-gray-50 p-3 md:col-span-2">
                 <div class="flex items-center justify-between">
                     <p class="text-xs font-medium uppercase text-kredix-gris">Producto {{ i + 1 }}</p>
-                    <button v-if="i > 0" type="button" class="text-xs font-medium text-kredix-rojo underline" @click="quitarProducto(i)">Quitar</button>
+                    <button v-if="i > 0" type="button" class="min-h-9 rounded-lg border border-kredix-rojo px-2 text-sm font-medium text-kredix-rojo active:bg-red-50" @click="quitarProducto(i)">Quitar</button>
                 </div>
                 <div class="relative flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Descripcion</label>
@@ -1490,7 +1490,7 @@ watch(algunModalAbierto, (abierto) => {
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Foto de comprobante <span class="font-normal text-kredix-gris">(opcional, reemplaza la actual)</span></label>
-                    <a v-if="editComprobanteUrlActual" :href="editComprobanteUrlActual" target="_blank" class="flex w-fit items-center gap-1.5 text-xs text-kredix-rojo underline">
+                    <a v-if="editComprobanteUrlActual" :href="editComprobanteUrlActual" target="_blank" class="flex w-fit items-center gap-1.5 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro">
                         <img v-if="!imgErrores[`ec${editingMovId}`]" :src="editComprobanteThumbUrlActual" alt="comprobante actual" class="h-10 w-10 rounded object-cover" @error="onImgError(`ec${editingMovId}`)" />
                         <ImageOff v-else :size="18" class="text-kredix-gris" />
                         Comprobante actual
@@ -1631,12 +1631,12 @@ watch(algunModalAbierto, (abierto) => {
                     <p v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</p>
                     <p v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="text-kredix-gris">{{ m.comentario }}</p>
                     <div v-if="m.comprobante_url || m.producto_url" class="flex gap-3">
-                        <button v-if="m.comprobante_url" type="button" class="flex items-center gap-1 text-sm text-kredix-rojo underline" @click.stop="comprobanteLightboxUrl = m.comprobante_url">
+                        <button v-if="m.comprobante_url" type="button" class="flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro" @click.stop="comprobanteLightboxUrl = m.comprobante_url">
                             <img v-if="!imgErrores[`mc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`mc${m.id}`)" />
                             <ImageOff v-else :size="18" class="text-kredix-gris" />
                             comprobante
                         </button>
-                        <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="flex items-center gap-1 text-sm text-kredix-rojo underline">
+                        <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro">
                             <img v-if="!imgErrores[`mp${m.id}`]" :src="m.producto_thumb_url" alt="foto producto" class="h-8 w-8 rounded object-cover" @error="onImgError(`mp${m.id}`)" />
                             <ImageOff v-else :size="18" class="text-kredix-gris" />
                             foto producto
@@ -1646,11 +1646,11 @@ watch(algunModalAbierto, (abierto) => {
                         <span class="w-fit rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700">editado</span>
                         <span class="text-kredix-gris">{{ m.motivo_edicion }}</span>
                     </div>
-                    <div class="mt-1 flex w-fit gap-3 self-start">
-                        <button type="button" class="text-sm font-medium text-kredix-negro underline" @click.stop="openEditMov(m)">
+                    <div class="mt-1 flex w-fit gap-2 self-start">
+                        <button type="button" class="min-h-9 rounded-lg border border-gray-300 px-2 text-sm font-medium text-kredix-negro active:bg-gray-100" @click.stop="openEditMov(m)">
                             Editar
                         </button>
-                        <button type="button" class="text-sm font-medium text-kredix-rojo underline" @click.stop="confirmarEliminarMov(m)">
+                        <button type="button" class="min-h-9 rounded-lg border border-kredix-rojo px-2 text-sm font-medium text-kredix-rojo active:bg-red-50" @click.stop="confirmarEliminarMov(m)">
                             Eliminar
                         </button>
                     </div>
@@ -1703,12 +1703,12 @@ watch(algunModalAbierto, (abierto) => {
                                 {{ m.descripcion }}
                                 <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="block text-xs text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
                                 <span v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="block text-xs text-kredix-gris">{{ m.comentario }}</span>
-                                <button v-if="m.comprobante_url" type="button" class="mt-1 flex items-center gap-1 text-sm text-kredix-rojo underline" @click.stop="comprobanteLightboxUrl = m.comprobante_url">
+                                <button v-if="m.comprobante_url" type="button" class="mt-1 flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1 text-sm text-kredix-negro" @click.stop="comprobanteLightboxUrl = m.comprobante_url">
                                     <img v-if="!imgErrores[`dc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`dc${m.id}`)" />
                                     <ImageOff v-else :size="16" class="text-kredix-gris" />
                                     comprobante
                                 </button>
-                                <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="mt-1 flex items-center gap-1 text-sm text-kredix-rojo underline">
+                                <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="mt-1 flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1 text-sm text-kredix-negro">
                                     <img v-if="!imgErrores[`dp${m.id}`]" :src="m.producto_thumb_url" alt="foto producto" class="h-8 w-8 rounded object-cover" @error="onImgError(`dp${m.id}`)" />
                                     <ImageOff v-else :size="16" class="text-kredix-gris" />
                                     foto producto
@@ -1749,8 +1749,8 @@ watch(algunModalAbierto, (abierto) => {
                         <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
                         <td class="px-1 py-2 text-right">
                             <div class="flex flex-col items-end gap-0.5">
-                                <button type="button" class="-mx-1 rounded px-1 py-1 text-sm font-medium text-kredix-gris underline not-italic active:bg-gray-100" @click="openEditMov(m)">Editar</button>
-                                <button type="button" class="-mx-1 rounded px-1 py-1 text-sm font-medium text-kredix-rojo underline not-italic active:bg-red-50" @click="confirmarEliminarMov(m)">Eliminar</button>
+                                <button type="button" class="min-h-9 rounded-lg border border-gray-300 px-2 text-sm font-medium text-kredix-negro not-italic active:bg-gray-100" @click="openEditMov(m)">Editar</button>
+                                <button type="button" class="min-h-9 rounded-lg border border-kredix-rojo px-2 text-sm font-medium text-kredix-rojo not-italic active:bg-red-50" @click="confirmarEliminarMov(m)">Eliminar</button>
                             </div>
                         </td>
                     </tr>
