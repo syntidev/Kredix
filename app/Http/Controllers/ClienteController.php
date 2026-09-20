@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\BuscaTokenizado;
 use App\Models\Cliente;
 use App\Models\Configuracion;
+use App\Models\Cuota;
 use App\Models\MovimientoCuenta;
 use App\Models\PlanCuota;
+use App\Models\PlanFinanciamiento;
 use App\Models\Prospecto200k;
 use App\Models\ProspectoDescarte;
 use App\Models\ReglaPlazo;
@@ -123,7 +125,7 @@ class ClienteController extends Controller
     public function show(Cliente $cliente, TasaBcvService $tasaBcvService)
     {
         $movimientosRaw = MovimientoCuenta::where('cliente_id', $cliente->id)
-            ->with(['registradoPor:id,name', 'planCuotas'])
+            ->with(['registradoPor:id,name', 'planCuotas', 'planFinanciamiento'])
             ->orderByRaw('fecha IS NULL, fecha')
             ->orderBy('id')
             ->get();
@@ -194,6 +196,7 @@ class ClienteController extends Controller
             'totalOtorgado' => (float) MovimientoCuenta::where('cliente_id', $cliente->id)->where('tipo', 'cargo')->sum('monto'),
             'reglas' => ReglaPlazo::orderBy('monto_min')->get(),
             'compromisosCuotas' => $this->compromisosCuotas($movimientosRaw),
+            'planesFinanciamiento' => $this->planesFinanciamiento($cliente),
             'mensajeWhatsapp' => $mensajeWhatsapp,
             'tasaBcvCargo' => $ultimaTasaBcv ? [
                 'rate' => $ultimaTasaBcv['rate'],
@@ -295,8 +298,11 @@ class ClienteController extends Controller
         return $movimientosRaw
             ->where('tipo', 'cargo')
             // sin fecha propia el cargo no puede participar del FIFO por fecha --
-            // se excluye del reparto visual de cuotas, no rompe ni se adivina
-            ->filter(fn (MovimientoCuenta $m) => $m->fecha !== null && $m->planCuotas->isNotEmpty())
+            // se excluye del reparto visual de cuotas, no rompe ni se adivina.
+            // Un cargo con plan de financiamiento REAL (planes_financiamiento) ya
+            // tiene su propia seccion con datos reales -- se excluye de esta
+            // reconstruccion visual para no duplicar/confundir
+            ->filter(fn (MovimientoCuenta $m) => $m->fecha !== null && $m->planCuotas->isNotEmpty() && $m->planFinanciamiento === null)
             ->map(function (MovimientoCuenta $cargo) use ($movimientosRaw) {
                 $totalAbonadoDesde = $movimientosRaw
                     ->where('tipo', 'abono')
@@ -338,6 +344,37 @@ class ClienteController extends Controller
                     'cuotas' => $cuotas,
                 ];
             })
+            ->values();
+    }
+
+    // Cuotas REALES: monto_abonado es un valor persistido (Cuota::recalcular,
+    // nunca calculado al vuelo aqui) -- a diferencia de compromisosCuotas() esto
+    // es un registro contable de verdad, un abono especifico queda ligado a una
+    // cuota especifica via movimientos_cuenta.cuota_id
+    private function planesFinanciamiento(Cliente $cliente)
+    {
+        return PlanFinanciamiento::whereHas('cargo', fn ($q) => $q->where('cliente_id', $cliente->id))
+            ->with(['cargo', 'cuotas'])
+            ->get()
+            ->map(fn (PlanFinanciamiento $plan) => [
+                'id' => $plan->id,
+                'cargo_id' => $plan->movimiento_cuenta_id,
+                'descripcion' => $plan->cargo->descripcion,
+                'monto_total' => (float) $plan->cargo->monto,
+                'fecha' => $plan->cargo->fecha?->toDateString(),
+                'monto_inicial' => (float) $plan->monto_inicial,
+                'porcentaje_mora' => (float) $plan->porcentaje_mora,
+                'aplicado_mora' => $plan->aplicado_mora,
+                'tiene_cuota_vencida' => $plan->cuotas->contains(fn (Cuota $c) => $c->estado() === 'vencida'),
+                'cuotas' => $plan->cuotas->map(fn (Cuota $c) => [
+                    'id' => $c->id,
+                    'numero' => $c->numero,
+                    'monto_pactado' => (float) $c->monto_pactado,
+                    'fecha_vencimiento' => $c->fecha_vencimiento->toDateString(),
+                    'monto_abonado' => (float) $c->monto_abonado,
+                    'estado' => $c->estado(),
+                ])->values(),
+            ])
             ->values();
     }
 

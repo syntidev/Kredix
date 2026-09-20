@@ -7,6 +7,7 @@ use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MovimientoCuentaController;
+use App\Http\Controllers\PlanFinanciamientoController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProspectoController;
@@ -73,6 +74,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'update'])->name('movimientos.update');
     Route::patch('/movimientos/{movimiento}/validacion', [MovimientoCuentaController::class, 'validar'])->name('movimientos.validar');
     Route::delete('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'destroy'])->name('movimientos.destroy');
+    Route::post('/planes-financiamiento/{plan}/aplicar-mora', [PlanFinanciamientoController::class, 'aplicarMora'])->name('planes-financiamiento.aplicar-mora');
 
     Route::middleware('es_admin')->group(function () {
         Route::get('/kpi', [KpiController::class, 'index'])->name('kpi');

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -26,6 +27,7 @@ class MovimientoCuenta extends Model implements HasMedia
         'descripcion',
         'cantidad',
         'plazo_meses',
+        'cuota_id',
         'frecuencia_pago',
         'precio_unitario',
         'modalidad_precio',
@@ -71,6 +73,18 @@ class MovimientoCuenta extends Model implements HasMedia
     public function planCuotas(): HasMany
     {
         return $this->hasMany(PlanCuota::class)->orderBy('numero_cuota');
+    }
+
+    public function cuota(): BelongsTo
+    {
+        return $this->belongsTo(Cuota::class);
+    }
+
+    // solo tiene sentido en filas tipo=cargo -- el plan de financiamiento
+    // cuelga de la compra que lo origino
+    public function planFinanciamiento(): HasOne
+    {
+        return $this->hasOne(PlanFinanciamiento::class, 'movimiento_cuenta_id');
     }
 
     // Requiere `php artisan storage:link` corrido una vez en el servidor (crea

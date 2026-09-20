@@ -29,6 +29,7 @@ const props = defineProps({
     diasSinAbonar: { type: Number, default: null },
     reglas: { type: Array, required: true },
     compromisosCuotas: { type: Array, default: () => [] },
+    planesFinanciamiento: { type: Array, default: () => [] },
     mensajeWhatsapp: { type: String, default: '' },
     tasaBcvCargo: { type: Object, default: null },
     usuarios: { type: Array, default: () => [] },
@@ -358,9 +359,11 @@ const cargoForm = useForm({
     moneda: 'usd',
     tasa_cambio: '',
     foto_producto: null,
-    usa_plan_cuotas: false,
-    numero_cuotas: 3,
-    cuotas: [],
+    es_financiada: false,
+    monto_inicial: '',
+    metodo_pago_inicial: 'efectivo',
+    numero_cuotas_financiamiento: 3,
+    porcentaje_mora: 10,
 });
 
 function agregarProducto() {
@@ -441,59 +444,13 @@ async function onFotoProductoChange(event) {
     cargoForm.foto_producto = archivo;
 }
 
-const DIAS_POR_FRECUENCIA = { semanal: 7, quincenal: 15, mensual: 30 };
-
-function fechaCuota(numero) {
-    const base = new Date(`${cargoForm.fecha}T00:00:00`);
-    const dias = DIAS_POR_FRECUENCIA[cargoForm.frecuencia_pago] ?? 30;
-    base.setDate(base.getDate() + dias * numero);
-    return base.toISOString().slice(0, 10);
-}
-
-function generarCuotas() {
-    const n = Math.max(1, parseInt(cargoForm.numero_cuotas) || 1);
-    const total = montoCargo.value;
-    const base = Math.floor((total / n) * 100) / 100;
-    const filas = [];
-    let acumulado = 0;
-
-    for (let i = 1; i <= n; i++) {
-        const esUltima = i === n;
-        const monto = esUltima ? Math.round((total - acumulado) * 100) / 100 : base;
-        acumulado += monto;
-        filas.push({ numero_cuota: i, monto_sugerido: monto, fecha_esperada: fechaCuota(i), editado: false });
-    }
-
-    cargoForm.cuotas = filas;
-}
-
-function redistribuirCuotas(indexEditado) {
-    cargoForm.cuotas[indexEditado].editado = true;
-
-    const total = montoCargo.value;
-    const editadas = cargoForm.cuotas.filter((c) => c.editado);
-    const noEditadas = cargoForm.cuotas.filter((c) => !c.editado);
-    const sumaEditadas = editadas.reduce((s, c) => s + (parseFloat(c.monto_sugerido) || 0), 0);
-    const restante = total - sumaEditadas;
-
-    if (noEditadas.length === 0) return;
-
-    const base = Math.floor((restante / noEditadas.length) * 100) / 100;
-    let acumulado = 0;
-
-    noEditadas.forEach((c, i) => {
-        const esUltima = i === noEditadas.length - 1;
-        c.monto_sugerido = esUltima ? Math.round((restante - acumulado) * 100) / 100 : base;
-        acumulado += c.monto_sugerido;
-    });
-}
-
-watch(
-    [() => cargoForm.usa_plan_cuotas, () => cargoForm.numero_cuotas, () => cargoForm.fecha, () => cargoForm.frecuencia_pago, montoCargo],
-    () => {
-        if (cargoForm.usa_plan_cuotas) generarCuotas();
-    }
-);
+// preview en vivo, puramente informativo -- el backend recalcula esto de forma
+// autoritativa al guardar, el monto por cuota mostrado aqui nunca se envia
+const montoAFinanciar = computed(() => Math.max(0, montoCargo.value - (parseFloat(cargoForm.monto_inicial) || 0)));
+const montoPorCuotaAprox = computed(() => {
+    const n = Math.max(1, parseInt(cargoForm.numero_cuotas_financiamiento) || 1);
+    return montoAFinanciar.value / n;
+});
 
 function submitCargo() {
     cargoForm.post('/movimientos', {
@@ -507,9 +464,11 @@ function submitCargo() {
             cargoForm.moneda = 'usd';
             cargoForm.frecuencia_pago = 'mensual';
             cargoForm.modalidad_precio = 'divisa';
-            cargoForm.usa_plan_cuotas = false;
-            cargoForm.numero_cuotas = 3;
-            cargoForm.cuotas = [];
+            cargoForm.es_financiada = false;
+            cargoForm.monto_inicial = '';
+            cargoForm.metodo_pago_inicial = 'efectivo';
+            cargoForm.numero_cuotas_financiamiento = 3;
+            cargoForm.porcentaje_mora = 10;
             plazoSugerido.value = null;
             formMode.value = null;
         },
@@ -533,7 +492,14 @@ const abonoForm = useForm({
     referencia: '',
     comentario: '',
     comprobante: null,
+    plan_financiamiento_id: '',
 });
+
+// solo planes con al menos una cuota no cubierta pueden recibir un abono
+// nuevo -- un plan totalmente pagado no tiene sentido ofrecerlo aqui
+const planesConCuotasPendientes = computed(() =>
+    props.planesFinanciamiento.filter((p) => p.cuotas.some((c) => c.estado !== 'cubierta'))
+);
 
 const comprobanteHeicError = ref('');
 
@@ -551,6 +517,9 @@ async function onFileChange(event) {
 function submitAbono() {
     abonoForm.tipo = esAjuste.value ? 'ajuste_devolucion' : 'abono';
     abonoForm.descripcion = esAjuste.value ? 'Ajuste / devolucion' : 'Abono';
+    // un ajuste/devolucion nunca puede ir ligado a un plan -- el backend lo
+    // rechaza (prohibited) si tipo no es abono
+    abonoForm.plan_financiamiento_id = (!esAjuste.value && abonoForm.plan_financiamiento_id) || null;
 
     abonoForm.post('/movimientos', {
         forceFormData: true,
@@ -561,6 +530,7 @@ function submitAbono() {
             abonoForm.moneda = 'usd';
             abonoForm.metodo_pago = 'efectivo';
             abonoForm.referencia = '';
+            abonoForm.plan_financiamiento_id = '';
             esAjuste.value = false;
             formMode.value = null;
         },
@@ -579,6 +549,16 @@ const gestionForm = useForm({
 });
 
 const tipoContactoLabel = { llamada: 'Llamada', whatsapp: 'WhatsApp', visita: 'Visita', otro: 'Otro' };
+
+const aplicandoMoraId = ref(null);
+
+function aplicarMora(plan) {
+    aplicandoMoraId.value = plan.id;
+    router.post(`/planes-financiamiento/${plan.id}/aplicar-mora`, {}, {
+        preserveScroll: true,
+        onFinish: () => { aplicandoMoraId.value = null; },
+    });
+}
 
 function submitGestion() {
     gestionForm.descripcion = tipoContactoLabel[gestionForm.tipo_contacto];
@@ -1032,6 +1012,45 @@ watch(algunModalAbierto, (abierto) => {
             </a>
         </div>
 
+        <div v-if="planesFinanciamiento.length > 0" class="flex flex-col gap-3">
+            <h2 class="text-lg font-semibold text-kredix-negro">Plan de financiamiento</h2>
+            <div v-for="plan in planesFinanciamiento" :key="plan.id" class="flex flex-col gap-2 rounded-xl border border-[#e3e8ee] bg-white p-3 shadow-[0_1px_3px_rgba(0,55,112,0.08)]">
+                <p class="text-sm font-medium text-kredix-negro">
+                    {{ plan.descripcion }} — <span class="tabular-nums">{{ formatMoney(plan.monto_total) }}</span> ({{ formatFecha(plan.fecha) }})
+                </p>
+                <p class="text-xs text-kredix-gris">Inicial <span class="tabular-nums">{{ formatMoney(plan.monto_inicial) }}</span> · mora {{ plan.porcentaje_mora }}%</p>
+
+                <div class="flex flex-col gap-1.5">
+                    <div v-for="cuota in plan.cuotas" :key="cuota.id" class="flex items-center justify-between gap-2 text-sm">
+                        <span class="text-kredix-negro">Cuota {{ cuota.numero }} — <span class="tabular-nums">{{ formatMoney(cuota.monto_pactado) }}</span> — {{ formatFecha(cuota.fecha_vencimiento) }}</span>
+                        <span
+                            class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+                            :class="{
+                                'bg-green-100 text-green-700': cuota.estado === 'cubierta',
+                                'bg-amber-100 text-amber-700': cuota.estado === 'parcial',
+                                'bg-kredix-rojo/10 text-kredix-rojo': cuota.estado === 'vencida',
+                                'bg-gray-100 text-kredix-gris': cuota.estado === 'pendiente',
+                            }"
+                        >
+                            {{ cuota.estado }}<template v-if="cuota.estado === 'parcial' || cuota.estado === 'vencida'"> (<span class="tabular-nums">{{ formatMoney(cuota.monto_abonado) }}</span> de <span class="tabular-nums">{{ formatMoney(cuota.monto_pactado) }}</span>)</template>
+                        </span>
+                    </div>
+                </div>
+
+                <div v-if="plan.tiene_cuota_vencida && !plan.aplicado_mora" class="flex flex-col gap-2 rounded-lg bg-kredix-rojo/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm font-medium text-kredix-rojo">Cuota vencida — aplicar mora del {{ plan.porcentaje_mora }}%</p>
+                    <button
+                        type="button"
+                        class="min-h-11 shrink-0 rounded-lg bg-kredix-rojo px-4 text-sm font-semibold text-white disabled:opacity-60"
+                        :disabled="aplicandoMoraId === plan.id"
+                        @click="aplicarMora(plan)"
+                    >
+                        Aplicar mora
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div v-if="compromisosCuotas.length > 0" class="flex flex-col gap-3">
             <div>
                 <h2 class="text-lg font-semibold text-kredix-negro">Compromisos de cuotas</h2>
@@ -1208,39 +1227,45 @@ watch(algunModalAbierto, (abierto) => {
             </div>
 
             <label v-if="cargoForm.productos.length === 1" class="flex items-center gap-2 text-sm font-medium text-kredix-negro md:col-span-2">
-                <input v-model="cargoForm.usa_plan_cuotas" type="checkbox" class="h-4 w-4" />
-                Venta especial / plan de cuotas
+                <input v-model="cargoForm.es_financiada" type="checkbox" class="h-4 w-4" />
+                ¿Es una venta financiada?
             </label>
 
-            <template v-if="cargoForm.productos.length === 1 && cargoForm.usa_plan_cuotas">
+            <template v-if="cargoForm.productos.length === 1 && cargoForm.es_financiada">
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Monto inicial</label>
+                    <input v-model="cargoForm.monto_inicial" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="cargoForm.errors.monto_inicial" class="text-sm text-kredix-rojo">{{ cargoForm.errors.monto_inicial }}</p>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Metodo de pago (inicial)</label>
+                    <select v-model="cargoForm.metodo_pago_inicial" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                        <option value="efectivo">Efectivo</option>
+                        <option value="zelle">Zelle</option>
+                        <option value="binance">Binance</option>
+                        <option value="transferencia">Transferencia</option>
+                        <option value="pago_movil">Pago movil</option>
+                        <option value="bancamiga_divisa">Bancamiga divisa</option>
+                        <option value="punto_venta">Punto de venta</option>
+                    </select>
+                    <p v-if="cargoForm.errors.metodo_pago_inicial" class="text-sm text-kredix-rojo">{{ cargoForm.errors.metodo_pago_inicial }}</p>
+                </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Numero de cuotas</label>
-                    <input v-model="cargoForm.numero_cuotas" type="number" min="1" max="24" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <input v-model="cargoForm.numero_cuotas_financiamiento" type="number" min="1" max="36" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="cargoForm.errors.numero_cuotas_financiamiento" class="text-sm text-kredix-rojo">{{ cargoForm.errors.numero_cuotas_financiamiento }}</p>
                 </div>
-
-                <div class="flex flex-col gap-2 rounded-lg bg-gray-50 p-3 md:col-span-2">
-                    <p class="text-xs text-kredix-gris">
-                        Plan sugerido, editable — puramente informativo, no crea un vinculo real entre abonos y cuotas.
-                    </p>
-                    <div v-for="(cuota, i) in cargoForm.cuotas" :key="cuota.numero_cuota" class="grid grid-cols-2 gap-2">
-                        <div class="flex flex-col gap-1">
-                            <label class="text-xs text-kredix-gris">Cuota {{ cuota.numero_cuota }} - monto</label>
-                            <input
-                                v-model="cuota.monto_sugerido"
-                                type="number"
-                                step="0.01"
-                                min="0.01"
-                                class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
-                                @input="redistribuirCuotas(i)"
-                            />
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <label class="text-xs text-kredix-gris">Fecha esperada</label>
-                            <input v-model="cuota.fecha_esperada" type="date" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
-                        </div>
-                    </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Porcentaje de mora</label>
+                    <input v-model="cargoForm.porcentaje_mora" type="number" step="0.01" min="0" max="100" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <p v-if="cargoForm.errors.porcentaje_mora" class="text-sm text-kredix-rojo">{{ cargoForm.errors.porcentaje_mora }}</p>
                 </div>
-                <p v-if="cargoForm.errors.cuotas" class="text-sm text-kredix-rojo md:col-span-2">{{ cargoForm.errors.cuotas }}</p>
+                <div class="rounded-lg bg-gray-50 p-3 text-sm text-kredix-negro md:col-span-2">
+                    Financiar <span class="font-medium tabular-nums">{{ formatMoney(montoAFinanciar) }}</span>
+                    en {{ cargoForm.numero_cuotas_financiamiento || 1 }} cuotas de
+                    <span class="font-medium tabular-nums">{{ formatMoney(montoPorCuotaAprox) }}</span> aprox.
+                    <span class="text-xs text-kredix-gris">(el servidor calcula el monto exacto de cada cuota al guardar)</span>
+                </div>
             </template>
 
             <div class="mt-1 flex gap-2 md:col-span-2">
@@ -1263,6 +1288,15 @@ watch(algunModalAbierto, (abierto) => {
                 <input v-model="esAjuste" type="checkbox" class="h-4 w-4" />
                 Es ajuste / devolucion (no cuenta como dinero cobrado)
             </label>
+
+            <div v-if="!esAjuste && planesConCuotasPendientes.length > 0" class="flex flex-col gap-1 md:col-span-2">
+                <label class="text-sm font-medium text-kredix-negro">Aplicar a plan de financiamiento <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                <select v-model="abonoForm.plan_financiamiento_id" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                    <option value="">No aplicar a ningun plan</option>
+                    <option v-for="p in planesConCuotasPendientes" :key="p.id" :value="p.id">{{ p.descripcion }} — {{ formatMoney(p.monto_total) }}</option>
+                </select>
+                <p class="text-xs text-kredix-gris">El monto se reparte automaticamente entre las cuotas pendientes (llenar y desbordar).</p>
+            </div>
 
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Fecha</label>
