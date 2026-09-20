@@ -158,7 +158,7 @@ function cancelForm() {
                 v-for="f in filtros"
                 :key="f.valor"
                 type="button"
-                class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium"
+                class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium"
                 :class="filtro === f.valor ? 'border-kredix-negro bg-kredix-negro text-white' : 'border-gray-300 text-kredix-gris'"
                 @click="elegirFiltro(f.valor)"
             >
@@ -166,7 +166,7 @@ function cancelForm() {
             </button>
             <button
                 type="button"
-                class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium"
+                class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium"
                 :class="atendidoPor === 'sin_asignar' ? 'border-kredix-rojo bg-kredix-rojo text-white' : 'border-gray-300 text-kredix-gris'"
                 @click="elegirSinAsignarConSaldo"
             >
@@ -288,7 +288,7 @@ function cancelForm() {
                     </button>
                     <button
                         type="submit"
-                        class="min-h-11 flex-1 rounded-2xl bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60"
+                        class="min-h-11 flex-1 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60"
                         :disabled="form.processing"
                     >
                         Guardar

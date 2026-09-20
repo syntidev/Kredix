@@ -904,13 +904,13 @@ watch(algunModalAbierto, (abierto) => {
                         <option value="">Sin asignar</option>
                         <option v-for="u in usuarios" :key="u.id" :value="u.id">{{ u.name }}</option>
                     </select>
-                    <button type="button" title="Buscar en Eventos" class="rounded-lg p-1.5 text-kredix-gris active:bg-gray-100 disabled:opacity-50" :disabled="buscandoEnEventos" @click="buscarEnEventos">
+                    <button type="button" title="Buscar en Eventos" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100 disabled:opacity-50" :disabled="buscandoEnEventos" @click="buscarEnEventos">
                         <Link2 :size="16" />
                     </button>
-                    <button type="button" title="Editar cliente" class="rounded-lg p-1.5 text-kredix-gris active:bg-gray-100" @click="abrirEditarCliente">
+                    <button type="button" title="Editar cliente" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="abrirEditarCliente">
                         <Pencil :size="16" />
                     </button>
-                    <button type="button" title="Eliminar cliente" class="rounded-lg p-1.5 text-kredix-rojo active:bg-gray-100" @click="confirmarEliminarCliente">
+                    <button type="button" title="Eliminar cliente" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-rojo active:bg-gray-100" @click="confirmarEliminarCliente">
                         <Trash2 :size="16" />
                     </button>
                 </div>
@@ -1098,7 +1098,7 @@ watch(algunModalAbierto, (abierto) => {
         <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" @submit.prevent="submitCargo">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nueva compra</h2>
-                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
+                <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
                     <X :size="18" />
                 </button>
             </div>
@@ -1254,7 +1254,7 @@ watch(algunModalAbierto, (abierto) => {
         <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nuevo abono</h2>
-                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
+                <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
                     <X :size="18" />
                 </button>
             </div>
@@ -1320,7 +1320,7 @@ watch(algunModalAbierto, (abierto) => {
         <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitGestion">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Anotar gestión</h2>
-                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
+                <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
                     <X :size="18" />
                 </button>
             </div>
@@ -1364,7 +1364,7 @@ watch(algunModalAbierto, (abierto) => {
         <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitEditMov">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'compra' : (editTipo === 'gestion' ? 'gestión' : 'abono/ajuste') }}</h2>
-                <button type="button" aria-label="Cerrar" class="text-kredix-gris" @click="intentarCerrar">
+                <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
                     <X :size="18" />
                 </button>
             </div>
@@ -1703,12 +1703,12 @@ watch(algunModalAbierto, (abierto) => {
                                 {{ m.descripcion }}
                                 <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="block text-xs text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
                                 <span v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="block text-xs text-kredix-gris">{{ m.comentario }}</span>
-                                <button v-if="m.comprobante_url" type="button" class="mt-1 flex items-center gap-1 text-xs text-kredix-rojo underline" @click.stop="comprobanteLightboxUrl = m.comprobante_url">
+                                <button v-if="m.comprobante_url" type="button" class="mt-1 flex items-center gap-1 text-sm text-kredix-rojo underline" @click.stop="comprobanteLightboxUrl = m.comprobante_url">
                                     <img v-if="!imgErrores[`dc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`dc${m.id}`)" />
                                     <ImageOff v-else :size="16" class="text-kredix-gris" />
                                     comprobante
                                 </button>
-                                <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="mt-1 flex items-center gap-1 text-xs text-kredix-rojo underline">
+                                <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="mt-1 flex items-center gap-1 text-sm text-kredix-rojo underline">
                                     <img v-if="!imgErrores[`dp${m.id}`]" :src="m.producto_thumb_url" alt="foto producto" class="h-8 w-8 rounded object-cover" @error="onImgError(`dp${m.id}`)" />
                                     <ImageOff v-else :size="16" class="text-kredix-gris" />
                                     foto producto
@@ -1749,8 +1749,8 @@ watch(algunModalAbierto, (abierto) => {
                         <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
                         <td class="px-1 py-2 text-right">
                             <div class="flex flex-col items-end gap-0.5">
-                                <button type="button" class="text-xs font-medium text-kredix-gris underline not-italic" @click="openEditMov(m)">Editar</button>
-                                <button type="button" class="text-xs font-medium text-kredix-rojo underline not-italic" @click="confirmarEliminarMov(m)">Eliminar</button>
+                                <button type="button" class="-mx-1 rounded px-1 py-1 text-sm font-medium text-kredix-gris underline not-italic active:bg-gray-100" @click="openEditMov(m)">Editar</button>
+                                <button type="button" class="-mx-1 rounded px-1 py-1 text-sm font-medium text-kredix-rojo underline not-italic active:bg-red-50" @click="confirmarEliminarMov(m)">Eliminar</button>
                             </div>
                         </td>
                     </tr>
@@ -1811,7 +1811,7 @@ watch(algunModalAbierto, (abierto) => {
 
                 <div class="mt-1 flex gap-2">
                     <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelarEditarCliente">Cancelar</button>
-                    <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="editClienteForm.processing">Guardar cambios</button>
+                    <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="editClienteForm.processing">Guardar cambios</button>
                 </div>
             </form>
         </div>

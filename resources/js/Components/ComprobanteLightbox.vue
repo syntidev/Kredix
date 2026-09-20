@@ -30,7 +30,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
 <template>
     <div v-if="url" class="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4" @click.self="emit('close')">
-        <button type="button" aria-label="Cerrar" class="absolute right-4 top-4 rounded-full bg-white/90 p-2 text-kredix-negro" @click="emit('close')">
+        <button type="button" aria-label="Cerrar" class="absolute right-4 top-4 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/90 text-kredix-negro" @click="emit('close')">
             <X :size="20" />
         </button>
         <img :src="url" alt="comprobante ampliado" class="max-h-full max-w-full rounded-lg object-contain" />

@@ -76,7 +76,7 @@ function irAPagina(pagina) {
                 v-for="f in filtrosDias"
                 :key="f.valor"
                 type="button"
-                class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium"
+                class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium"
                 :class="filtroDias === f.valor ? 'border-kredix-negro bg-kredix-negro text-white' : 'border-gray-300 text-kredix-gris'"
                 @click="elegirFiltroDias(f.valor)"
             >

@@ -187,7 +187,7 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
         <div class="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Datos del ticket</h2>
-                <button v-if="!editando" type="button" title="Editar" class="rounded-lg p-1.5 text-kredix-gris active:bg-gray-100" @click="editando = true">
+                <button v-if="!editando" type="button" title="Editar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="editando = true">
                     <Pencil :size="16" />
                 </button>
             </div>

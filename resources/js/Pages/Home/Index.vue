@@ -172,7 +172,7 @@ const accionesRapidas = [
         <div v-if="carteraConMora.length > 0" class="flex flex-col gap-2">
             <div class="flex items-center justify-between px-1">
                 <p class="text-xs text-kredix-gris">Cartera con mora</p>
-                <Link href="/cartera" class="text-xs font-medium text-kredix-rojo">Ver todo</Link>
+                <Link href="/cartera" class="flex min-h-9 items-center rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100">Ver todo</Link>
             </div>
             <Link
                 v-for="c in carteraConMora"
@@ -192,7 +192,7 @@ const accionesRapidas = [
         <div v-if="eventosUrgentes.length > 0" class="flex flex-col gap-3">
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-kredix-negro">Atencion hoy</h2>
-                <Link href="/cartelera" class="flex min-h-9 items-center rounded-2xl border border-gray-300 px-3 text-xs font-medium text-kredix-negro active:bg-gray-100">Ver todos</Link>
+                <Link href="/cartelera" class="flex min-h-9 items-center rounded-2xl border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100">Ver todos</Link>
             </div>
             <EventoCartelera v-for="evento in eventosUrgentes" :key="evento.cliente_id + evento.tipo" :evento="evento" />
         </div>

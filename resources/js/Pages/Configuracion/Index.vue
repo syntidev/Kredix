@@ -79,12 +79,12 @@ function onLogoChange(event) {
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <h1 class="text-xl font-semibold text-kredix-negro">Configuracion</h1>
 
-        <div class="flex rounded-lg border border-gray-300 text-xs font-medium">
+        <div class="flex rounded-lg border border-gray-300 text-sm font-medium">
             <button
                 v-for="(tab, i) in TABS"
                 :key="tab.id"
                 type="button"
-                class="flex-1 px-3 py-1.5"
+                class="min-h-11 flex-1 px-3 py-2.5"
                 :class="[
                     tabActivo === tab.id ? 'bg-kredix-negro text-white' : 'text-kredix-gris',
                     i === 0 ? 'rounded-l-lg' : '',
@@ -112,7 +112,7 @@ function onLogoChange(event) {
                 <p v-if="whatsappForm.errors.whatsapp_intro" class="text-sm text-kredix-rojo">{{ whatsappForm.errors.whatsapp_intro }}</p>
             </div>
 
-            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="whatsappForm.processing">
+            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="whatsappForm.processing">
                 Guardar
             </button>
         </form>
@@ -134,14 +134,14 @@ function onLogoChange(event) {
                 <button
                     v-if="estadoCuentaForm.pdf_mensaje_global"
                     type="button"
-                    class="self-start text-xs text-kredix-gris underline"
+                    class="min-h-9 self-start rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"
                     @click="borrarMensajeGlobal"
                 >
                     Borrar
                 </button>
             </div>
 
-            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="estadoCuentaForm.processing">
+            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="estadoCuentaForm.processing">
                 Guardar
             </button>
         </form>
@@ -184,7 +184,7 @@ function onLogoChange(event) {
                 <p v-if="empresaForm.errors.logo" class="text-sm text-kredix-rojo">{{ empresaForm.errors.logo }}</p>
             </div>
 
-            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="empresaForm.processing">
+            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="empresaForm.processing">
                 Guardar
             </button>
         </form>

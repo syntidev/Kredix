@@ -218,7 +218,7 @@ function submit() {
                 <label class="text-sm font-medium text-kredix-negro">Cliente</label>
                 <div v-if="clienteSeleccionado" class="flex items-center justify-between rounded-lg border border-gray-300 px-3 py-2">
                     <span class="text-sm text-kredix-negro">{{ clienteSeleccionado.nombre }}</span>
-                    <button type="button" class="min-h-9 shrink-0 rounded-lg border border-gray-300 px-3 text-xs font-medium text-kredix-negro active:bg-gray-100" @click="quitarCliente">Cambiar</button>
+                    <button type="button" class="min-h-9 shrink-0 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="quitarCliente">Cambiar</button>
                 </div>
                 <template v-else>
                     <input
@@ -402,7 +402,7 @@ function submit() {
                 <Link href="/taller" class="flex min-h-11 flex-1 items-center justify-center rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100">
                     Cancelar
                 </Link>
-                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60" :disabled="form.processing">
+                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="form.processing">
                     Guardar ticket
                 </button>
             </div>
