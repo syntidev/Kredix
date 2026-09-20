@@ -87,7 +87,7 @@ const saludChartSeries = computed(() => [props.saludCartera.al_dia, props.saludC
 const saludChartOptions = computed(() => ({
     chart: { type: 'donut', fontFamily: 'inherit' },
     labels: ['Al dia', 'Atrasados', 'Cartera fria'],
-    colors: ['#16A34A', '#EA580C', '#FA0A0A'],
+    colors: ['#16A34A', '#EA580C', '#EA0A0A'],
     legend: { position: 'bottom' },
     dataLabels: { formatter: (val) => `${Math.round(val)}%` },
     plotOptions: {

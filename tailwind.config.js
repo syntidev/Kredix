@@ -17,7 +17,7 @@ export default {
             },
             colors: {
                 'kredix-negro': '#101010',
-                'kredix-rojo': '#FA0A0A',
+                'kredix-rojo': '#EA0A0A',
                 'kredix-gris': '#8c8c8c',
                 marino: '#0B1F3A',
                 crema: '#EDEFF5',
