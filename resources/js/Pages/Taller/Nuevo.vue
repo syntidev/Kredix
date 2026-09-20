@@ -192,11 +192,11 @@ function submit() {
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Tipo de ticket</label>
                 <div class="flex gap-2">
-                    <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="esServicioCliente ? 'border-kredix-negro text-kredix-negro' : 'border-gray-300 text-kredix-gris'">
+                    <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="esServicioCliente ? 'border-kredix-negro text-kredix-negro' : 'border-gray-300 text-kredix-negro'">
                         <input v-model="form.tipo" type="radio" value="servicio_cliente" class="h-4 w-4" />
                         Servicio a cliente
                     </label>
-                    <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="!esServicioCliente ? 'border-kredix-negro text-kredix-negro' : 'border-gray-300 text-kredix-gris'">
+                    <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="!esServicioCliente ? 'border-kredix-negro text-kredix-negro' : 'border-gray-300 text-kredix-negro'">
                         <input v-model="form.tipo" type="radio" value="armado_interno" class="h-4 w-4" />
                         Armado interno
                     </label>
@@ -261,7 +261,7 @@ function submit() {
                         <PhoneInput v-model="nuevoClienteTelefono" />
                         <p v-if="nuevoClienteError" class="text-sm text-kredix-rojo">{{ nuevoClienteError }}</p>
                         <div class="flex gap-2">
-                            <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelarCrearCliente">
+                            <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="cancelarCrearCliente">
                                 Cancelar
                             </button>
                             <button
@@ -399,7 +399,7 @@ function submit() {
             </div>
 
             <div class="mt-1 flex gap-2">
-                <Link href="/taller" class="flex min-h-11 flex-1 items-center justify-center rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100">
+                <Link href="/taller" class="flex min-h-11 flex-1 items-center justify-center rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100">
                     Cancelar
                 </Link>
                 <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="form.processing">

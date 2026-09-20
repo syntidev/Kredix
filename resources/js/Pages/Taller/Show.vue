@@ -309,7 +309,7 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                 </div>
 
                 <div class="flex gap-2">
-                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="editando = false">Cancelar</button>
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="editando = false">Cancelar</button>
                     <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="editForm.processing">Guardar</button>
                 </div>
             </form>

@@ -36,7 +36,7 @@ function usarAutomatica() {
         <template v-if="texto && !manual">
             <label class="text-sm font-medium text-kredix-negro">Tasa cambio</label>
             <div class="flex min-h-11 items-center rounded-lg bg-gray-100 px-3 text-sm text-kredix-negro">{{ texto }}</div>
-            <button type="button" class="self-start text-xs text-kredix-gris underline" @click="manual = true">cambiar manualmente</button>
+            <button type="button" class="self-start text-sm text-kredix-negro underline" @click="manual = true">cambiar manualmente</button>
         </template>
         <template v-else>
             <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
@@ -48,7 +48,7 @@ function usarAutomatica() {
                 class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                 @input="emit('update:modelValue', $event.target.value)"
             />
-            <button v-if="texto" type="button" class="self-start text-xs text-kredix-gris underline" @click="usarAutomatica">usar tasa automatica</button>
+            <button v-if="texto" type="button" class="self-start text-sm text-kredix-negro underline" @click="usarAutomatica">usar tasa automatica</button>
         </template>
     </div>
 </template>

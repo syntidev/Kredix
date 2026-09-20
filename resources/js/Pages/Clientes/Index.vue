@@ -159,7 +159,7 @@ function cancelForm() {
                 :key="f.valor"
                 type="button"
                 class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium"
-                :class="filtro === f.valor ? 'border-kredix-negro bg-kredix-negro text-white' : 'border-gray-300 text-kredix-gris'"
+                :class="filtro === f.valor ? 'border-kredix-negro bg-kredix-negro text-white' : 'border-gray-300 text-kredix-negro'"
                 @click="elegirFiltro(f.valor)"
             >
                 {{ f.etiqueta }}
@@ -167,7 +167,7 @@ function cancelForm() {
             <button
                 type="button"
                 class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium"
-                :class="atendidoPor === 'sin_asignar' ? 'border-kredix-rojo bg-kredix-rojo text-white' : 'border-gray-300 text-kredix-gris'"
+                :class="atendidoPor === 'sin_asignar' ? 'border-kredix-rojo bg-kredix-rojo text-white' : 'border-gray-300 text-kredix-negro'"
                 @click="elegirSinAsignarConSaldo"
             >
                 Sin asignar ({{ sinAsignarConSaldo }})

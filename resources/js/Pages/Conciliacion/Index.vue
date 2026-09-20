@@ -148,10 +148,10 @@ const comprobanteLightboxUrl = ref(null);
 
         <div class="flex-col gap-3 rounded-card bg-white p-3 shadow-card-sm md:flex" :class="filtrosAbiertos ? 'flex' : 'hidden md:flex'">
             <div class="flex flex-wrap gap-2">
-                <button type="button" class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium" :class="!desde && !hasta ? 'border-kredix-negro bg-kredix-negro text-white' : 'border-gray-300 text-kredix-gris'" @click="elegirPreset('todos')">Todas las fechas</button>
-                <button type="button" class="min-h-9 shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-sm font-medium text-kredix-gris" @click="elegirPreset('hoy')">Hoy</button>
-                <button type="button" class="min-h-9 shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-sm font-medium text-kredix-gris" @click="elegirPreset('semana')">Ultimos 7 dias</button>
-                <button type="button" class="min-h-9 shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-sm font-medium text-kredix-gris" @click="elegirPreset('mes')">Ultimos 30 dias</button>
+                <button type="button" class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium" :class="!desde && !hasta ? 'border-kredix-negro bg-kredix-negro text-white' : 'border-gray-300 text-kredix-negro'" @click="elegirPreset('todos')">Todas las fechas</button>
+                <button type="button" class="min-h-9 shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-sm font-medium text-kredix-negro" @click="elegirPreset('hoy')">Hoy</button>
+                <button type="button" class="min-h-9 shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-sm font-medium text-kredix-negro" @click="elegirPreset('semana')">Ultimos 7 dias</button>
+                <button type="button" class="min-h-9 shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-sm font-medium text-kredix-negro" @click="elegirPreset('mes')">Ultimos 30 dias</button>
             </div>
 
             <div class="flex flex-wrap gap-2">
@@ -171,9 +171,9 @@ const comprobanteLightboxUrl = ref(null);
             </select>
 
             <div class="flex flex-wrap gap-2">
-                <button type="button" class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium" :class="(filtros.estado ?? 'todos') === 'todos' ? 'border-kredix-negro bg-kredix-negro text-white' : 'border-gray-300 text-kredix-gris'" @click="elegirEstado('todos')">Todos</button>
-                <button type="button" class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium" :class="filtros.estado === 'pendiente' ? 'border-amber-500 bg-amber-500 text-white' : 'border-gray-300 text-kredix-gris'" @click="elegirEstado('pendiente')">Pendiente</button>
-                <button type="button" class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium" :class="filtros.estado === 'validado' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300 text-kredix-gris'" @click="elegirEstado('validado')">Validado</button>
+                <button type="button" class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium" :class="(filtros.estado ?? 'todos') === 'todos' ? 'border-kredix-negro bg-kredix-negro text-white' : 'border-gray-300 text-kredix-negro'" @click="elegirEstado('todos')">Todos</button>
+                <button type="button" class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium" :class="filtros.estado === 'pendiente' ? 'border-amber-500 bg-amber-500 text-white' : 'border-gray-300 text-kredix-negro'" @click="elegirEstado('pendiente')">Pendiente</button>
+                <button type="button" class="min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium" :class="filtros.estado === 'validado' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300 text-kredix-negro'" @click="elegirEstado('validado')">Validado</button>
             </div>
         </div>
 

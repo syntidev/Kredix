@@ -134,7 +134,7 @@ function confirmarYResetear() {
             </label>
 
             <div class="mt-1 flex gap-2">
-                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="showForm = false">
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="showForm = false">
                     Cancelar
                 </button>
                 <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="form.processing">
@@ -199,7 +199,7 @@ function confirmarYResetear() {
                 <p class="font-medium text-kredix-negro">¿Resetear la password de {{ reseteandoUsuario.name }}?</p>
                 <p class="mt-1 text-sm text-kredix-gris">Esto invalida su password actual de inmediato. Se genera una nueva, solo visible esta vez.</p>
                 <div class="mt-4 flex gap-2">
-                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-gris active:bg-gray-100" @click="cancelarReset">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="cancelarReset">
                         Cancelar
                     </button>
                     <button type="button" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white active:opacity-80" @click="confirmarYResetear">

@@ -57,7 +57,7 @@ const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
                 :key="f.etiqueta"
                 type="button"
                 class="min-h-9 rounded-full border px-3 text-sm font-medium"
-                :class="estado === f.valor ? f.activo : 'border-gray-300 text-kredix-gris'"
+                :class="estado === f.valor ? f.activo : 'border-gray-300 text-kredix-negro'"
                 @click="filtrar(f.valor)"
             >
                 {{ f.etiqueta }}
