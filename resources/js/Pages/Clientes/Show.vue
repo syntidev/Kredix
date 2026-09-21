@@ -501,6 +501,19 @@ const planesConCuotasPendientes = computed(() =>
     props.planesFinanciamiento.filter((p) => p.cuotas.some((c) => c.estado !== 'cubierta'))
 );
 
+// mientras haya un plan con saldo pendiente, el abono NO puede "salir por el
+// costado" del plan (bug real: saldo general y cuotas se desincronizan) -- se
+// preselecciona obligatoriamente, sin opcion de dejarlo vacio
+watch(
+    planesConCuotasPendientes,
+    (planes) => {
+        if (planes.length > 0 && !planes.some((p) => p.id === abonoForm.plan_financiamiento_id)) {
+            abonoForm.plan_financiamiento_id = planes[0].id;
+        }
+    },
+    { immediate: true }
+);
+
 const comprobanteHeicError = ref('');
 
 async function onFileChange(event) {
@@ -530,7 +543,9 @@ function submitAbono() {
             abonoForm.moneda = 'usd';
             abonoForm.metodo_pago = 'efectivo';
             abonoForm.referencia = '';
-            abonoForm.plan_financiamiento_id = '';
+            // vuelve a preseleccionar el plan pendiente (si sigue habiendo uno
+            // tras este abono) en vez de dejarlo vacio -- ver watch() de arriba
+            abonoForm.plan_financiamiento_id = planesConCuotasPendientes.value[0]?.id ?? '';
             esAjuste.value = false;
             formMode.value = null;
         },
@@ -1289,14 +1304,19 @@ watch(algunModalAbierto, (abierto) => {
                 Es ajuste / devolucion (no cuenta como dinero cobrado)
             </label>
 
-            <div v-if="!esAjuste && planesConCuotasPendientes.length > 0" class="flex flex-col gap-1 md:col-span-2">
-                <label class="text-sm font-medium text-kredix-negro">Aplicar a plan de financiamiento <span class="font-normal text-kredix-gris">(opcional)</span></label>
-                <select v-model="abonoForm.plan_financiamiento_id" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
-                    <option value="">No aplicar a ningun plan</option>
+            <div v-if="!esAjuste && planesConCuotasPendientes.length === 1" class="flex flex-col gap-1 rounded-lg bg-gray-50 p-3 md:col-span-2">
+                <p class="text-sm font-medium text-kredix-negro">Este abono se aplica al plan de financiamiento activo</p>
+                <p class="text-xs text-kredix-gris">{{ planesConCuotasPendientes[0].descripcion }} — el monto se reparte automaticamente entre las cuotas pendientes (llenar y desbordar). Mientras el plan tenga saldo, ningun abono puede quedar fuera de el.</p>
+            </div>
+
+            <div v-else-if="!esAjuste && planesConCuotasPendientes.length > 1" class="flex flex-col gap-1 md:col-span-2">
+                <label class="text-sm font-medium text-kredix-negro">Aplicar a plan de financiamiento</label>
+                <select v-model="abonoForm.plan_financiamiento_id" required class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
                     <option v-for="p in planesConCuotasPendientes" :key="p.id" :value="p.id">{{ p.descripcion }} — {{ formatMoney(p.monto_total) }}</option>
                 </select>
-                <p class="text-xs text-kredix-gris">El monto se reparte automaticamente entre las cuotas pendientes (llenar y desbordar).</p>
+                <p class="text-xs text-kredix-gris">El monto se reparte automaticamente entre las cuotas pendientes del plan elegido (llenar y desbordar). Mientras un plan tenga saldo, ningun abono puede quedar fuera de el.</p>
             </div>
+            <p v-if="abonoForm.errors.plan_financiamiento_id" class="text-sm text-kredix-rojo md:col-span-2">{{ abonoForm.errors.plan_financiamiento_id }}</p>
 
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Fecha</label>

@@ -178,6 +178,18 @@ class MovimientoCuentaController extends Controller
 
         $planId = $validated['plan_financiamiento_id'] ?? null;
 
+        // el toggle "no aplica al plan" ya no existe en el frontend, pero se
+        // bloquea tambien aqui -- mientras el cliente tenga un plan con saldo
+        // pendiente, ningun abono puede "salir por el costado" del plan o el
+        // saldo general y las cuotas se desincronizan (bug real, caso Garmin)
+        if ($tipo === 'abono' && ! $planId) {
+            $tienePlanPendiente = PlanFinanciamiento::whereHas('cargo', fn ($q) => $q->where('cliente_id', $validated['cliente_id']))
+                ->whereHas('cuotas', fn ($q) => $q->whereColumn('monto_abonado', '<', 'monto_pactado'))
+                ->exists();
+
+            abort_if($tienePlanPendiente, 422, 'Este cliente tiene un plan de financiamiento con saldo pendiente — el abono debe aplicarse a ese plan');
+        }
+
         if ($tipo === 'abono' && $planId) {
             $plan = PlanFinanciamiento::with('cuotas')->findOrFail($planId);
             abort_if($plan->cargo->cliente_id !== (int) $validated['cliente_id'], 422, 'El plan no pertenece a este cliente');
