@@ -4,10 +4,28 @@ namespace App\Http\Controllers;
 
 use App\Models\MovimientoCuenta;
 use App\Models\PlanFinanciamiento;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PlanFinanciamientoController extends Controller
 {
+    // porcentaje_mora se negocia caso por caso con el cliente (WhatsApp,
+    // renegociacion, etc) -- editable en cualquier momento, incluso despues de
+    // aplicar la mora (no retroactivo sobre el cargo ya creado, solo cambia lo
+    // que se cobraria si se vuelve a evaluar)
+    public function actualizarMora(Request $request, PlanFinanciamiento $plan)
+    {
+        $validated = $request->validate([
+            'porcentaje_mora' => ['required', 'numeric', 'min:0', 'max:100'],
+        ], [
+            'porcentaje_mora.required' => 'porcentaje de mora requerido',
+        ]);
+
+        $plan->update(['porcentaje_mora' => $validated['porcentaje_mora']]);
+
+        return redirect()->back();
+    }
+
     // Mora manual, nunca automatica: crea un Cargo (no un abono, sube lo que el
     // cliente debe) por el porcentaje_mora especifico de ESE plan sobre el
     // PRECIO TOTAL de la venta original (no el saldo pendiente) -- confirmado

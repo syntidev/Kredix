@@ -75,6 +75,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/movimientos/{movimiento}/validacion', [MovimientoCuentaController::class, 'validar'])->name('movimientos.validar');
     Route::delete('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'destroy'])->name('movimientos.destroy');
     Route::post('/planes-financiamiento/{plan}/aplicar-mora', [PlanFinanciamientoController::class, 'aplicarMora'])->name('planes-financiamiento.aplicar-mora');
+    Route::patch('/planes-financiamiento/{plan}/mora', [PlanFinanciamientoController::class, 'actualizarMora'])->name('planes-financiamiento.actualizar-mora');
 
     Route::middleware('es_admin')->group(function () {
         Route::get('/kpi', [KpiController::class, 'index'])->name('kpi');

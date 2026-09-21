@@ -575,6 +575,24 @@ function aplicarMora(plan) {
     });
 }
 
+const editandoMoraPlanId = ref(null);
+const moraEditValor = ref('');
+const moraEditError = ref('');
+
+function abrirEditarMora(plan) {
+    editandoMoraPlanId.value = plan.id;
+    moraEditValor.value = plan.porcentaje_mora;
+    moraEditError.value = '';
+}
+
+function guardarMora(plan) {
+    router.patch(`/planes-financiamiento/${plan.id}/mora`, { porcentaje_mora: moraEditValor.value }, {
+        preserveScroll: true,
+        onSuccess: () => { editandoMoraPlanId.value = null; },
+        onError: (errors) => { moraEditError.value = errors.porcentaje_mora ?? 'Error al guardar'; },
+    });
+}
+
 function submitGestion() {
     gestionForm.descripcion = tipoContactoLabel[gestionForm.tipo_contacto];
 
@@ -1033,7 +1051,19 @@ watch(algunModalAbierto, (abierto) => {
                 <p class="text-sm font-medium text-kredix-negro">
                     {{ plan.descripcion }} — <span class="tabular-nums">{{ formatMoney(plan.monto_total) }}</span> ({{ formatFecha(plan.fecha) }})
                 </p>
-                <p class="text-xs text-kredix-gris">Inicial <span class="tabular-nums">{{ formatMoney(plan.monto_inicial) }}</span> · mora {{ plan.porcentaje_mora }}%</p>
+                <div v-if="editandoMoraPlanId !== plan.id" class="flex items-center gap-1">
+                    <p class="text-xs text-kredix-gris">Inicial <span class="tabular-nums">{{ formatMoney(plan.monto_inicial) }}</span> · mora {{ plan.porcentaje_mora }}%</p>
+                    <button type="button" title="Editar mora" class="flex min-h-9 min-w-9 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="abrirEditarMora(plan)">
+                        <Pencil :size="14" />
+                    </button>
+                </div>
+                <div v-else class="flex flex-wrap items-center gap-2">
+                    <label class="text-xs text-kredix-gris">Porcentaje de mora</label>
+                    <input v-model="moraEditValor" type="number" step="0.01" min="0" max="100" class="min-h-9 w-24 rounded-lg border border-gray-300 px-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <button type="button" class="min-h-9 rounded-lg bg-kredix-negro px-3 text-sm font-medium text-white active:opacity-80" @click="guardarMora(plan)">Guardar</button>
+                    <button type="button" class="min-h-9 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="editandoMoraPlanId = null">Cancelar</button>
+                    <p v-if="moraEditError" class="w-full text-sm text-kredix-rojo">{{ moraEditError }}</p>
+                </div>
 
                 <div class="flex flex-col gap-1.5">
                     <div v-for="cuota in plan.cuotas" :key="cuota.id" class="flex items-center justify-between gap-2 text-sm">
