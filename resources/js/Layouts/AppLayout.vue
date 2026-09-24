@@ -67,8 +67,9 @@ const ajustesItems = computed(() => {
 
 const ajustesAbierto = ref(false);
 
-// nav mobile: 4 tabs fijos + "Mas" (5 iconos maximo) -- KPI, Configuracion,
-// Usuarios y Perfil viven todos dentro de "Mas" para no romper el limite de 5.
+// nav mobile: 4 tabs fijos + "Mas" (5 iconos maximo) -- Taller, KPI,
+// Configuracion, Usuarios y Perfil viven todos dentro de "Mas" para no romper
+// el limite de 5 (verificado: un 6to icono no cabe en 360-375px de ancho).
 // rol_taller colapsa a un unico tab "Taller", sin "Mas" (nada que mostrar ahi)
 const tabsCore = computed(() => {
     if (esTaller.value) {
@@ -89,6 +90,10 @@ const masItems = computed(() => {
     }
 
     return [
+        // Taller primero: uso diario en el local, no ocasional como el resto de
+        // "Mas" -- no entra en tabsCore (ver comentario arriba, 5 iconos maximo)
+        // sin romper el layout en moviles chicos (360-375px)
+        { href: '/taller', label: 'Taller' },
         { href: '/prospectos', label: 'Prospectos' },
         ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
         ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
