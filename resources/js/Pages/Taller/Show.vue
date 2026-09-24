@@ -5,6 +5,7 @@ import axios from 'axios';
 import { AlertTriangle, Check, Pencil, Plus, Trash2, UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
+import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
@@ -242,6 +243,16 @@ function onFotosEntradaChange(event) {
 
 function onFotosSalidaChange(event) {
     subirFotosColeccion(event, 'salida', fotosSalidaError, subiendoFotosSalida);
+}
+
+// --- modal de fotos: mismo componente ya usado para comprobantes en
+// Credito/Movimientos (ComprobanteLightbox), en modo carrusel ---
+const fotoModalUrls = ref([]);
+const fotoModalIndice = ref(0);
+
+function abrirFoto(fotos, index) {
+    fotoModalUrls.value = fotos.map((f) => f.url);
+    fotoModalIndice.value = index;
 }
 
 // --- marcar atendido ---
@@ -555,9 +566,9 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                 <h2 class="font-medium text-kredix-negro">Fotos de entrada</h2>
                 <p v-if="ticket.fotos_entrada.length === 0" class="text-sm text-kredix-gris">Sin fotos.</p>
                 <div v-else class="grid grid-cols-3 gap-2">
-                    <a v-for="f in ticket.fotos_entrada" :key="f.id" :href="f.url" target="_blank" rel="noopener">
+                    <button v-for="(f, i) in ticket.fotos_entrada" :key="f.id" type="button" @click="abrirFoto(ticket.fotos_entrada, i)">
                         <img :src="f.thumb_url" class="aspect-square w-full rounded-lg object-cover" />
-                    </a>
+                    </button>
                 </div>
                 <label class="mt-1 text-xs font-medium text-kredix-negro">Agregar foto de entrada</label>
                 <input type="file" accept="image/*" multiple class="text-sm" :disabled="subiendoFotosEntrada" @change="onFotosEntradaChange" />
@@ -568,9 +579,9 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                 <h2 class="font-medium text-kredix-negro">Fotos de salida</h2>
                 <p v-if="ticket.fotos_salida.length === 0" class="text-sm text-kredix-gris">Sin fotos.</p>
                 <div v-else class="grid grid-cols-3 gap-2">
-                    <a v-for="f in ticket.fotos_salida" :key="f.id" :href="f.url" target="_blank" rel="noopener">
+                    <button v-for="(f, i) in ticket.fotos_salida" :key="f.id" type="button" @click="abrirFoto(ticket.fotos_salida, i)">
                         <img :src="f.thumb_url" class="aspect-square w-full rounded-lg object-cover" />
-                    </a>
+                    </button>
                 </div>
                 <label class="mt-1 text-xs font-medium text-kredix-negro">Agregar foto de salida</label>
                 <input type="file" accept="image/*" multiple class="text-sm" :disabled="subiendoFotosSalida" @change="onFotosSalidaChange" />
@@ -606,5 +617,7 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                 </div>
             </div>
         </div>
+
+        <ComprobanteLightbox :fotos="fotoModalUrls" :indice-inicial="fotoModalIndice" @close="fotoModalUrls = []" />
     </div>
 </template>

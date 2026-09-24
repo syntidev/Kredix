@@ -38,6 +38,7 @@ class TallerController extends Controller
             'es_electrica' => $ticket->es_electrica,
             'tipo_servicio' => $ticket->tipo_servicio,
             'mecanico' => $ticket->mecanico?->name,
+            'registrado_por' => $ticket->registradoPor?->name,
             'estado' => $ticket->estado,
         ];
     }
@@ -47,7 +48,7 @@ class TallerController extends Controller
         $estado = $request->query('estado');
 
         $tickets = TicketTaller::query()
-            ->with(['cliente:id,nombre', 'mecanico:id,name'])
+            ->with(['cliente:id,nombre', 'mecanico:id,name', 'registradoPor:id,name'])
             ->when(in_array($estado, ['en_proceso', 'atendido'], true), fn ($query) => $query->where('estado', $estado))
             ->orderByDesc('created_at')
             ->get()

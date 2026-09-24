@@ -99,6 +99,7 @@ const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
                 </div>
                 <div class="shrink-0 text-right">
                     <p class="text-sm text-kredix-negro">{{ t.mecanico }}</p>
+                    <p v-if="t.registrado_por" class="text-xs text-kredix-gris">Registro: {{ t.registrado_por }}</p>
                     <p class="text-xs font-medium" :class="t.estado === 'atendido' ? 'text-green-700' : 'text-orange-700'">{{ labelEstado(t.estado) }}</p>
                 </div>
             </Link>
