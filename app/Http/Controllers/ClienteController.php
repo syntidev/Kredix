@@ -318,9 +318,19 @@ class ClienteController extends Controller
         // de PDF, que es el que trae el boton de compartir en la barra superior.
         // ?descargar=1 (boton "Descargar") pide explicitamente attachment para que
         // el archivo quede en el dispositivo en vez de solo visualizarse.
-        return $request->boolean('descargar')
+        // la ruta termina en .pdf -- navegadores y el edge cache de Cloudflare
+        // tratan eso como "archivo estatico" por defecto y lo cachean, pero cada
+        // respuesta es generada al vuelo y es especifica de ESTE cliente. Sin
+        // esto, un cliente puede terminar viendo el documento cacheado de otro
+        // (bug real: folio/saldo de un cliente distinto en la pantalla de otro)
+        $response = $request->boolean('descargar')
             ? $pdf->download($nombreArchivo)
             : $pdf->stream($nombreArchivo);
+
+        return $response->withHeaders([
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+        ]);
     }
 
     public function actualizarMensajePdf(Request $request, Cliente $cliente)
