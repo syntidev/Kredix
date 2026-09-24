@@ -148,11 +148,28 @@ function toggleItem(i, estado) {
     }
 }
 
+// feedback visual de exito, generico y transitorio -- mismo texto breve que
+// desaparece solo, usado por todas las acciones de guardar de esta pantalla
+// (no existe un componente de toast en el resto del sistema; el patron ya
+// establecido en Movimientos/Clientes es "el formulario se cierra o la
+// lista se actualiza", pero aca varias acciones no tienen ese cambio visible
+// por si solas -- ej. Trabajo realizado es un textarea que se ve igual antes
+// y despues de guardar)
+function mostrarMensaje(msgRef, texto, ms = 2500) {
+    msgRef.value = texto;
+    setTimeout(() => {
+        if (msgRef.value === texto) msgRef.value = '';
+    }, ms);
+}
+
+const exitoEdicion = ref('');
+
 function guardarEdicion() {
     editForm.put(`/taller/${props.ticket.id}`, {
         preserveScroll: true,
         onSuccess: () => {
             editando.value = false;
+            mostrarMensaje(exitoEdicion, 'Datos del ticket actualizados.');
         },
     });
 }
@@ -160,6 +177,10 @@ function guardarEdicion() {
 // --- repuestos ---
 const sugerenciasRepuesto = ref([]);
 let sugerenciasRepuestoTimeout = null;
+const exitoRepuesto = ref('');
+const errorRepuesto = ref('');
+
+const totalRepuestos = computed(() => props.ticket.repuestos.reduce((acc, r) => acc + Number(r.cantidad) * Number(r.precio), 0));
 
 const repuestoForm = useForm({ producto: '', cantidad: 1, precio: '' });
 
@@ -188,20 +209,32 @@ function elegirSugerenciaRepuesto(nombre) {
 function agregarRepuesto() {
     repuestoForm.post(`/taller/${props.ticket.id}/repuestos`, {
         preserveScroll: true,
-        onSuccess: () => repuestoForm.reset(),
+        onSuccess: () => {
+            repuestoForm.reset();
+            mostrarMensaje(exitoRepuesto, 'Repuesto agregado.');
+        },
+        onError: () => mostrarMensaje(errorRepuesto, 'No se pudo agregar el repuesto.'),
     });
 }
 
 function eliminarRepuesto(repuesto) {
-    router.delete(`/taller/${props.ticket.id}/repuestos/${repuesto.id}`, { preserveScroll: true });
+    router.delete(`/taller/${props.ticket.id}/repuestos/${repuesto.id}`, {
+        preserveScroll: true,
+        onSuccess: () => mostrarMensaje(exitoRepuesto, 'Repuesto eliminado.'),
+        onError: () => mostrarMensaje(errorRepuesto, 'No se pudo eliminar el repuesto.'),
+    });
 }
 
 // --- trabajo realizado (seccion de cierre, requisito para marcar atendido
 // igual que la foto de salida) ---
 const trabajoRealizadoForm = useForm({ trabajo_realizado: props.ticket.trabajo_realizado ?? '' });
+const exitoTrabajoRealizado = ref('');
 
 function guardarTrabajoRealizado() {
-    trabajoRealizadoForm.patch(`/taller/${props.ticket.id}/trabajo-realizado`, { preserveScroll: true });
+    trabajoRealizadoForm.patch(`/taller/${props.ticket.id}/trabajo-realizado`, {
+        preserveScroll: true,
+        onSuccess: () => mostrarMensaje(exitoTrabajoRealizado, 'Trabajo realizado guardado.'),
+    });
 }
 
 // --- fotos: mismo endpoint generico sirve para ambas colecciones
@@ -209,11 +242,14 @@ function guardarTrabajoRealizado() {
 // cualquier momento, no solo al crear el ticket ---
 const fotosEntradaError = ref('');
 const subiendoFotosEntrada = ref(false);
+const exitoFotosEntrada = ref('');
 const fotosSalidaError = ref('');
 const subiendoFotosSalida = ref(false);
+const exitoFotosSalida = ref('');
 
-async function subirFotosColeccion(event, coleccion, errorRef, subiendoRef) {
+async function subirFotosColeccion(event, coleccion, errorRef, subiendoRef, exitoRef) {
     errorRef.value = '';
+    exitoRef.value = '';
     const archivos = [];
     for (const raw of event.target.files) {
         const archivo = await convertirHeicSiEsNecesario(raw);
@@ -230,6 +266,12 @@ async function subirFotosColeccion(event, coleccion, errorRef, subiendoRef) {
     router.post(`/taller/${props.ticket.id}/fotos/${coleccion}`, { fotos: archivos }, {
         preserveScroll: true,
         forceFormData: true,
+        onSuccess: () => {
+            mostrarMensaje(exitoRef, archivos.length === 1 ? '1 foto subida.' : `${archivos.length} fotos subidas.`);
+        },
+        onError: () => {
+            errorRef.value = 'No se pudo subir la foto. Intenta de nuevo.';
+        },
         onFinish: () => {
             subiendoRef.value = false;
             event.target.value = '';
@@ -238,11 +280,11 @@ async function subirFotosColeccion(event, coleccion, errorRef, subiendoRef) {
 }
 
 function onFotosEntradaChange(event) {
-    subirFotosColeccion(event, 'entrada', fotosEntradaError, subiendoFotosEntrada);
+    subirFotosColeccion(event, 'entrada', fotosEntradaError, subiendoFotosEntrada, exitoFotosEntrada);
 }
 
 function onFotosSalidaChange(event) {
-    subirFotosColeccion(event, 'salida', fotosSalidaError, subiendoFotosSalida);
+    subirFotosColeccion(event, 'salida', fotosSalidaError, subiendoFotosSalida, exitoFotosSalida);
 }
 
 // --- modal de fotos: mismo componente ya usado para comprobantes en
@@ -505,6 +547,7 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                     <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="editando = false">Cancelar</button>
                     <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="editForm.processing">Guardar</button>
                 </div>
+                <p v-if="exitoEdicion" class="text-sm font-medium text-green-700">{{ exitoEdicion }}</p>
             </form>
         </div>
 
@@ -521,6 +564,12 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                     </button>
                 </div>
             </div>
+            <p v-if="ticket.repuestos.length > 0" class="flex justify-between border-t border-gray-100 pt-2 text-sm font-semibold text-kredix-negro">
+                <span>Total repuestos</span>
+                <span class="tabular-nums">{{ formatMoney(totalRepuestos) }}</span>
+            </p>
+            <p v-if="exitoRepuesto" class="text-sm font-medium text-green-700">{{ exitoRepuesto }}</p>
+            <p v-if="errorRepuesto" class="text-sm text-kredix-rojo">{{ errorRepuesto }}</p>
 
             <form class="relative flex flex-col gap-3 border-t border-gray-100 pt-3 md:flex-row md:items-end md:gap-2" @submit.prevent="agregarRepuesto">
                 <div class="flex flex-1 flex-col gap-1">
@@ -556,8 +605,9 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                 ></textarea>
                 <p v-if="trabajoRealizadoForm.errors.trabajo_realizado" class="text-sm text-kredix-rojo">{{ trabajoRealizadoForm.errors.trabajo_realizado }}</p>
                 <button type="submit" class="min-h-11 self-start rounded-lg bg-kredix-negro px-4 text-sm font-semibold text-white disabled:opacity-60" :disabled="trabajoRealizadoForm.processing">
-                    Guardar
+                    {{ trabajoRealizadoForm.processing ? 'Guardando...' : 'Guardar' }}
                 </button>
+                <p v-if="exitoTrabajoRealizado" class="text-sm font-medium text-green-700">{{ exitoTrabajoRealizado }}</p>
             </form>
         </div>
 
@@ -572,6 +622,8 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                 </div>
                 <label class="mt-1 text-xs font-medium text-kredix-negro">Agregar foto de entrada</label>
                 <input type="file" accept="image/*" multiple class="text-sm" :disabled="subiendoFotosEntrada" @change="onFotosEntradaChange" />
+                <p v-if="subiendoFotosEntrada" class="text-sm text-kredix-gris">Subiendo...</p>
+                <p v-if="exitoFotosEntrada" class="text-sm font-medium text-green-700">{{ exitoFotosEntrada }}</p>
                 <p v-if="fotosEntradaError" class="text-sm text-kredix-rojo">{{ fotosEntradaError }}</p>
             </div>
 
@@ -585,6 +637,8 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                 </div>
                 <label class="mt-1 text-xs font-medium text-kredix-negro">Agregar foto de salida</label>
                 <input type="file" accept="image/*" multiple class="text-sm" :disabled="subiendoFotosSalida" @change="onFotosSalidaChange" />
+                <p v-if="subiendoFotosSalida" class="text-sm text-kredix-gris">Subiendo...</p>
+                <p v-if="exitoFotosSalida" class="text-sm font-medium text-green-700">{{ exitoFotosSalida }}</p>
                 <p v-if="fotosSalidaError" class="text-sm text-kredix-rojo">{{ fotosSalidaError }}</p>
             </div>
         </div>
