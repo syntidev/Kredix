@@ -141,6 +141,7 @@ class TallerController extends Controller
         $esServicioCliente = $ticket->tipo === 'servicio_cliente';
 
         $validated = $request->validate([
+            'cliente_id' => [Rule::requiredIf($esServicioCliente), 'nullable', 'exists:clientes,id'],
             'motivo_ingreso' => [Rule::requiredIf($esServicioCliente), 'nullable', 'string', 'max:1000'],
             'bici_marca_modelo' => ['required', 'string', 'max:255'],
             'categoria_bici' => ['required', 'in:ruta,mtb,otro'],
@@ -154,11 +155,15 @@ class TallerController extends Controller
             'diagnostico.*.estado' => ['required_with:diagnostico', 'in:bien,atencion'],
             'diagnostico.*.nota' => ['nullable', 'string', 'max:1000'],
         ], [
+            'cliente_id.required' => 'cliente requerido',
             'motivo_ingreso.required' => 'motivo de ingreso requerido',
             'categoria_bici.required' => 'categoria de bici requerida',
         ]);
 
         $ticket->update([
+            // reasignar cliente_id conserva fotos/diagnostico/repuestos/historial --
+            // son todas relaciones/columnas distintas de este update, nada mas se toca
+            'cliente_id' => $esServicioCliente ? $validated['cliente_id'] : null,
             'motivo_ingreso' => $esServicioCliente ? $validated['motivo_ingreso'] : null,
             'bici_marca_modelo' => $validated['bici_marca_modelo'],
             'categoria_bici' => $validated['categoria_bici'],
@@ -171,6 +176,26 @@ class TallerController extends Controller
         ]);
 
         return redirect()->route('taller.show', $ticket->id);
+    }
+
+    public function destroy(Request $request, TicketTaller $ticket)
+    {
+        $validated = $request->validate([
+            'motivo' => ['required', 'string', 'max:1000'],
+        ], [
+            'motivo.required' => 'motivo requerido',
+        ]);
+
+        // soft-delete real, mismo patron que MovimientoCuenta::destroy() -- el
+        // registro sigue en la BD para auditoria (visible via withTrashed()),
+        // jamas forceDelete
+        $ticket->update([
+            'motivo_eliminacion' => $validated['motivo'],
+            'eliminado_por' => $request->user()->id,
+        ]);
+        $ticket->delete();
+
+        return redirect()->route('taller.index');
     }
 
     public function guardarTrabajoRealizado(Request $request, TicketTaller $ticket)

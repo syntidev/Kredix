@@ -1,9 +1,11 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, Check, Pencil, Plus, Trash2, Zap } from '@lucide/vue';
+import axios from 'axios';
+import { AlertTriangle, Check, Pencil, Plus, Trash2, UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
+import PhoneInput from '../../Components/PhoneInput.vue';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
@@ -25,6 +27,7 @@ const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
 const editando = ref(false);
 
 const editForm = useForm({
+    cliente_id: props.ticket.cliente?.id ?? null,
     motivo_ingreso: props.ticket.motivo_ingreso ?? '',
     bici_marca_modelo: props.ticket.bici_marca_modelo,
     categoria_bici: props.ticket.categoria_bici,
@@ -35,6 +38,107 @@ const editForm = useForm({
     mecanico_id: props.ticket.mecanico_id,
     diagnostico: props.ticket.diagnostico?.length ? props.ticket.diagnostico.map((d) => ({ ...d })) : [],
 });
+
+// --- reasignar cliente (mismo patron de buscador que Taller/Nuevo.vue),
+// preseleccionado con el cliente actual del ticket ---
+const clienteSeleccionado = ref(props.ticket.cliente ?? null);
+const busquedaCliente = ref('');
+const resultadosCliente = ref([]);
+let busquedaClienteTimeout = null;
+
+function onBusquedaClienteInput() {
+    clearTimeout(busquedaClienteTimeout);
+    const texto = busquedaCliente.value.trim();
+    if (texto.length < 2) {
+        resultadosCliente.value = [];
+        return;
+    }
+    busquedaClienteTimeout = setTimeout(async () => {
+        try {
+            const res = await fetch(`/clientes/buscar?q=${encodeURIComponent(texto)}`);
+            resultadosCliente.value = res.ok ? await res.json() : [];
+        } catch {
+            resultadosCliente.value = [];
+        }
+    }, 300);
+}
+
+function elegirCliente(cliente) {
+    clienteSeleccionado.value = cliente;
+    editForm.cliente_id = cliente.id;
+    busquedaCliente.value = '';
+    resultadosCliente.value = [];
+}
+
+function quitarCliente() {
+    clienteSeleccionado.value = null;
+    editForm.cliente_id = null;
+}
+
+const creandoCliente = ref(false);
+const nuevoClienteNombre = ref('');
+const nuevoClienteTelefono = ref('');
+const nuevoClienteError = ref('');
+const guardandoCliente = ref(false);
+
+function abrirCrearCliente() {
+    creandoCliente.value = true;
+    nuevoClienteNombre.value = busquedaCliente.value;
+    nuevoClienteError.value = '';
+}
+
+function cancelarCrearCliente() {
+    creandoCliente.value = false;
+    nuevoClienteNombre.value = '';
+    nuevoClienteTelefono.value = '';
+    nuevoClienteError.value = '';
+}
+
+async function guardarClienteNuevo() {
+    nuevoClienteError.value = '';
+    guardandoCliente.value = true;
+    try {
+        const { data } = await axios.post('/clientes/rapido', {
+            nombre: nuevoClienteNombre.value,
+            telefono: nuevoClienteTelefono.value,
+        });
+        elegirCliente(data);
+        creandoCliente.value = false;
+        nuevoClienteNombre.value = '';
+        nuevoClienteTelefono.value = '';
+    } catch (error) {
+        nuevoClienteError.value = error.response?.data?.errors?.nombre?.[0]
+            ?? error.response?.data?.errors?.telefono?.[0]
+            ?? 'No se pudo crear el cliente.';
+    } finally {
+        guardandoCliente.value = false;
+    }
+}
+
+// --- eliminar ticket (soft-delete, mismo patron que MovimientoCuenta) ---
+const eliminandoTicket = ref(false);
+const motivoEliminacionTicket = ref('');
+const eliminandoTicketProcesando = ref(false);
+
+function confirmarEliminarTicket() {
+    eliminandoTicket.value = true;
+    motivoEliminacionTicket.value = '';
+}
+
+function cancelarEliminarTicket() {
+    eliminandoTicket.value = false;
+    motivoEliminacionTicket.value = '';
+}
+
+function doEliminarTicket() {
+    eliminandoTicketProcesando.value = true;
+    router.delete(`/taller/${props.ticket.id}`, {
+        data: { motivo: motivoEliminacionTicket.value },
+        onFinish: () => {
+            eliminandoTicketProcesando.value = false;
+        },
+    });
+}
 
 function toggleItem(i, estado) {
     editForm.diagnostico[i].estado = estado;
@@ -174,16 +278,21 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                     {{ atendido ? 'Atendido' : 'En proceso' }}
                 </span>
             </h1>
-            <button
-                v-if="!atendido"
-                type="button"
-                class="min-h-11 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
-                :disabled="!puedeMarcarAtendido"
-                :title="!puedeMarcarAtendido ? 'Sube al menos 1 foto de salida primero' : ''"
-                @click="marcarAtendido"
-            >
-                Marcar como atendido
-            </button>
+            <div class="flex items-center gap-2">
+                <button
+                    v-if="!atendido"
+                    type="button"
+                    class="min-h-11 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+                    :disabled="!puedeMarcarAtendido"
+                    :title="!puedeMarcarAtendido ? 'Sube al menos 1 foto de salida primero' : ''"
+                    @click="marcarAtendido"
+                >
+                    Marcar como atendido
+                </button>
+                <button type="button" title="Eliminar ticket" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-rojo active:bg-gray-100" @click="confirmarEliminarTicket">
+                    <Trash2 :size="18" />
+                </button>
+            </div>
         </div>
         <p v-if="errorAtendido" class="text-sm text-kredix-rojo">{{ errorAtendido }}</p>
         <p v-if="!atendido && !puedeMarcarAtendido" class="text-sm text-kredix-gris">
@@ -232,6 +341,69 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
             </template>
 
             <form v-else class="flex flex-col gap-3" @submit.prevent="guardarEdicion">
+                <div v-if="esServicioCliente" class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Cliente</label>
+                    <div v-if="clienteSeleccionado" class="flex items-center justify-between rounded-lg border border-gray-300 px-3 py-2">
+                        <span class="text-sm text-kredix-negro">{{ clienteSeleccionado.nombre }}</span>
+                        <button type="button" class="min-h-9 shrink-0 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="quitarCliente">Cambiar</button>
+                    </div>
+                    <template v-else>
+                        <input
+                            v-model="busquedaCliente"
+                            type="search"
+                            placeholder="Buscar cliente por nombre, cedula o telefono..."
+                            class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                            @input="onBusquedaClienteInput"
+                        />
+                        <div v-if="resultadosCliente.length > 0" class="flex flex-col gap-1 rounded-lg border border-gray-200 p-1">
+                            <button
+                                v-for="c in resultadosCliente"
+                                :key="c.id"
+                                type="button"
+                                class="rounded-md px-2 py-1.5 text-left text-sm text-kredix-negro active:bg-gray-50"
+                                @click="elegirCliente(c)"
+                            >
+                                {{ c.nombre }}
+                            </button>
+                        </div>
+
+                        <button
+                            v-if="!creandoCliente"
+                            type="button"
+                            class="flex min-h-9 self-start shrink-0 items-center gap-1.5 rounded-lg bg-kredix-negro px-3 text-sm font-medium text-white active:opacity-80"
+                            @click="abrirCrearCliente"
+                        >
+                            <UserPlus :size="14" />
+                            Crear cliente nuevo
+                        </button>
+
+                        <div v-if="creandoCliente" class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                            <p class="text-sm font-medium text-kredix-negro">Cliente nuevo (sin alta previa)</p>
+                            <input
+                                v-model="nuevoClienteNombre"
+                                type="text"
+                                placeholder="Nombre"
+                                class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                            />
+                            <PhoneInput v-model="nuevoClienteTelefono" />
+                            <p v-if="nuevoClienteError" class="text-sm text-kredix-rojo">{{ nuevoClienteError }}</p>
+                            <div class="flex gap-2">
+                                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="cancelarCrearCliente">
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60"
+                                    :disabled="guardandoCliente || !nuevoClienteNombre.trim()"
+                                    @click="guardarClienteNuevo"
+                                >
+                                    Crear y continuar
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                    <p v-if="editForm.errors.cliente_id" class="text-sm text-kredix-rojo">{{ editForm.errors.cliente_id }}</p>
+                </div>
                 <div v-if="esServicioCliente" class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Motivo de ingreso <span class="font-normal text-kredix-gris">(por que llego)</span></label>
                     <textarea v-model="editForm.motivo_ingreso" rows="2" class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
@@ -403,6 +575,35 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                 <label class="mt-1 text-xs font-medium text-kredix-negro">Agregar foto de salida</label>
                 <input type="file" accept="image/*" multiple class="text-sm" :disabled="subiendoFotosSalida" @change="onFotosSalidaChange" />
                 <p v-if="fotosSalidaError" class="text-sm text-kredix-rojo">{{ fotosSalidaError }}</p>
+            </div>
+        </div>
+
+        <div v-if="eliminandoTicket" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="cancelarEliminarTicket">
+            <div class="w-full max-w-sm rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+                <p class="font-medium text-kredix-negro">¿Eliminar el ticket #{{ ticket.id }}?</p>
+                <p class="mt-1 text-sm text-kredix-gris">No se borra de la base de datos, solo deja de aparecer en el listado de Taller.</p>
+                <div class="mt-3 flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Motivo <span class="font-normal text-kredix-gris">(obligatorio)</span></label>
+                    <textarea
+                        v-model="motivoEliminacionTicket"
+                        rows="2"
+                        placeholder="ej: ticket duplicado, creado por error"
+                        class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                    ></textarea>
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="cancelarEliminarTicket">
+                        Cancelar
+                    </button>
+                    <button
+                        type="button"
+                        class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white disabled:opacity-60"
+                        :disabled="!motivoEliminacionTicket.trim() || eliminandoTicketProcesando"
+                        @click="doEliminarTicket"
+                    >
+                        Si, eliminar
+                    </button>
+                </div>
             </div>
         </div>
     </div>

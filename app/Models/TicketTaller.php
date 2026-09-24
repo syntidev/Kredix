@@ -32,6 +32,8 @@ class TicketTaller extends Model implements HasMedia
         'estado',
         'mecanico_id',
         'registrado_por',
+        'motivo_eliminacion',
+        'eliminado_por',
     ];
 
     protected $casts = [
