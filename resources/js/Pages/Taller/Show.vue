@@ -22,6 +22,17 @@ const props = defineProps({
 const esServicioCliente = computed(() => props.ticket.tipo === 'servicio_cliente');
 const atendido = computed(() => props.ticket.estado === 'atendido');
 
+// window.print() inline en el template (@click="window.print()") resolvia
+// mal el global en el codigo compilado -> "Cannot read properties of
+// undefined (reading 'print')" en produccion. Una funcion real evita
+// cualquier ambiguedad de como el compilador de plantillas de Vue
+// resuelve un global suelto en un handler inline -- sin iframe ni ventana
+// externa, la misma pagina se imprime a si misma con el aislamiento CSS
+// ya implementado (.ticket-print)
+function imprimirTicket() {
+    window.print();
+}
+
 const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 'Otro' };
 const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
 
@@ -346,7 +357,7 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                 >
                     Marcar como atendido
                 </button>
-                <button type="button" title="Imprimir ticket" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="window.print()">
+                <button type="button" title="Imprimir ticket" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="imprimirTicket">
                     <Printer :size="18" />
                 </button>
                 <button type="button" title="Eliminar ticket" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-rojo active:bg-gray-100" @click="confirmarEliminarTicket">
