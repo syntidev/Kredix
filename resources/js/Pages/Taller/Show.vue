@@ -99,19 +99,21 @@ function guardarTrabajoRealizado() {
     trabajoRealizadoForm.patch(`/taller/${props.ticket.id}/trabajo-realizado`, { preserveScroll: true });
 }
 
-// --- fotos (entrada ya viene poblada; aqui solo se sube salida, aunque el
-// mismo endpoint sirve para ambas colecciones si hiciera falta agregar mas
-// fotos de entrada despues) ---
+// --- fotos: mismo endpoint generico sirve para ambas colecciones
+// (entrada/salida), sin limite de MediaLibrary -- se puede agregar en
+// cualquier momento, no solo al crear el ticket ---
+const fotosEntradaError = ref('');
+const subiendoFotosEntrada = ref(false);
 const fotosSalidaError = ref('');
 const subiendoFotosSalida = ref(false);
 
-async function onFotosSalidaChange(event) {
-    fotosSalidaError.value = '';
+async function subirFotosColeccion(event, coleccion, errorRef, subiendoRef) {
+    errorRef.value = '';
     const archivos = [];
     for (const raw of event.target.files) {
         const archivo = await convertirHeicSiEsNecesario(raw);
         if (archivo === null) {
-            fotosSalidaError.value = MENSAJE_HEIC_FALLO;
+            errorRef.value = MENSAJE_HEIC_FALLO;
             event.target.value = '';
             return;
         }
@@ -119,15 +121,23 @@ async function onFotosSalidaChange(event) {
     }
     if (archivos.length === 0) return;
 
-    subiendoFotosSalida.value = true;
-    router.post(`/taller/${props.ticket.id}/fotos/salida`, { fotos: archivos }, {
+    subiendoRef.value = true;
+    router.post(`/taller/${props.ticket.id}/fotos/${coleccion}`, { fotos: archivos }, {
         preserveScroll: true,
         forceFormData: true,
         onFinish: () => {
-            subiendoFotosSalida.value = false;
+            subiendoRef.value = false;
             event.target.value = '';
         },
     });
+}
+
+function onFotosEntradaChange(event) {
+    subirFotosColeccion(event, 'entrada', fotosEntradaError, subiendoFotosEntrada);
+}
+
+function onFotosSalidaChange(event) {
+    subirFotosColeccion(event, 'salida', fotosSalidaError, subiendoFotosSalida);
 }
 
 // --- marcar atendido ---
@@ -377,6 +387,9 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                         <img :src="f.thumb_url" class="aspect-square w-full rounded-lg object-cover" />
                     </a>
                 </div>
+                <label class="mt-1 text-xs font-medium text-kredix-negro">Agregar foto de entrada</label>
+                <input type="file" accept="image/*" multiple class="text-sm" :disabled="subiendoFotosEntrada" @change="onFotosEntradaChange" />
+                <p v-if="fotosEntradaError" class="text-sm text-kredix-rojo">{{ fotosEntradaError }}</p>
             </div>
 
             <div class="flex flex-col gap-2 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
