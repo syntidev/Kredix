@@ -1833,7 +1833,7 @@ watch(algunModalAbierto, (abierto) => {
                             />
                             <span v-else class="text-kredix-gris">-</span>
                         </td>
-                        <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
+                        <td class="tabular-nums whitespace-nowrap px-2 py-2 text-right font-medium text-kredix-negro">{{ formatMoney(m.saldoAcumulado) }}</td>
                         <td class="px-1 py-2 text-right">
                             <div class="flex flex-col items-end gap-0.5">
                                 <button type="button" class="min-h-9 rounded-lg border border-gray-300 px-2 text-sm font-medium text-kredix-negro not-italic active:bg-gray-100" @click="openEditMov(m)">Editar</button>

@@ -116,7 +116,7 @@ function irAPagina(pagina) {
                         <td class="break-words px-2 py-2 font-medium text-kredix-negro">
                             {{ c.nombre }}
                         </td>
-                        <td class="tabular-nums break-words px-2 py-2 text-right font-medium text-kredix-rojo">{{ formatMoney(c.saldoPendiente) }}</td>
+                        <td class="tabular-nums whitespace-nowrap px-2 py-2 text-right font-medium text-kredix-rojo">{{ formatMoney(c.saldoPendiente) }}</td>
                         <td class="break-words px-2 py-2 text-kredix-gris">{{ c.ultimoAbonoFecha ? formatFecha(c.ultimoAbonoFecha) : 'nunca' }}</td>
                         <td class="break-words px-2 py-2 text-right font-medium" :class="colorDias(c.diasDesdeUltimoAbono)">{{ c.diasDesdeUltimoAbono ?? 'nunca' }}</td>
                     </tr>

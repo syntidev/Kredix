@@ -59,7 +59,7 @@ const chartOptions = computed(() => ({
         axisBorder: { show: false },
         axisTicks: { show: false },
     },
-    yaxis: { axisBorder: { show: false } },
+    yaxis: { axisBorder: { show: false }, labels: { formatter: (v) => formatMoney(v) } },
     legend: { position: 'top' },
     tooltip: { y: { formatter: (v) => `<span class="tabular-nums">${formatMoney(v)}</span>` } },
     grid: { borderColor: '#f3f4f6', strokeDashArray: 0, xaxis: { lines: { show: false } } },
