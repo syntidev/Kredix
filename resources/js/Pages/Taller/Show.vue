@@ -181,6 +181,9 @@ const exitoRepuesto = ref('');
 const errorRepuesto = ref('');
 
 const totalRepuestos = computed(() => props.ticket.repuestos.reduce((acc, r) => acc + Number(r.cantidad) * Number(r.precio), 0));
+// armado_interno no tiene cliente final que pague ni monto_servicio -- el
+// total ahi es solo repuestos, sin sumar nada mas
+const totalTicket = computed(() => totalRepuestos.value + (esServicioCliente.value ? Number(props.ticket.monto_servicio || 0) : 0));
 
 const repuestoForm = useForm({ producto: '', cantidad: 1, precio: '' });
 
@@ -570,6 +573,14 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
             </p>
             <p v-if="exitoRepuesto" class="text-sm font-medium text-green-700">{{ exitoRepuesto }}</p>
             <p v-if="errorRepuesto" class="text-sm text-kredix-rojo">{{ errorRepuesto }}</p>
+
+            <div class="flex items-baseline justify-between rounded-lg bg-kredix-negro px-3 py-2.5">
+                <span class="text-sm font-medium text-white">
+                    Total del ticket
+                    <span v-if="esServicioCliente" class="block text-xs font-normal text-white/70">Repuestos + servicio ({{ formatMoney(totalRepuestos) }} + {{ formatMoney(ticket.monto_servicio) }})</span>
+                </span>
+                <span class="tabular-nums text-2xl font-bold text-white">{{ formatMoney(totalTicket) }}</span>
+            </div>
 
             <form class="relative flex flex-col gap-3 border-t border-gray-100 pt-3 md:flex-row md:items-end md:gap-2" @submit.prevent="agregarRepuesto">
                 <div class="flex flex-1 flex-col gap-1">
