@@ -112,13 +112,13 @@ function irAPagina(pagina) {
                 </thead>
                 <tbody>
                     <tr v-for="(c, idx) in clientes.data" :key="c.id" class="cursor-pointer border-t border-gray-100 active:bg-gray-100" :class="idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'" @click="router.visit(`/clientes/${c.id}`)">
-                        <td class="p-0"><div class="h-full min-h-[2.5rem] w-2" :class="barraDias(c.diasDesdeUltimoAbono)"></div></td>
+                        <td class="p-0"><div class="h-full min-h-[2.5rem] w-2" :class="c.saldoPendiente > 0 ? barraDias(c.diasDesdeUltimoAbono) : 'bg-gray-200'"></div></td>
                         <td class="break-words px-2 py-2 font-medium text-kredix-negro">
                             {{ c.nombre }}
                         </td>
                         <td class="tabular-nums whitespace-nowrap px-2 py-2 text-right font-medium text-kredix-rojo">{{ formatMoney(c.saldoPendiente) }}</td>
                         <td class="break-words px-2 py-2 text-kredix-gris">{{ c.ultimoAbonoFecha ? formatFecha(c.ultimoAbonoFecha) : 'nunca' }}</td>
-                        <td class="break-words px-2 py-2 text-right font-medium" :class="colorDias(c.diasDesdeUltimoAbono)">{{ c.diasDesdeUltimoAbono ?? 'nunca' }}</td>
+                        <td class="break-words px-2 py-2 text-right font-medium" :class="c.saldoPendiente > 0 ? colorDias(c.diasDesdeUltimoAbono) : 'text-kredix-gris'">{{ c.diasDesdeUltimoAbono ?? 'nunca' }}</td>
                     </tr>
                 </tbody>
             </table>

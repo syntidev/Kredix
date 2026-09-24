@@ -958,11 +958,17 @@ watch(algunModalAbierto, (abierto) => {
                 </div>
 
                 <div class="flex h-full flex-col justify-center whitespace-nowrap rounded-card bg-white p-4 shadow-card-sm md:w-fit md:justify-self-end md:text-right">
-                    <p class="text-xs text-kredix-gris">Ultimo abono</p>
-                    <p class="text-2xl font-bold text-kredix-negro">{{ ultimoAbonoFecha ? formatFecha(ultimoAbonoFecha) : 'Nunca' }}</p>
-                    <p class="mt-0.5 text-sm font-medium" :class="ultimoAbonoFecha ? colorDias(diasSinAbonar) : 'text-kredix-gris'">
-                        {{ ultimoAbonoFecha ? `hace ${Math.round(diasSinAbonar)} dias` : 'sin abonos registrados' }}
-                    </p>
+                    <template v-if="Number(saldoPendiente) <= 0">
+                        <p class="text-xs text-kredix-gris">Cuenta</p>
+                        <p class="text-2xl font-bold text-kredix-negro">Sin saldo pendiente</p>
+                    </template>
+                    <template v-else>
+                        <p class="text-xs text-kredix-gris">Ultimo abono</p>
+                        <p class="text-2xl font-bold text-kredix-negro">{{ ultimoAbonoFecha ? formatFecha(ultimoAbonoFecha) : 'Nunca' }}</p>
+                        <p class="mt-0.5 text-sm font-medium" :class="ultimoAbonoFecha ? colorDias(diasSinAbonar) : 'text-kredix-gris'">
+                            {{ ultimoAbonoFecha ? `hace ${Math.round(diasSinAbonar)} dias` : 'sin abonos registrados' }}
+                        </p>
+                    </template>
                 </div>
             </div>
 
