@@ -1333,6 +1333,9 @@ watch(algunModalAbierto, (abierto) => {
                 <input v-model="esAjuste" type="checkbox" class="h-4 w-4" />
                 Es ajuste / devolucion (no cuenta como dinero cobrado)
             </label>
+            <p class="-mt-1 text-xs text-kredix-gris md:col-span-2">
+                No marcar esta casilla si el intercambio salda una deuda del cliente (ej. recibimos un producto/servicio a cambio) — usar solo cuando el cliente devuelve un producto que ya se le vendio.
+            </p>
 
             <div v-if="!esAjuste && planesConCuotasPendientes.length === 1" class="flex flex-col gap-1 rounded-lg bg-gray-50 p-3 md:col-span-2">
                 <p class="text-sm font-medium text-kredix-negro">Este abono se aplica al plan de financiamiento activo</p>
