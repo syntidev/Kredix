@@ -229,7 +229,15 @@ class ClienteController extends Controller
                 'monto' => $m->tipo === 'gestion' ? null : (float) $m->monto,
                 'saldo_acumulado' => $saldo,
             ];
-        });
+        })
+            // el PDF es un documento que se comparte con el cliente -- gestion
+            // (llamadas, contactos) es un registro interno de cobranza sin valor
+            // monetario y nunca debe llegar ahi. La vista interna de Movimientos
+            // en Ficha de Cliente (metodo show(), separado) sigue mostrandolo sin
+            // cambios. saldo_acumulado ya se calculo arriba sin contar gestion
+            // (nunca sumo/resto), este filtro es solo sobre la lista final
+            ->reject(fn (array $m) => $m['tipo'] === 'gestion')
+            ->values();
 
         $logoHost = Configuracion::logoHost();
         $logoMedia = $logoHost->getFirstMedia('logo_empresa');
