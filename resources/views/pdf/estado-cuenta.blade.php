@@ -3,16 +3,22 @@
 <head>
     <meta charset="utf-8">
     <style>
+        @page { margin: 50px 36px 80px 36px; }
         body { font-family: sans-serif; font-size: 11px; color: #101010; }
         h1 { font-size: 16px; margin-bottom: 2px; }
         .meta { color: #666; font-size: 10px; margin-bottom: 14px; }
-        .cliente { margin-bottom: 14px; }
-        .cliente td { padding: 2px 0; }
+        .cliente { margin-bottom: 10px; }
+        .cliente .nombre-cliente { font-size: 14px; font-weight: bold; margin: 0 0 4px; }
+        .cliente table { width: 100%; border-collapse: collapse; }
+        .cliente td { padding: 2px 0; font-size: 10px; }
         .cliente .label { color: #666; width: 100px; }
         table.movimientos { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
         table.movimientos th, table.movimientos td { border-bottom: 1px solid #ddd; padding: 4px 6px; text-align: left; }
         table.movimientos th { background: #f2f1ee; text-transform: uppercase; font-size: 9px; color: #666; }
         table.movimientos td.monto, table.movimientos th.monto { text-align: right; }
+        table.movimientos tbody tr.fila-normal:nth-child(even) { background: #f7f7f5; }
+        table.movimientos tr.fila-mes { page-break-inside: avoid; }
+        table.movimientos tr.fila-mes td { background: #101010; color: #fff; font-size: 9px; font-weight: bold; letter-spacing: 0.5px; padding: 5px 6px; border-bottom: none; }
         .saldo-final { font-weight: bold; }
         .rojo { color: #c00000; }
         .verde { color: #15803d; }
@@ -22,6 +28,10 @@
         .total-celda { width: 45%; text-align: right; padding-top: 8px; border-top: 2px solid #101010; }
         .total-celda p { margin: 0; }
         .total-label { font-size: 9px; text-transform: uppercase; color: #666; }
+        .resumen-arriba { width: 100%; border-collapse: collapse; margin-bottom: 14px; background: #f7f7f5; border-radius: 4px; }
+        .resumen-arriba td { padding: 10px 12px; }
+        .resumen-arriba .total-label { margin: 0; }
+        .resumen-arriba .saldo-grande { margin: 2px 0 0; }
         h2 { font-size: 13px; margin: 16px 0 6px; }
         .nota { color: #666; font-size: 9px; margin-bottom: 8px; }
         .cargo-cuotas { margin-bottom: 10px; }
@@ -40,7 +50,7 @@
         .encabezado .logo-empresa { max-height: 80px; margin-bottom: 6px; }
         .razon-social { margin: 0 0 3px; font-size: 13px; font-weight: bold; }
         .empresa-linea { margin: 0 0 1px; font-size: 10px; color: #666; }
-        .titulo-documento { margin: 0 0 4px; font-size: 18px; font-weight: bold; text-transform: uppercase; }
+        .titulo-documento { margin: 0 0 4px; font-size: 22px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -95,12 +105,26 @@
         </tr>
     </table>
 
-    <table class="cliente">
-        <tr><td class="label">Cliente</td><td><strong>{{ $cliente->nombre }}</strong></td></tr>
-        <tr><td class="label">Telefono</td><td>{{ $cliente->telefono }}</td></tr>
-        @if ($cliente->cedula)
-            <tr><td class="label">Cedula</td><td>{{ $cliente->cedula }}</td></tr>
-        @endif
+    <div class="cliente">
+        <p class="nombre-cliente">{{ $cliente->nombre }}</p>
+        <table>
+            <tr><td class="label">Telefono</td><td>{{ $cliente->telefono }}</td></tr>
+            @if ($cliente->cedula)
+                <tr><td class="label">Cedula</td><td>{{ $cliente->cedula }}</td></tr>
+            @endif
+            @if ($cliente->email)
+                <tr><td class="label">Email</td><td>{{ $cliente->email }}</td></tr>
+            @endif
+        </table>
+    </div>
+
+    <table class="resumen-arriba">
+        <tr>
+            <td>
+                <p class="total-label">Saldo pendiente</p>
+                <p class="saldo-grande {{ $saldoPendiente > 0 ? 'rojo' : ($saldoPendiente < 0 ? 'verde' : '') }}">{{ formatMoneyPdf($saldoPendiente) }}</p>
+            </td>
+        </tr>
     </table>
 
     <table class="movimientos">
@@ -116,14 +140,18 @@
         </thead>
         <tbody>
             @forelse ($movimientos as $m)
-                <tr>
-                    <td>{{ formatFechaPdf($m['fecha']) }}</td>
-                    <td>{{ etiquetaTipoPdf($m['tipo']) }}</td>
-                    <td>{{ $m['descripcion'] }}</td>
-                    <td class="monto">{{ $m['cantidad'] !== null ? $m['cantidad'] : '-' }}</td>
-                    <td class="monto {{ $m['tipo'] === 'abono' ? 'verde' : ($m['tipo'] === 'ajuste_devolucion' ? 'rojo' : '') }}">{{ $m['monto'] !== null ? formatMoneyPdf($m['monto']) : '-' }}</td>
-                    <td class="monto">{{ formatMoneyPdf($m['saldo_acumulado']) }}</td>
-                </tr>
+                @if ($m['es_separador'])
+                    <tr class="fila-mes"><td colspan="6">{{ $m['etiqueta'] }}</td></tr>
+                @else
+                    <tr class="fila-normal">
+                        <td>{{ formatFechaPdf($m['fecha']) }}</td>
+                        <td>{{ etiquetaTipoPdf($m['tipo']) }}</td>
+                        <td>{{ $m['descripcion'] }}</td>
+                        <td class="monto">{{ $m['cantidad'] !== null ? $m['cantidad'] : '-' }}</td>
+                        <td class="monto {{ $m['tipo'] === 'abono' ? 'verde' : ($m['tipo'] === 'ajuste_devolucion' ? 'rojo' : '') }}">{{ $m['monto'] !== null ? formatMoneyPdf($m['monto']) : '-' }}</td>
+                        <td class="monto">{{ formatMoneyPdf($m['saldo_acumulado']) }}</td>
+                    </tr>
+                @endif
             @empty
                 <tr><td colspan="6">Sin movimientos registrados.</td></tr>
             @endforelse

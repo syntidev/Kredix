@@ -26,6 +26,12 @@ class ClienteController extends Controller
 {
     use BuscaTokenizado;
 
+    private const MESES_ES = [
+        1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+        5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+        9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
+    ];
+
     private const MIN_CARACTERES_BUSQUEDA = 2;
 
     private const MAX_RESULTADOS_BUSQUEDA = 8;
@@ -239,6 +245,28 @@ class ClienteController extends Controller
             ->reject(fn (array $m) => $m['tipo'] === 'gestion')
             ->values();
 
+        // inyecta una fila separadora antes del primer movimiento de cada mes --
+        // movimientos ya viene ordenado por fecha ascendente, asi que un simple
+        // "cambio de mes visto" alcanza sin resortear nada. Filas sin fecha nunca
+        // disparan un separador nuevo (quedan bajo el ultimo grupo visto)
+        $mesVisto = null;
+        $movimientosConSeparadores = collect();
+        foreach ($movimientos as $m) {
+            $mesKey = $m['fecha'] ? substr($m['fecha'], 0, 7) : null;
+
+            if ($mesKey !== null && $mesKey !== $mesVisto) {
+                $mesVisto = $mesKey;
+                [$anio, $mesNum] = explode('-', $mesKey);
+                $movimientosConSeparadores->push([
+                    'es_separador' => true,
+                    'etiqueta' => mb_strtoupper(self::MESES_ES[(int) $mesNum].' '.$anio),
+                ]);
+            }
+
+            $movimientosConSeparadores->push([...$m, 'es_separador' => false]);
+        }
+        $movimientos = $movimientosConSeparadores;
+
         $logoHost = Configuracion::logoHost();
         $logoMedia = $logoHost->getFirstMedia('logo_empresa');
         $logoBase64 = $logoMedia && file_exists($logoMedia->getPath())
@@ -264,6 +292,26 @@ class ClienteController extends Controller
         ]);
 
         $nombreArchivo = 'estado-cuenta-'.Str::slug($cliente->nombre).'.pdf';
+
+        // folio puramente visual del documento -- nunca se persiste, no es un
+        // identificador de negocio, solo ayuda a referenciar "cual PDF" en un
+        // reclamo o soporte ("el estado de cuenta KRX-262-... que me enviaron")
+        $folio = 'KRX-'.$cliente->id.'-'.now()->format('YmdHis');
+        $fechaGeneracion = now()->format('d/m/Y H:i');
+
+        // "Pagina X de Y" NO es CSS en DomPDF (no soporta counter(page) como
+        // Prince/WeasyPrint) -- requiere la API de canvas de Dompdf, y esa API
+        // solo conoce el total de paginas DESPUES de renderizar. render() debe
+        // llamarse aqui manualmente antes de page_text(); stream()/download()
+        // respetan el flag interno $rendered de la libreria y no vuelven a
+        // renderizar, asi que esto no duplica nada
+        $pdf->render();
+        $canvas = $pdf->getDomPDF()->getCanvas();
+        $font = $pdf->getDomPDF()->getFontMetrics()->getFont('helvetica', 'normal');
+        $colorGris = [0.45, 0.45, 0.45];
+        $yFooter = $canvas->get_height() - 40;
+        $canvas->page_text(36, $yFooter, "{$folio} · Generado el {$fechaGeneracion} por Kredix", $font, 8, $colorGris);
+        $canvas->page_text($canvas->get_width() - 130, $yFooter, 'Pagina {PAGE_NUM} de {PAGE_COUNT}', $font, 8, $colorGris);
 
         // stream() (Content-Disposition: inline) es el default -- attachment hace
         // que iOS Safari descargue el archivo en silencio sin abrir su visor nativo
