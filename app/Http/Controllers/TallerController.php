@@ -134,6 +134,10 @@ class TallerController extends Controller
                 'fotos_salida' => $this->fotosUrls($ticket, 'salida'),
             ],
             'mecanicos' => User::where('es_oculto', false)->orderBy('name')->get(['id', 'name']),
+            // mismo valor ya usado como razon_social en el PDF de estado de
+            // cuenta -- una sola fuente de verdad para el nombre del negocio,
+            // editable desde Configuracion sin tocar codigo
+            'empresaNombre' => \App\Models\Configuracion::valorDe('empresa_razon_social', 'Kredix'),
         ]);
     }
 

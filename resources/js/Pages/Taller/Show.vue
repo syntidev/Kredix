@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
-import { AlertTriangle, Check, Pencil, Plus, Trash2, UserPlus, Zap } from '@lucide/vue';
+import { AlertTriangle, Check, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
@@ -16,6 +16,7 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
     ticket: { type: Object, required: true },
     mecanicos: { type: Array, required: true },
+    empresaNombre: { type: String, default: 'Kredix' },
 });
 
 const esServicioCliente = computed(() => props.ticket.tipo === 'servicio_cliente');
@@ -344,6 +345,9 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                     @click="marcarAtendido"
                 >
                     Marcar como atendido
+                </button>
+                <button type="button" title="Imprimir ticket" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="window.print()">
+                    <Printer :size="18" />
                 </button>
                 <button type="button" title="Eliminar ticket" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-rojo active:bg-gray-100" @click="confirmarEliminarTicket">
                     <Trash2 :size="18" />
@@ -684,5 +688,47 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
         </div>
 
         <ComprobanteLightbox :fotos="fotoModalUrls" :indice-inicial="fotoModalIndice" @close="fotoModalUrls = []" />
+
+        <!-- ticket fisico 58mm: oculto en pantalla, el <style> de abajo lo
+        hace visible (y oculta todo lo demas) solo durante @media print --
+        se perfora y ata a la bici con cuerda/clip, nunca adhesivo -->
+        <div class="ticket-print hidden text-center">
+            <p class="text-xs font-semibold">{{ empresaNombre }}</p>
+            <p class="text-[10px]">TICKET DE TALLER</p>
+            <p class="my-1 text-4xl font-bold">#{{ ticket.id }}</p>
+            <p class="text-xs">{{ formatFecha(ticket.created_at) }}</p>
+            <p v-if="esServicioCliente && ticket.cliente" class="text-sm font-medium">{{ ticket.cliente.nombre }}</p>
+            <p class="text-sm">{{ ticket.bici_marca_modelo }}</p>
+            <p v-if="esServicioCliente" class="text-xs">{{ TIPO_SERVICIO_LABEL[ticket.tipo_servicio] ?? ticket.tipo_servicio }}</p>
+        </div>
     </div>
 </template>
+
+<style>
+/* Xprinter XP-58IIHT (termica 58mm, USB) -- impresora estandar del SO, sin
+ESC/POS de bajo nivel. Aisla el ticket con visibility (no display) para que
+la impresora no reserve espacio para el resto de la pagina oculta. Margen
+superior de la propia .ticket-print (no @page) para dejar 1cm en blanco y
+poder perforar sin tapar texto, aun con @page margin en 0 */
+@media print {
+    @page {
+        size: 58mm auto;
+        margin: 0;
+    }
+    body * {
+        visibility: hidden;
+    }
+    .ticket-print,
+    .ticket-print * {
+        visibility: visible;
+    }
+    .ticket-print {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 58mm;
+        padding: 1.2cm 3mm 4mm;
+    }
+}
+</style>
