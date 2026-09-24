@@ -171,7 +171,7 @@ class MovimientoCuentaController extends Controller
             'moneda' => 'usd',
             'tasa_cambio' => $validated['tasa_cambio'] ?? null,
             'metodo_pago' => $validated['metodo_pago'] ?? null,
-            'referencia' => $validated['metodo_pago'] !== 'efectivo' ? ($validated['referencia'] ?? null) : null,
+            'referencia' => ($validated['metodo_pago'] ?? null) !== 'efectivo' ? ($validated['referencia'] ?? null) : null,
             'comentario' => $validated['comentario'] ?? null,
             'registrado_por' => auth()->id(),
         ];
