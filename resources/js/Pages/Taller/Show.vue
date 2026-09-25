@@ -17,6 +17,7 @@ const props = defineProps({
     ticket: { type: Object, required: true },
     mecanicos: { type: Array, required: true },
     empresaNombre: { type: String, default: 'Kredix' },
+    ticketQrDataUri: { type: String, default: '' },
 });
 
 const esServicioCliente = computed(() => props.ticket.tipo === 'servicio_cliente');
@@ -706,11 +707,21 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
         <div class="ticket-print hidden text-center">
             <p class="text-xs font-semibold">{{ empresaNombre }}</p>
             <p class="text-[10px]">TICKET DE TALLER</p>
-            <p class="my-1 text-4xl font-bold">#{{ ticket.id }}</p>
+
+            <!-- jerarquia: nombre del cliente es el elemento MAS GRANDE (asi
+            se refieren a las bicis en el taller real, no por numero). Sin
+            cliente (armado_interno) el numero de ticket toma ese lugar --
+            nunca queda sin protagonista visual -->
+            <p v-if="esServicioCliente && ticket.cliente" class="my-1 text-3xl font-bold leading-tight">{{ ticket.cliente.nombre }}</p>
+            <p class="font-bold" :class="esServicioCliente && ticket.cliente ? 'text-lg' : 'my-1 text-4xl'">#{{ ticket.id }}</p>
+
             <p class="text-xs">{{ formatFecha(ticket.created_at) }}</p>
-            <p v-if="esServicioCliente && ticket.cliente" class="text-sm font-medium">{{ ticket.cliente.nombre }}</p>
             <p class="text-sm">{{ ticket.bici_marca_modelo }}</p>
+            <p v-if="ticket.mecanico" class="text-xs">Mecanico: {{ ticket.mecanico.name }}</p>
+            <p v-if="esServicioCliente && ticket.motivo_ingreso" class="truncate text-xs" :title="ticket.motivo_ingreso">Motivo: {{ ticket.motivo_ingreso }}</p>
             <p v-if="esServicioCliente" class="text-xs">{{ TIPO_SERVICIO_LABEL[ticket.tipo_servicio] ?? ticket.tipo_servicio }}</p>
+
+            <img :src="ticketQrDataUri" alt="QR del ticket" class="mx-auto mt-2 h-[2.8cm] w-[2.8cm]" />
         </div>
     </div>
 </template>

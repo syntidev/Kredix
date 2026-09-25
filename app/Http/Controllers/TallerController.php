@@ -138,6 +138,13 @@ class TallerController extends Controller
             // cuenta -- una sola fuente de verdad para el nombre del negocio,
             // editable desde Configuracion sin tocar codigo
             'empresaNombre' => \App\Models\Configuracion::valorDe('empresa_razon_social', 'Kredix'),
+            // SVG (no requiere Imagick, sirve para el ticket impreso 58mm) --
+            // apunta a la ruta real taller.show, nunca una URL adivinada.
+            // data-URI en vez de v-html: la declaracion XML del SVG crudo
+            // puede romper al inyectarse como innerHTML, un img normal lo evita
+            'ticketQrDataUri' => 'data:image/svg+xml;base64,'.base64_encode(
+                \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(300)->generate(route('taller.show', $ticket->id))
+            ),
         ]);
     }
 
