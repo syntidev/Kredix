@@ -7,8 +7,10 @@ import { formatFecha } from '../../lib/formatFecha';
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-    tickets: { type: Array, required: true },
+    tickets: { type: Object, required: true },
     estado: { type: String, default: null },
+    rango: { type: String, default: null },
+    tipoServicio: { type: String, default: null },
 });
 
 // activo: color propio de cada estado (negro=neutral, naranja/verde=semaforo).
@@ -19,8 +21,48 @@ const FILTROS = [
     { valor: 'atendido', etiqueta: 'Atendido', activo: 'border-green-600 bg-green-50 text-green-700' },
 ];
 
+const RANGOS = [
+    { valor: null, etiqueta: 'Todos' },
+    { valor: 'hoy', etiqueta: 'Hoy' },
+    { valor: 'esta_semana', etiqueta: 'Esta semana' },
+    { valor: 'este_mes', etiqueta: 'Este mes' },
+];
+
+const TIPOS_SERVICIO_FILTRO = [
+    { valor: null, etiqueta: 'Todos' },
+    { valor: 'vip', etiqueta: 'VIP' },
+    { valor: 'normal', etiqueta: 'Normal' },
+];
+
+// mismo patron que Clientes/Index.vue: mezcla filtros actuales + cambios,
+// resetea a pagina 1 salvo que el cambio sea justamente de pagina
+function irA(cambios) {
+    const params = {
+        estado: props.estado || undefined,
+        rango: props.rango || undefined,
+        tipo_servicio: props.tipoServicio || undefined,
+        page: 1,
+        ...cambios,
+    };
+    Object.keys(params).forEach((k) => (params[k] === null || params[k] === undefined) && delete params[k]);
+
+    router.get('/taller', params, { preserveState: true, preserveScroll: true, replace: true });
+}
+
 function filtrar(valor) {
-    router.get('/taller', valor ? { estado: valor } : {}, { preserveState: true, preserveScroll: true, replace: true });
+    irA({ estado: valor });
+}
+
+function filtrarRango(valor) {
+    irA({ rango: valor });
+}
+
+function filtrarTipoServicio(valor) {
+    irA({ tipo_servicio: valor });
+}
+
+function irAPagina(pagina) {
+    irA({ page: pagina });
 }
 
 function colorEstado(estado) {
@@ -51,7 +93,7 @@ const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
             </Link>
         </div>
 
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
             <button
                 v-for="f in FILTROS"
                 :key="f.etiqueta"
@@ -64,11 +106,37 @@ const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
             </button>
         </div>
 
-        <p v-if="tickets.length === 0" class="text-sm text-kredix-gris">No hay tickets todavia.</p>
+        <div class="flex flex-wrap gap-2">
+            <button
+                v-for="r in RANGOS"
+                :key="r.etiqueta"
+                type="button"
+                class="min-h-9 rounded-full border px-3 text-sm font-medium"
+                :class="rango === r.valor ? 'border-kredix-negro bg-kredix-negro/10 text-kredix-negro' : 'border-gray-300 text-kredix-negro'"
+                @click="filtrarRango(r.valor)"
+            >
+                {{ r.etiqueta }}
+            </button>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+            <button
+                v-for="ts in TIPOS_SERVICIO_FILTRO"
+                :key="ts.etiqueta"
+                type="button"
+                class="min-h-9 rounded-full border px-3 text-sm font-medium"
+                :class="tipoServicio === ts.valor ? 'border-purple-600 bg-purple-50 text-purple-700' : 'border-gray-300 text-kredix-negro'"
+                @click="filtrarTipoServicio(ts.valor)"
+            >
+                {{ ts.etiqueta }}
+            </button>
+        </div>
+
+        <p v-if="tickets.data.length === 0" class="text-sm text-kredix-gris">No hay tickets todavia.</p>
 
         <div v-else class="flex flex-col gap-2">
             <Link
-                v-for="t in tickets"
+                v-for="t in tickets.data"
                 :key="t.id"
                 :href="`/taller/${t.id}`"
                 class="flex items-center justify-between gap-3 rounded-xl border border-[#e3e8ee] bg-white p-3 shadow-[0_1px_3px_rgba(0,55,112,0.08)] active:bg-gray-50"
@@ -107,6 +175,26 @@ const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
                     <p class="text-xs font-medium" :class="t.estado === 'atendido' ? 'text-green-700' : 'text-orange-700'">{{ labelEstado(t.estado) }}</p>
                 </div>
             </Link>
+        </div>
+
+        <div v-if="tickets.last_page > 1" class="flex items-center justify-between rounded-xl bg-white p-3 shadow-[0_1px_3px_rgba(0,55,112,0.08)]">
+            <button
+                type="button"
+                class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro disabled:opacity-40"
+                :disabled="tickets.current_page <= 1"
+                @click="irAPagina(tickets.current_page - 1)"
+            >
+                Anterior
+            </button>
+            <span class="text-sm text-kredix-gris">Pagina {{ tickets.current_page }} de {{ tickets.last_page }} — {{ tickets.total }} tickets</span>
+            <button
+                type="button"
+                class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro disabled:opacity-40"
+                :disabled="tickets.current_page >= tickets.last_page"
+                @click="irAPagina(tickets.current_page + 1)"
+            >
+                Siguiente
+            </button>
         </div>
     </div>
 </template>

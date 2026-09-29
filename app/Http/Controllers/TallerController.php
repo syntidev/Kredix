@@ -48,17 +48,28 @@ class TallerController extends Controller
     public function index(Request $request)
     {
         $estado = $request->query('estado');
+        $rango = $request->query('rango');
+        $tipoServicio = $request->query('tipo_servicio');
 
         $tickets = TicketTaller::query()
             ->with(['cliente:id,nombre', 'mecanico:id,name', 'registradoPor:id,name'])
             ->when(in_array($estado, ['en_proceso', 'atendido'], true), fn ($query) => $query->where('estado', $estado))
+            ->when($rango === 'hoy', fn ($query) => $query->whereDate('created_at', today()))
+            ->when($rango === 'esta_semana', fn ($query) => $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]))
+            ->when($rango === 'este_mes', fn ($query) => $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]))
+            ->when($tipoServicio === 'vip', fn ($query) => $query->where('tipo_servicio', 'vip'))
+            ->when($tipoServicio === 'normal', fn ($query) => $query->where(fn ($q) => $q->whereNull('tipo_servicio')->orWhere('tipo_servicio', '!=', 'vip')))
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn ($ticket) => $this->ticketResumen($ticket));
+            ->paginate(20)
+            ->withQueryString();
+
+        $tickets->getCollection()->transform(fn ($ticket) => $this->ticketResumen($ticket));
 
         return Inertia::render('Taller/Index', [
             'tickets' => $tickets,
             'estado' => $estado,
+            'rango' => $rango,
+            'tipoServicio' => $tipoServicio,
         ]);
     }
 
