@@ -405,7 +405,7 @@ function submit() {
             </div>
 
             <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Fotos de entrada <span class="font-normal text-kredix-gris">(obligatoria, al menos 1 -- incluye VIP, sin excepcion)</span></label>
+                <label class="text-sm font-medium text-kredix-negro">Fotos de entrada <span class="font-normal text-kredix-gris">{{ esVip ? '(opcional -- se sube en la visita al domicilio)' : '(obligatoria, al menos 1)' }}</span></label>
                 <input type="file" accept="image/*" multiple class="text-sm" @change="onFotosEntradaChange" />
                 <p v-if="fotosEntradaError" class="text-sm text-kredix-rojo">{{ fotosEntradaError }}</p>
                 <p v-if="form.errors.fotos_entrada" class="text-sm text-kredix-rojo">{{ form.errors.fotos_entrada }}</p>
@@ -419,8 +419,8 @@ function submit() {
                 <button
                     type="submit"
                     class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60"
-                    :disabled="form.processing || form.fotos_entrada.length === 0"
-                    :title="form.fotos_entrada.length === 0 ? 'Sube al menos 1 foto de entrada primero' : ''"
+                    :disabled="form.processing || (!esVip && form.fotos_entrada.length === 0)"
+                    :title="!esVip && form.fotos_entrada.length === 0 ? 'Sube al menos 1 foto de entrada primero' : ''"
                 >
                     Guardar ticket
                 </button>

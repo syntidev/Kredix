@@ -89,17 +89,16 @@ class TallerController extends Controller
             'diagnostico.*.item' => ['required_with:diagnostico', 'string', 'max:255'],
             'diagnostico.*.estado' => ['required_with:diagnostico', 'in:bien,atencion'],
             'diagnostico.*.nota' => ['nullable', 'string', 'max:1000'],
-            // obligatoria para CUALQUIER tipo (incluido VIP, sin excepcion) --
-            // antes solo se exigia foto de salida para cerrar el ticket, la
-            // de entrada no se validaba en absoluto al crear
-            'fotos_entrada' => ['required', 'array', 'min:1'],
+            // VIP se agenda por telefono antes de que el mecanico vea la bici
+            // -- exigir foto en ese momento hace imposible registrar la cita.
+            // Para el resto de tipos se mantiene obligatoria al crear.
+            'fotos_entrada' => [Rule::requiredIf(! $esVip), 'array'],
             'fotos_entrada.*' => ['image', 'max:5120'],
         ], [
             'motivo_ingreso.required' => 'motivo de ingreso requerido',
             'categoria_bici.required' => 'categoria de bici requerida',
             'domicilio_direccion.required' => 'direccion del domicilio requerida para servicio VIP',
             'fotos_entrada.required' => 'al menos 1 foto de entrada requerida',
-            'fotos_entrada.min' => 'al menos 1 foto de entrada requerida',
         ]);
 
         $ticket = TicketTaller::create([
@@ -276,6 +275,13 @@ class TallerController extends Controller
     {
         if (blank($ticket->trabajo_realizado)) {
             return back()->withErrors(['trabajo_realizado' => 'Debes registrar el trabajo realizado antes de marcar el ticket como atendido.']);
+        }
+
+        // VIP ya no exige foto de entrada al crear (se agenda antes de ver la
+        // bici) -- por eso el cierre debe validarla aqui explicitamente, no
+        // solo salida, o un VIP podria cerrar sin haber subido nunca entrada.
+        if ($ticket->getMedia('entrada')->isEmpty()) {
+            return back()->withErrors(['fotos_entrada' => 'Falta al menos 1 foto de entrada para poder marcar el ticket como atendido.']);
         }
 
         if ($ticket->getMedia('salida')->isEmpty()) {
