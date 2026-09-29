@@ -60,13 +60,15 @@
     @if ($tickets->isEmpty())
         <p class="sin-tickets">No hay tickets en proceso.</p>
     @else
+        @php
+            $categoriaLabel = ['ruta' => 'Ruta', 'mtb' => 'MTB', 'otro' => 'Otro'];
+        @endphp
         <table>
             <thead>
                 <tr>
                     <th>#</th>
                     <th>Cliente</th>
                     <th>Bici</th>
-                    <th>Motivo de ingreso</th>
                     <th>Mecanico</th>
                     <th>Estado</th>
                     <th>Fecha de ingreso</th>
@@ -76,9 +78,17 @@
                 @foreach ($tickets as $ticket)
                     <tr>
                         <td>{{ $ticket->id }}</td>
-                        <td>{{ $ticket->cliente->nombre ?? 'Armado interno' }}</td>
-                        <td>{{ $ticket->bici_marca_modelo }}{{ $ticket->talla_rin ? ' (Rin '.$ticket->talla_rin.')' : '' }}</td>
-                        <td>{{ $ticket->motivo_ingreso ? \Illuminate\Support\Str::limit($ticket->motivo_ingreso, 60) : '-' }}</td>
+                        <td>{{ $ticket->tipo_servicio === 'vip' ? '[VIP] ' : '' }}{{ $ticket->cliente->nombre ?? 'Armado interno' }}</td>
+                        <td>
+                            {{ $ticket->bici_marca_modelo }}
+                            · {{ $categoriaLabel[$ticket->categoria_bici] ?? $ticket->categoria_bici }}
+                            @if ($ticket->talla_rin)
+                                · Rin {{ $ticket->talla_rin }}
+                            @endif
+                            @if ($ticket->es_electrica)
+                                · E-BIKE
+                            @endif
+                        </td>
                         <td>{{ $ticket->mecanico->name ?? '-' }}</td>
                         <td>En proceso</td>
                         <td>{{ $ticket->created_at->format('d/m/Y') }}</td>
