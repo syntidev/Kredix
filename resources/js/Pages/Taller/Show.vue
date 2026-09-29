@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
-import { AlertTriangle, Check, Crown, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
+import { AlertTriangle, Check, Crown, Download, FileText, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
@@ -32,6 +32,51 @@ const atendido = computed(() => props.ticket.estado === 'atendido');
 // ya implementado (.ticket-print)
 function imprimirTicket() {
     window.print();
+}
+
+// equivalente JS de Str::slug() -- copia local de la misma funcion en
+// Clientes/Show.vue (no se toca ese archivo, prohibido en fases previas),
+// solo para que la URL sea legible, el backend nunca confia en esto para
+// resolver el ticket (usa {ticket} por id via route model binding)
+const REGEX_DIACRITICOS = new RegExp(String.fromCharCode(91, 92, 117, 48, 51, 48, 48, 45, 92, 117, 48, 51, 54, 102, 93), 'g');
+
+function slug(texto) {
+    return texto
+        .normalize('NFD')
+        .replace(REGEX_DIACRITICOS, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+// mismo patron de PDF que Clientes/Show.vue: PWA standalone en iOS no
+// expone ningun toolbar sobre el visor de PDF, unico mecanismo que invoca
+// el share sheet nativo desde adentro es Web Share API con el PDF como File
+const esIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+async function abrirPdfAtencion() {
+    const nombreSlug = slug(props.ticket.bici_marca_modelo) || 'ticket';
+    const url = `/taller/${props.ticket.id}/atencion-${nombreSlug}.pdf`;
+
+    if (esIOS && navigator.canShare) {
+        try {
+            const blob = await (await fetch(url)).blob();
+            const file = new File([blob], `atencion-${nombreSlug}.pdf`, { type: 'application/pdf' });
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file] });
+                return;
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+        }
+    }
+
+    window.open(url, '_blank', 'noopener');
+}
+
+function descargarPdfAtencion() {
+    const nombreSlug = slug(props.ticket.bici_marca_modelo) || 'ticket';
+    window.open(`/taller/${props.ticket.id}/atencion-${nombreSlug}.pdf?descargar=1`, '_blank', 'noopener');
 }
 
 const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 'Otro' };
@@ -383,6 +428,12 @@ const itemsFaltantesParaCerrar = computed(() => {
                 </button>
                 <button type="button" title="Imprimir ticket" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="imprimirTicket">
                     <Printer :size="18" />
+                </button>
+                <button type="button" title="Ver/compartir PDF de atencion" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="abrirPdfAtencion">
+                    <FileText :size="18" />
+                </button>
+                <button type="button" title="Descargar PDF de atencion" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="descargarPdfAtencion">
+                    <Download :size="18" />
                 </button>
                 <button type="button" title="Eliminar ticket" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-rojo active:bg-gray-100" @click="confirmarEliminarTicket">
                     <Trash2 :size="18" />

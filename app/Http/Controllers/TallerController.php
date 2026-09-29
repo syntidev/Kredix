@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Configuracion;
 use App\Models\MovimientoCuenta;
 use App\Models\TicketRepuesto;
 use App\Models\TicketTaller;
 use App\Models\User;
 use App\Services\ImagenUploadService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class TallerController extends Controller
 {
@@ -92,6 +96,69 @@ class TallerController extends Controller
         return view('taller.bitacora-imprimir', [
             'tickets' => $tickets,
             'fechaImpresion' => now()->format('d/m/Y H:i'),
+        ]);
+    }
+
+    // PDF de atencion del ticket, mismo layout/patron que
+    // ClienteController::estadoCuenta() (encabezado, folio en el footer via
+    // canvas, headers no-cache -- misma razon: la ruta termina en .pdf y
+    // Cloudflare/el navegador la tratarian como archivo estatico cacheable
+    // si no fuera por estos headers, pero cada respuesta es especifica de
+    // ESTE ticket)
+    public function pdfAtencion(Request $request, TicketTaller $ticket)
+    {
+        $ticket->load(['cliente:id,nombre,telefono', 'mecanico:id,name', 'registradoPor:id,name', 'repuestos']);
+
+        $fotoBase64 = fn (Media $media) => file_exists($media->getPath('thumb'))
+            ? 'data:'.$media->mime_type.';base64,'.base64_encode(file_get_contents($media->getPath('thumb')))
+            : null;
+
+        $fotosEntrada = $ticket->getMedia('entrada')->map($fotoBase64)->filter()->values();
+        $fotosSalida = $ticket->getMedia('salida')->map($fotoBase64)->filter()->values();
+
+        $logoHost = Configuracion::logoHost();
+        $logoMedia = $logoHost->getFirstMedia('logo_empresa');
+        $logoBase64 = $logoMedia && file_exists($logoMedia->getPath())
+            ? 'data:'.$logoMedia->mime_type.';base64,'.base64_encode(file_get_contents($logoMedia->getPath()))
+            : null;
+
+        $pdf = Pdf::loadView('pdf.taller-atencion', [
+            'ticket' => $ticket,
+            'fotosEntrada' => $fotosEntrada,
+            'fotosSalida' => $fotosSalida,
+            'empresa' => [
+                'razon_social' => Configuracion::valorDe('empresa_razon_social'),
+                'rif' => Configuracion::valorDe('empresa_rif'),
+                'direccion' => Configuracion::valorDe('empresa_direccion'),
+                'telefono' => Configuracion::valorDe('empresa_telefono'),
+                'email' => Configuracion::valorDe('empresa_email'),
+                'logo_base64' => $logoBase64,
+            ],
+            'fechaEmision' => now()->format('d/m/Y H:i'),
+        ]);
+
+        $nombreArchivo = 'ticket-'.$ticket->id.'-'.Str::slug($ticket->bici_marca_modelo).'.pdf';
+
+        // folio puramente visual, nunca se persiste -- mismo criterio que
+        // estado-cuenta (no es identificador de negocio)
+        $folio = 'KRX-TALLER-'.$ticket->id.'-'.now()->format('YmdHis');
+        $fechaGeneracion = now()->format('d/m/Y H:i');
+
+        $pdf->render();
+        $canvas = $pdf->getDomPDF()->getCanvas();
+        $font = $pdf->getDomPDF()->getFontMetrics()->getFont('helvetica', 'normal');
+        $colorGris = [0.45, 0.45, 0.45];
+        $yFooter = $canvas->get_height() - 40;
+        $canvas->page_text(36, $yFooter, "{$folio} · Generado el {$fechaGeneracion} por Kredix", $font, 8, $colorGris);
+        $canvas->page_text($canvas->get_width() - 130, $yFooter, 'Pagina {PAGE_NUM} de {PAGE_COUNT}', $font, 8, $colorGris);
+
+        $response = $request->boolean('descargar')
+            ? $pdf->download($nombreArchivo)
+            : $pdf->stream($nombreArchivo);
+
+        return $response->withHeaders([
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
         ]);
     }
 
