@@ -73,6 +73,28 @@ class TallerController extends Controller
         ]);
     }
 
+    // vista Blade standalone (no Inertia) para imprimir en papel y dejar en
+    // el taller -- espejo de respaldo para el mecanico que no usa el sistema
+    // digital, siempre en_proceso (tickets abiertos), sin paginar
+    public function bitacoraImprimir(Request $request)
+    {
+        $rango = $request->query('rango');
+
+        $tickets = TicketTaller::query()
+            ->with(['cliente:id,nombre', 'mecanico:id,name'])
+            ->where('estado', 'en_proceso')
+            ->when($rango === 'hoy', fn ($query) => $query->whereDate('created_at', today()))
+            ->when($rango === 'esta_semana', fn ($query) => $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]))
+            ->when($rango === 'este_mes', fn ($query) => $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]))
+            ->orderByDesc('created_at')
+            ->get();
+
+        return view('taller.bitacora-imprimir', [
+            'tickets' => $tickets,
+            'fechaImpresion' => now()->format('d/m/Y H:i'),
+        ]);
+    }
+
     public function create()
     {
         return Inertia::render('Taller/Nuevo', [

@@ -70,6 +70,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/taller/{ticket}/fotos/{coleccion}', [TallerController::class, 'subirFotos'])->name('taller.fotos.store');
     Route::post('/taller/{ticket}/repuestos', [TallerController::class, 'agregarRepuesto'])->name('taller.repuestos.store');
     Route::delete('/taller/{ticket}/repuestos/{repuesto}', [TallerController::class, 'eliminarRepuesto'])->name('taller.repuestos.destroy');
+    Route::get('/taller/bitacora/imprimir', [TallerController::class, 'bitacoraImprimir'])->name('taller.bitacora-imprimir');
 
     Route::post('/movimientos', [MovimientoCuentaController::class, 'store'])->name('movimientos.store');
     Route::put('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'update'])->name('movimientos.update');

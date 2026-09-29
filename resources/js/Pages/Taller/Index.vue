@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Bike, Crown, Mountain, Route, Wrench, Zap } from '@lucide/vue';
+import { Bike, Crown, Mountain, Printer, Route, Wrench, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import { formatFecha } from '../../lib/formatFecha';
 
@@ -88,9 +88,20 @@ const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
                 <Wrench :size="20" />
                 Taller — bitacora
             </h1>
-            <Link href="/taller/nuevo" class="min-h-11 rounded-lg bg-kredix-negro px-4 text-sm font-medium leading-[2.75rem] text-white active:opacity-80">
-                + Nuevo ticket
-            </Link>
+            <div class="flex items-center gap-2">
+                <a
+                    href="/taller/bitacora/imprimir"
+                    target="_blank"
+                    rel="noopener"
+                    title="Imprimir bitacora"
+                    class="flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-gray-300 text-kredix-negro active:bg-gray-100"
+                >
+                    <Printer :size="18" />
+                </a>
+                <Link href="/taller/nuevo" class="min-h-11 rounded-lg bg-kredix-negro px-4 text-sm font-medium leading-[2.75rem] text-white active:opacity-80">
+                    + Nuevo ticket
+                </Link>
+            </div>
         </div>
 
         <div class="flex flex-wrap gap-2">
