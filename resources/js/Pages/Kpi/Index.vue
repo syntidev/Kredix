@@ -1,6 +1,6 @@
 <script setup>
 import { computed, defineAsyncComponent, ref } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { ChevronDown, TrendingDown, TrendingUp, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import StatCard from '../../Components/StatCard.vue';
@@ -21,6 +21,7 @@ const props = defineProps({
     totalClientesActivos: { type: Number, required: true },
     clientesNuevosEsteMes: { type: Number, required: true },
     crecimientoClientesPct: { type: Number, default: null },
+    kpiTaller: { type: Object, required: true },
 });
 
 const AYUDA_PERIODO =
@@ -101,6 +102,21 @@ const saludChartOptions = computed(() => ({
         },
     },
 }));
+
+// --- tab Taller (nueva seccion dentro de la misma vista de KPI, mismo
+// guard es_admin de la ruta /kpi -- no crea acceso nuevo) ---
+const seccion = ref('general');
+
+const RANGOS_TALLER = [
+    { valor: null, etiqueta: 'Todos' },
+    { valor: 'hoy', etiqueta: 'Hoy' },
+    { valor: 'esta_semana', etiqueta: 'Esta semana' },
+    { valor: 'este_mes', etiqueta: 'Este mes' },
+];
+
+function filtrarRangoTaller(valor) {
+    router.get('/kpi', valor ? { rango_taller: valor } : {}, { preserveState: true, preserveScroll: true, replace: true });
+}
 </script>
 
 <template>
@@ -109,6 +125,92 @@ const saludChartOptions = computed(() => ({
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <h1 class="text-xl font-semibold text-kredix-negro">KPI</h1>
 
+        <div class="flex gap-2">
+            <button
+                type="button"
+                class="min-h-9 rounded-full border px-3 text-sm font-medium"
+                :class="seccion === 'general' ? 'border-kredix-negro bg-kredix-negro/10 text-kredix-negro' : 'border-gray-300 text-kredix-negro'"
+                @click="seccion = 'general'"
+            >
+                General
+            </button>
+            <button
+                type="button"
+                class="min-h-9 rounded-full border px-3 text-sm font-medium"
+                :class="seccion === 'taller' ? 'border-kredix-negro bg-kredix-negro/10 text-kredix-negro' : 'border-gray-300 text-kredix-negro'"
+                @click="seccion = 'taller'"
+            >
+                Taller
+            </button>
+        </div>
+
+        <template v-if="seccion === 'taller'">
+            <div class="flex flex-wrap gap-2">
+                <button
+                    v-for="r in RANGOS_TALLER"
+                    :key="r.etiqueta"
+                    type="button"
+                    class="min-h-9 rounded-full border px-3 text-sm font-medium"
+                    :class="kpiTaller.rango === r.valor ? 'border-kredix-negro bg-kredix-negro/10 text-kredix-negro' : 'border-gray-300 text-kredix-negro'"
+                    @click="filtrarRangoTaller(r.valor)"
+                >
+                    {{ r.etiqueta }}
+                </button>
+            </div>
+
+            <div class="rounded-card bg-white p-4 shadow-card">
+                <h2 class="mb-3 text-sm font-semibold text-kredix-negro">Productividad general — todo el taller</h2>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <p class="text-xs text-kredix-gris">Tickets atendidos</p>
+                        <p class="tabular-nums text-lg font-semibold text-kredix-negro">{{ kpiTaller.totales.tickets_atendidos }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-kredix-gris">Monto servicio</p>
+                        <p class="tabular-nums text-lg font-semibold text-kredix-negro">{{ formatMoney(kpiTaller.totales.monto_servicio) }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-kredix-gris">Monto repuestos</p>
+                        <p class="tabular-nums text-lg font-semibold text-kredix-negro">{{ formatMoney(kpiTaller.totales.monto_repuestos) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-card bg-white p-4 shadow-card">
+                <h2 class="mb-3 text-sm font-semibold text-kredix-negro">Por mecanico</h2>
+                <p v-if="kpiTaller.porMecanico.length === 0" class="text-sm text-kredix-gris">Sin tickets atendidos en este rango.</p>
+                <div v-else class="overflow-x-auto">
+                    <table class="w-full min-w-[480px] text-left text-sm">
+                        <thead>
+                            <tr class="text-xs text-kredix-gris">
+                                <th class="px-3 py-2 font-medium">Mecanico</th>
+                                <th class="px-3 py-2 text-right font-medium">Tickets</th>
+                                <th class="px-3 py-2 text-right font-medium">Servicio</th>
+                                <th class="px-3 py-2 text-right font-medium">Repuestos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="m in kpiTaller.porMecanico" :key="m.mecanico" class="border-t border-gray-100">
+                                <td class="px-3 py-2 text-kredix-negro">{{ m.mecanico }}</td>
+                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ m.tickets_atendidos }}</td>
+                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ formatMoney(m.monto_servicio) }}</td>
+                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ formatMoney(m.monto_repuestos) }}</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="border-t-2 border-gray-200 font-semibold">
+                                <td class="px-3 py-2 text-kredix-negro">Total</td>
+                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ kpiTaller.totales.tickets_atendidos }}</td>
+                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ formatMoney(kpiTaller.totales.monto_servicio) }}</td>
+                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ formatMoney(kpiTaller.totales.monto_repuestos) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </template>
+
+        <template v-if="seccion === 'general'">
         <div class="rounded-card bg-white shadow-card">
             <button
                 type="button"
@@ -237,5 +339,6 @@ const saludChartOptions = computed(() => ({
                 </div>
             </div>
         </div>
+        </template>
     </div>
 </template>

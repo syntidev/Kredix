@@ -74,11 +74,14 @@ class TicketTaller extends Model implements HasMedia
     // mismo calculo que totalTicket/totalRepuestos en Taller/Show.vue --
     // portado a PHP porque el cargo automatico al cerrar necesita el monto
     // server-side, la version original solo existia como computed de Vue
+    public function totalRepuestos(): float
+    {
+        return (float) $this->repuestos->sum(fn (TicketRepuesto $r) => $r->cantidad * (float) $r->precio);
+    }
+
     public function totalTicket(): float
     {
-        $totalRepuestos = $this->repuestos->sum(fn (TicketRepuesto $r) => $r->cantidad * (float) $r->precio);
-
-        return $totalRepuestos + ($this->tipo === 'servicio_cliente' ? (float) $this->monto_servicio : 0);
+        return $this->totalRepuestos() + ($this->tipo === 'servicio_cliente' ? (float) $this->monto_servicio : 0);
     }
 
     // Requiere `php artisan storage:link` corrido una vez en el servidor (ver

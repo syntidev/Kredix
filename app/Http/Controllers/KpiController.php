@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Models\MovimientoCuenta;
+use App\Models\TicketTaller;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 
@@ -14,7 +16,7 @@ class KpiController extends Controller
     // sistema sigue funcionando correcto en 2027, 2028, etc. sin tocar este filtro
     private const PISO_FECHA_KPI = '2025-01-01';
 
-    public function index()
+    public function index(Request $request)
     {
         $hoy = now();
         $inicioMes = $hoy->copy()->startOfMonth();
@@ -239,7 +241,49 @@ class KpiController extends Controller
             'totalClientesActivos' => Cliente::count(),
             'clientesNuevosEsteMes' => $clientesNuevosEsteMes,
             'crecimientoClientesPct' => $crecimientoClientesPct,
+            'kpiTaller' => $this->kpiTaller($request),
         ]);
+    }
+
+    /**
+     * Tickets atendidos por mecanico: cantidad, SUM(monto_servicio) y
+     * SUM(repuestos) -- este ultimo via TicketTaller::totalRepuestos(),
+     * misma fuente que "Total del ticket" en Taller/Show.vue y en el cargo
+     * automatico de Fase 6, sin recalcular la logica de repuestos aqui.
+     */
+    private function kpiTaller(Request $request): array
+    {
+        $rango = $request->query('rango_taller');
+
+        $tickets = TicketTaller::query()
+            ->where('estado', 'atendido')
+            ->when($rango === 'hoy', fn ($q) => $q->whereDate('created_at', today()))
+            ->when($rango === 'esta_semana', fn ($q) => $q->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]))
+            ->when($rango === 'este_mes', fn ($q) => $q->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]))
+            ->with(['mecanico:id,name', 'repuestos'])
+            ->get();
+
+        $porMecanico = $tickets->groupBy('mecanico_id')
+            ->map(function ($grupo) {
+                return [
+                    'mecanico' => $grupo->first()->mecanico?->name ?? 'Sin asignar',
+                    'tickets_atendidos' => $grupo->count(),
+                    'monto_servicio' => (float) $grupo->sum(fn (TicketTaller $t) => $t->tipo === 'servicio_cliente' ? (float) $t->monto_servicio : 0),
+                    'monto_repuestos' => (float) $grupo->sum(fn (TicketTaller $t) => $t->totalRepuestos()),
+                ];
+            })
+            ->sortByDesc('tickets_atendidos')
+            ->values();
+
+        return [
+            'porMecanico' => $porMecanico,
+            'totales' => [
+                'tickets_atendidos' => $porMecanico->sum('tickets_atendidos'),
+                'monto_servicio' => $porMecanico->sum('monto_servicio'),
+                'monto_repuestos' => $porMecanico->sum('monto_repuestos'),
+            ],
+            'rango' => $rango,
+        ];
     }
 
     /**
