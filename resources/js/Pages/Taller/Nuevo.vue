@@ -36,6 +36,7 @@ const form = useForm({
     talla_rin: '',
     es_electrica: false,
     tipo_servicio: 'basico',
+    domicilio_direccion: '',
     monto_servicio: MONTOS_SERVICIO.basico,
     mecanico_id: '',
     diagnostico: diagnosticoVacio(),
@@ -43,6 +44,7 @@ const form = useForm({
 });
 
 const esServicioCliente = computed(() => form.tipo === 'servicio_cliente');
+const esVip = computed(() => esServicioCliente.value && form.tipo_servicio === 'vip');
 
 // --- buscador de cliente (mismo patron que Home/Index.vue) ---
 const busquedaCliente = ref('');
@@ -337,6 +339,17 @@ function submit() {
                 <p v-if="form.errors.monto_servicio" class="text-sm text-kredix-rojo">{{ form.errors.monto_servicio }}</p>
             </div>
 
+            <div v-if="esVip" class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Direccion del domicilio</label>
+                <textarea
+                    v-model="form.domicilio_direccion"
+                    rows="2"
+                    placeholder="Direccion donde se atiende el servicio VIP..."
+                    class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                ></textarea>
+                <p v-if="form.errors.domicilio_direccion" class="text-sm text-kredix-rojo">{{ form.errors.domicilio_direccion }}</p>
+            </div>
+
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Mecanico</label>
                 <select v-model="form.mecanico_id" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
@@ -392,9 +405,10 @@ function submit() {
             </div>
 
             <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Fotos de entrada <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                <label class="text-sm font-medium text-kredix-negro">Fotos de entrada <span class="font-normal text-kredix-gris">(obligatoria, al menos 1 -- incluye VIP, sin excepcion)</span></label>
                 <input type="file" accept="image/*" multiple class="text-sm" @change="onFotosEntradaChange" />
                 <p v-if="fotosEntradaError" class="text-sm text-kredix-rojo">{{ fotosEntradaError }}</p>
+                <p v-if="form.errors.fotos_entrada" class="text-sm text-kredix-rojo">{{ form.errors.fotos_entrada }}</p>
                 <p v-if="form.errors['fotos_entrada.0']" class="text-sm text-kredix-rojo">{{ form.errors['fotos_entrada.0'] }}</p>
             </div>
 
@@ -402,7 +416,12 @@ function submit() {
                 <Link href="/taller" class="flex min-h-11 flex-1 items-center justify-center rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100">
                     Cancelar
                 </Link>
-                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="form.processing">
+                <button
+                    type="submit"
+                    class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60"
+                    :disabled="form.processing || form.fotos_entrada.length === 0"
+                    :title="form.fotos_entrada.length === 0 ? 'Sube al menos 1 foto de entrada primero' : ''"
+                >
                     Guardar ticket
                 </button>
             </div>

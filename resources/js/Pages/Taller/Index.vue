@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Bike, Mountain, Route, Wrench, Zap } from '@lucide/vue';
+import { Bike, Crown, Mountain, Route, Wrench, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import { formatFecha } from '../../lib/formatFecha';
 
@@ -79,6 +79,10 @@ const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
                         <p class="truncate font-medium text-kredix-negro">
                             {{ t.cliente ?? 'Armado interno' }}
                             <span v-if="t.tipo_servicio" class="ml-1 text-sm font-normal text-kredix-gris">{{ TIPO_SERVICIO_LABEL[t.tipo_servicio] ?? t.tipo_servicio }}</span>
+                            <span v-if="t.tipo_servicio === 'vip'" class="ml-1 inline-flex shrink-0 items-center gap-0.5 rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700">
+                                <Crown :size="10" />
+                                VIP
+                            </span>
                         </p>
                         <p class="flex flex-wrap items-center gap-1 text-sm text-kredix-gris">
                             <span class="truncate">{{ t.bici_marca_modelo }}</span>

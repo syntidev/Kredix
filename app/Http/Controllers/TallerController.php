@@ -71,6 +71,8 @@ class TallerController extends Controller
     {
         $esServicioCliente = $request->input('tipo') === 'servicio_cliente';
 
+        $esVip = $esServicioCliente && $request->input('tipo_servicio') === 'vip';
+
         $validated = $request->validate([
             'tipo' => ['required', 'in:servicio_cliente,armado_interno'],
             'cliente_id' => [Rule::requiredIf($esServicioCliente), 'nullable', 'exists:clientes,id'],
@@ -80,16 +82,24 @@ class TallerController extends Controller
             'talla_rin' => ['nullable', 'string', 'max:255'],
             'es_electrica' => ['nullable', 'boolean'],
             'tipo_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'in:basico,full,vip,otro'],
+            'domicilio_direccion' => [Rule::requiredIf($esVip), 'nullable', 'string', 'max:1000'],
             'monto_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'numeric', 'min:0'],
             'mecanico_id' => ['required', 'exists:users,id'],
             'diagnostico' => ['nullable', 'array'],
             'diagnostico.*.item' => ['required_with:diagnostico', 'string', 'max:255'],
             'diagnostico.*.estado' => ['required_with:diagnostico', 'in:bien,atencion'],
             'diagnostico.*.nota' => ['nullable', 'string', 'max:1000'],
-            'fotos_entrada.*' => ['nullable', 'image', 'max:5120'],
+            // obligatoria para CUALQUIER tipo (incluido VIP, sin excepcion) --
+            // antes solo se exigia foto de salida para cerrar el ticket, la
+            // de entrada no se validaba en absoluto al crear
+            'fotos_entrada' => ['required', 'array', 'min:1'],
+            'fotos_entrada.*' => ['image', 'max:5120'],
         ], [
             'motivo_ingreso.required' => 'motivo de ingreso requerido',
             'categoria_bici.required' => 'categoria de bici requerida',
+            'domicilio_direccion.required' => 'direccion del domicilio requerida para servicio VIP',
+            'fotos_entrada.required' => 'al menos 1 foto de entrada requerida',
+            'fotos_entrada.min' => 'al menos 1 foto de entrada requerida',
         ]);
 
         $ticket = TicketTaller::create([
@@ -101,6 +111,7 @@ class TallerController extends Controller
             'talla_rin' => $validated['talla_rin'] ?? '',
             'es_electrica' => $validated['es_electrica'] ?? false,
             'tipo_servicio' => $esServicioCliente ? $validated['tipo_servicio'] : null,
+            'domicilio_direccion' => $esVip ? $validated['domicilio_direccion'] : null,
             'monto_servicio' => $esServicioCliente ? $validated['monto_servicio'] : null,
             'diagnostico' => $validated['diagnostico'] ?? [],
             'mecanico_id' => $validated['mecanico_id'],
@@ -123,7 +134,7 @@ class TallerController extends Controller
             'ticket' => [
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',
-                    'tipo_servicio', 'monto_servicio', 'diagnostico', 'estado', 'mecanico_id', 'trabajo_realizado',
+                    'tipo_servicio', 'domicilio_direccion', 'monto_servicio', 'diagnostico', 'estado', 'mecanico_id', 'trabajo_realizado',
                 ]),
                 'cliente' => $ticket->cliente,
                 'mecanico' => $ticket->mecanico,

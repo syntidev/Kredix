@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
-import { AlertTriangle, Check, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
+import { AlertTriangle, Check, Crown, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
@@ -340,6 +340,10 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
         <div class="flex items-center justify-between">
             <h1 class="text-xl font-semibold text-kredix-negro">
                 Ticket #{{ ticket.id }}
+                <span v-if="ticket.tipo_servicio === 'vip'" class="ml-1 inline-flex items-center gap-0.5 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-700">
+                    <Crown :size="12" />
+                    VIP
+                </span>
                 <span
                     class="ml-2 rounded-full px-2 py-0.5 text-xs font-medium"
                     :class="atendido ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'"
@@ -398,6 +402,9 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                 </p>
                 <p v-if="esServicioCliente" class="text-sm text-kredix-negro">
                     {{ TIPO_SERVICIO_LABEL[ticket.tipo_servicio] ?? ticket.tipo_servicio }} — {{ formatMoney(ticket.monto_servicio) }}
+                </p>
+                <p v-if="ticket.tipo_servicio === 'vip' && ticket.domicilio_direccion" class="text-sm text-kredix-negro">
+                    <span class="font-medium">Domicilio:</span> {{ ticket.domicilio_direccion }}
                 </p>
                 <p class="text-sm text-kredix-gris">Mecanico: {{ ticket.mecanico?.name }} · Registrado por: {{ ticket.registrado_por?.name }}</p>
 
