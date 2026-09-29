@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MovimientoCuenta;
 use App\Models\TicketRepuesto;
 use App\Models\TicketTaller;
 use App\Models\User;
 use App\Services\ImagenUploadService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -134,6 +136,7 @@ class TallerController extends Controller
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',
                     'tipo_servicio', 'domicilio_direccion', 'monto_servicio', 'diagnostico', 'estado', 'mecanico_id', 'trabajo_realizado',
+                    'pagado_en_taller', 'movimiento_cuenta_id',
                 ]),
                 'cliente' => $ticket->cliente,
                 'mecanico' => $ticket->mecanico,
@@ -271,8 +274,10 @@ class TallerController extends Controller
         return redirect()->route('taller.show', $ticket->id);
     }
 
-    public function marcarAtendido(TicketTaller $ticket)
+    public function marcarAtendido(Request $request, TicketTaller $ticket)
     {
+        $esServicioCliente = $ticket->tipo === 'servicio_cliente';
+
         if (blank($ticket->trabajo_realizado)) {
             return back()->withErrors(['trabajo_realizado' => 'Debes registrar el trabajo realizado antes de marcar el ticket como atendido.']);
         }
@@ -288,7 +293,40 @@ class TallerController extends Controller
             return back()->withErrors(['fotos_salida' => 'Falta al menos 1 foto de salida para poder marcar el ticket como atendido.']);
         }
 
-        $ticket->update(['estado' => 'atendido']);
+        // armado_interno no tiene cliente que pague, no aplica -- decision
+        // explicita solo se exige para servicio_cliente
+        $validated = $request->validate([
+            'pagado_en_taller' => [Rule::requiredIf($esServicioCliente), 'boolean'],
+        ], [
+            'pagado_en_taller.required' => 'indica si el ticket se pago en el momento',
+        ]);
+
+        DB::transaction(function () use ($ticket, $esServicioCliente, $validated) {
+            $pagadoEnTaller = $esServicioCliente ? (bool) $validated['pagado_en_taller'] : false;
+
+            // si ya tiene movimiento_cuenta_id, el cargo ya se genero antes --
+            // no duplicar si el ticket se vuelve a guardar/reabrir
+            if ($esServicioCliente && ! $pagadoEnTaller && ! $ticket->movimiento_cuenta_id) {
+                $movimiento = MovimientoCuenta::create([
+                    'cliente_id' => $ticket->cliente_id,
+                    'fecha' => now(),
+                    'tipo' => 'cargo',
+                    'descripcion' => "Servicio de taller — {$ticket->bici_marca_modelo}",
+                    'monto' => $ticket->totalTicket(),
+                    'moneda' => 'usd',
+                    'tasa_cambio' => null,
+                    'metodo_pago' => null,
+                    'comentario' => "Cargo generado automaticamente desde Taller — Ticket #{$ticket->id}",
+                    'registrado_por' => auth()->id(),
+                ]);
+
+                $ticket->movimiento_cuenta_id = $movimiento->id;
+            }
+
+            $ticket->estado = 'atendido';
+            $ticket->pagado_en_taller = $pagadoEnTaller;
+            $ticket->save();
+        });
 
         return redirect()->route('taller.show', $ticket->id);
     }

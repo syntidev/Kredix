@@ -315,20 +315,25 @@ function abrirFoto(fotos, index) {
 
 // --- marcar atendido ---
 const errorAtendido = ref('');
+// null = el operador aun no eligio -- decision explicita, sin default
+// silencioso. Solo aplica a servicio_cliente (armado_interno no tiene
+// cliente que pague, no genera cargo)
+const pagadoEnTaller = ref(null);
 
 function marcarAtendido() {
     errorAtendido.value = '';
-    router.patch(`/taller/${props.ticket.id}/marcar-atendido`, {}, {
+    router.patch(`/taller/${props.ticket.id}/marcar-atendido`, esServicioCliente.value ? { pagado_en_taller: pagadoEnTaller.value } : {}, {
         preserveScroll: true,
         onError: (errors) => {
-            errorAtendido.value = errors.trabajo_realizado ?? errors.fotos_salida ?? 'No se pudo marcar como atendido.';
+            errorAtendido.value = errors.trabajo_realizado ?? errors.fotos_entrada ?? errors.fotos_salida ?? errors.pagado_en_taller ?? 'No se pudo marcar como atendido.';
         },
     });
 }
 
 const faltaFotoSalida = computed(() => props.ticket.fotos_salida.length === 0);
 const faltaTrabajoRealizado = computed(() => !props.ticket.trabajo_realizado?.trim());
-const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTrabajoRealizado.value);
+const faltaPagoElegido = computed(() => esServicioCliente.value && pagadoEnTaller.value === null);
+const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTrabajoRealizado.value && !faltaPagoElegido.value);
 </script>
 
 <template>
@@ -371,11 +376,29 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
             </div>
         </div>
         <p v-if="errorAtendido" class="text-sm text-kredix-rojo">{{ errorAtendido }}</p>
+
+        <div v-if="!atendido && esServicioCliente" class="flex flex-col gap-1 rounded-xl border border-gray-200 bg-white p-3">
+            <label class="text-sm font-medium text-kredix-negro">¿Se pago en el momento?</label>
+            <div class="flex gap-2">
+                <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="pagadoEnTaller === true ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-300 text-kredix-negro'">
+                    <input v-model="pagadoEnTaller" type="radio" :value="true" class="h-4 w-4" />
+                    Si, ya se cobro
+                </label>
+                <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="pagadoEnTaller === false ? 'border-kredix-rojo bg-red-50 text-kredix-rojo' : 'border-gray-300 text-kredix-negro'">
+                    <input v-model="pagadoEnTaller" type="radio" :value="false" class="h-4 w-4" />
+                    No, queda a credito
+                </label>
+            </div>
+            <p v-if="pagadoEnTaller === false" class="text-xs text-kredix-gris">Se generara un cargo automatico en Credito por el total del ticket.</p>
+        </div>
+
         <p v-if="!atendido && !puedeMarcarAtendido" class="text-sm text-kredix-gris">
             Falta
-            <template v-if="faltaTrabajoRealizado && faltaFotoSalida">registrar el trabajo realizado y subir al menos 1 foto de salida</template>
+            <template v-if="faltaTrabajoRealizado && faltaFotoSalida && faltaPagoElegido">registrar el trabajo realizado, subir al menos 1 foto de salida e indicar si se pago en el momento</template>
+            <template v-else-if="faltaTrabajoRealizado && faltaFotoSalida">registrar el trabajo realizado y subir al menos 1 foto de salida</template>
             <template v-else-if="faltaTrabajoRealizado">registrar el trabajo realizado</template>
-            <template v-else>al menos 1 foto de salida</template>
+            <template v-else-if="faltaFotoSalida">al menos 1 foto de salida</template>
+            <template v-else>indicar si se pago en el momento</template>
             para poder cerrar el ticket.
         </p>
 

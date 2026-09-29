@@ -31,6 +31,8 @@ class TicketTaller extends Model implements HasMedia
         'monto_servicio',
         'diagnostico',
         'estado',
+        'pagado_en_taller',
+        'movimiento_cuenta_id',
         'mecanico_id',
         'registrado_por',
         'motivo_eliminacion',
@@ -41,6 +43,7 @@ class TicketTaller extends Model implements HasMedia
         'monto_servicio' => 'decimal:2',
         'diagnostico' => 'array',
         'es_electrica' => 'boolean',
+        'pagado_en_taller' => 'boolean',
     ];
 
     public function cliente(): BelongsTo
@@ -61,6 +64,21 @@ class TicketTaller extends Model implements HasMedia
     public function repuestos(): HasMany
     {
         return $this->hasMany(TicketRepuesto::class, 'ticket_id');
+    }
+
+    public function movimientoCuenta(): BelongsTo
+    {
+        return $this->belongsTo(MovimientoCuenta::class);
+    }
+
+    // mismo calculo que totalTicket/totalRepuestos en Taller/Show.vue --
+    // portado a PHP porque el cargo automatico al cerrar necesita el monto
+    // server-side, la version original solo existia como computed de Vue
+    public function totalTicket(): float
+    {
+        $totalRepuestos = $this->repuestos->sum(fn (TicketRepuesto $r) => $r->cantidad * (float) $r->precio);
+
+        return $totalRepuestos + ($this->tipo === 'servicio_cliente' ? (float) $this->monto_servicio : 0);
     }
 
     // Requiere `php artisan storage:link` corrido una vez en el servidor (ver

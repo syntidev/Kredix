@@ -87,6 +87,13 @@ class MovimientoCuenta extends Model implements HasMedia
         return $this->hasOne(PlanFinanciamiento::class, 'movimiento_cuenta_id');
     }
 
+    // solo tiene sentido en filas tipo=cargo generadas automaticamente al
+    // cerrar un ticket de Taller sin pago en el momento
+    public function ticketTaller(): HasOne
+    {
+        return $this->hasOne(TicketTaller::class, 'movimiento_cuenta_id');
+    }
+
     // Requiere `php artisan storage:link` corrido una vez en el servidor (crea
     // public/storage -> storage/app/public); sin el symlink las URLs de media
     // devuelven 404 aunque el archivo exista en disco.
