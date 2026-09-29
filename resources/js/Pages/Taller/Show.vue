@@ -330,10 +330,24 @@ function marcarAtendido() {
     });
 }
 
+const faltaFotoEntrada = computed(() => props.ticket.fotos_entrada.length === 0);
 const faltaFotoSalida = computed(() => props.ticket.fotos_salida.length === 0);
 const faltaTrabajoRealizado = computed(() => !props.ticket.trabajo_realizado?.trim());
 const faltaPagoElegido = computed(() => esServicioCliente.value && pagadoEnTaller.value === null);
-const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTrabajoRealizado.value && !faltaPagoElegido.value);
+const puedeMarcarAtendido = computed(() => !faltaFotoEntrada.value && !faltaFotoSalida.value && !faltaTrabajoRealizado.value && !faltaPagoElegido.value);
+
+// lista en vez de cadena de if/else-if -- con 4 condiciones posibles la
+// combinatoria de frases hechas a mano se vuelve inmanejable (gap real:
+// faltaba fotos_entrada por completo, backend ya la bloqueaba pero el
+// frontend no la mostraba como razon de bloqueo)
+const itemsFaltantesParaCerrar = computed(() => {
+    const items = [];
+    if (faltaTrabajoRealizado.value) items.push('registrar el trabajo realizado');
+    if (faltaFotoEntrada.value) items.push('subir al menos 1 foto de entrada');
+    if (faltaFotoSalida.value) items.push('subir al menos 1 foto de salida');
+    if (faltaPagoElegido.value) items.push('indicar si se pago en el momento');
+    return items;
+});
 </script>
 
 <template>
@@ -362,7 +376,7 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
                     type="button"
                     class="min-h-11 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
                     :disabled="!puedeMarcarAtendido"
-                    :title="!puedeMarcarAtendido ? 'Sube al menos 1 foto de salida primero' : ''"
+                    :title="!puedeMarcarAtendido ? 'Falta: ' + itemsFaltantesParaCerrar.join(', ') : ''"
                     @click="marcarAtendido"
                 >
                     Marcar como atendido
@@ -393,13 +407,7 @@ const puedeMarcarAtendido = computed(() => !faltaFotoSalida.value && !faltaTraba
         </div>
 
         <p v-if="!atendido && !puedeMarcarAtendido" class="text-sm text-kredix-gris">
-            Falta
-            <template v-if="faltaTrabajoRealizado && faltaFotoSalida && faltaPagoElegido">registrar el trabajo realizado, subir al menos 1 foto de salida e indicar si se pago en el momento</template>
-            <template v-else-if="faltaTrabajoRealizado && faltaFotoSalida">registrar el trabajo realizado y subir al menos 1 foto de salida</template>
-            <template v-else-if="faltaTrabajoRealizado">registrar el trabajo realizado</template>
-            <template v-else-if="faltaFotoSalida">al menos 1 foto de salida</template>
-            <template v-else>indicar si se pago en el momento</template>
-            para poder cerrar el ticket.
+            Falta {{ itemsFaltantesParaCerrar.join(', ') }} para poder cerrar el ticket.
         </p>
 
         <div class="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
