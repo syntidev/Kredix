@@ -23,17 +23,17 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 14px;
+            font-size: 17px;
         }
         th, td {
             border: 1px solid #999;
-            padding: 8px 10px;
+            padding: 10px 12px;
             text-align: left;
             vertical-align: top;
         }
         th {
             background: #eee;
-            font-size: 13px;
+            font-size: 14px;
             text-transform: uppercase;
         }
         .sin-tickets {
