@@ -6,7 +6,10 @@ import AppLayout from '../../Layouts/AppLayout.vue';
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-    whatsappIntro: { type: String, default: '' },
+    whatsappIntro1: { type: String, default: '' },
+    whatsappIntro2: { type: String, default: '' },
+    whatsappIntro3: { type: String, default: '' },
+    whatsappPlantillaActiva: { type: String, default: '1' },
     pdfMensajeGlobal: { type: String, default: null },
     empresaRazonSocial: { type: String, default: null },
     empresaRif: { type: String, default: null },
@@ -24,10 +27,34 @@ const TABS = [
 
 const tabActivo = ref('whatsapp');
 
-// tab 1: WhatsApp -- solo whatsapp_intro
+// tab 1: WhatsApp -- 3 plantillas + cual esta activa, un solo submit
 const whatsappForm = useForm({
-    whatsapp_intro: props.whatsappIntro ?? '',
+    whatsapp_intro_1: props.whatsappIntro1 ?? '',
+    whatsapp_intro_2: props.whatsappIntro2 ?? '',
+    whatsapp_intro_3: props.whatsappIntro3 ?? '',
+    whatsapp_plantilla_activa: props.whatsappPlantillaActiva ?? '1',
 });
+
+const PLANTILLAS_WHATSAPP = [
+    {
+        valor: '1',
+        campo: 'whatsapp_intro_1',
+        titulo: 'Plantilla 1 — Cobranza',
+        ayuda: 'Usa esta plantilla para mensajes de cobranza — incluye automaticamente el saldo pendiente y los dias sin abonar del cliente. Variables disponibles: {nombre}, {saldo}, {dias_sin_abonar}.',
+    },
+    {
+        valor: '2',
+        campo: 'whatsapp_intro_2',
+        titulo: 'Plantilla 2 — Cobranza',
+        ayuda: 'Usa esta plantilla para mensajes de cobranza — incluye automaticamente el saldo pendiente y los dias sin abonar del cliente. Variables disponibles: {nombre}, {saldo}, {dias_sin_abonar}.',
+    },
+    {
+        valor: '3',
+        campo: 'whatsapp_intro_3',
+        titulo: 'Plantilla 3 — General',
+        ayuda: 'Usa esta plantilla para mensajes que no son de cobranza — promociones, avisos generales, saludos. No incluye saldo ni dias de mora, solo el nombre del cliente. Variable disponible: {nombre}.',
+    },
+];
 
 function guardarWhatsapp() {
     whatsappForm.transform((data) => ({ ...data, _method: 'put' })).post('/configuracion/whatsapp', {
@@ -101,16 +128,29 @@ function onLogoChange(event) {
             class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-card bg-white p-4 shadow-card"
             @submit.prevent="guardarWhatsapp"
         >
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Intro del mensaje de WhatsApp</label>
-                <p class="text-xs text-kredix-gris">Placeholders disponibles: {nombre}, {saldo}, {dias_sin_abonar}</p>
+            <p class="text-sm text-kredix-gris">Elige con el radio cual plantilla se usa hoy al armar el mensaje de WhatsApp de un cliente.</p>
+
+            <div
+                v-for="p in PLANTILLAS_WHATSAPP"
+                :key="p.valor"
+                class="flex flex-col gap-2 rounded-lg border p-3 transition-colors"
+                :class="whatsappForm.whatsapp_plantilla_activa === p.valor ? 'border-kredix-negro bg-kredix-negro/5' : 'border-gray-200'"
+            >
+                <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro">
+                    <input v-model="whatsappForm.whatsapp_plantilla_activa" type="radio" :value="p.valor" class="h-4 w-4" />
+                    {{ p.titulo }}
+                    <span v-if="whatsappForm.whatsapp_plantilla_activa === p.valor" class="ml-auto rounded-full bg-kredix-negro px-2 py-0.5 text-[10px] font-semibold uppercase text-white">Activa</span>
+                </label>
                 <textarea
-                    v-model="whatsappForm.whatsapp_intro"
+                    v-model="whatsappForm[p.campo]"
                     rows="4"
                     class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                 ></textarea>
-                <p v-if="whatsappForm.errors.whatsapp_intro" class="text-sm text-kredix-rojo">{{ whatsappForm.errors.whatsapp_intro }}</p>
+                <p v-if="whatsappForm.errors[p.campo]" class="text-sm text-kredix-rojo">{{ whatsappForm.errors[p.campo] }}</p>
+                <p class="text-xs leading-snug text-kredix-gris">{{ p.ayuda }}</p>
             </div>
+
+            <p v-if="whatsappForm.errors.whatsapp_plantilla_activa" class="text-sm text-kredix-rojo">{{ whatsappForm.errors.whatsapp_plantilla_activa }}</p>
 
             <button type="submit" class="min-h-11 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="whatsappForm.processing">
                 Guardar

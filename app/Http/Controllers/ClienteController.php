@@ -181,16 +181,26 @@ class ClienteController extends Controller
         $ultimoAbonoInfo = MovimientoCuenta::ultimoAbonoInfo($movimientosRaw);
         $diasSinAbonar = $ultimoAbonoInfo['dias'];
 
-        $intro = str_replace(
-            ['{nombre}', '{saldo}', '{dias_sin_abonar}'],
-            [$cliente->nombre, number_format($saldoPendiente, 2), $diasSinAbonar ?? 'sin abonos registrados'],
-            Configuracion::valorDe('whatsapp_intro', 'Hola {nombre},')
-        );
+        // plantilla 3 = universal, sin datos de credito (solo {nombre}) --
+        // pensada para promociones/avisos, no para cobranza. 1 y 2 mantienen
+        // el comportamiento de siempre: intro + bloque fijo de saldo/dias/cierre
+        $plantillaActiva = Configuracion::valorDe('whatsapp_plantilla_activa', '1');
 
-        $mensajeWhatsapp = $intro
-            ."\n\nSaldo pendiente: ".number_format($saldoPendiente, 2)
-            ."\nDias sin abonar: ".($diasSinAbonar ?? 'sin abonos registrados')
-            ."\n\nQuedamos atentos, gracias por su preferencia.";
+        if ($plantillaActiva === '3') {
+            $mensajeWhatsapp = str_replace('{nombre}', $cliente->nombre, Configuracion::valorDe('whatsapp_intro_3', ''));
+        } else {
+            $claveIntro = $plantillaActiva === '2' ? 'whatsapp_intro_2' : 'whatsapp_intro_1';
+            $intro = str_replace(
+                ['{nombre}', '{saldo}', '{dias_sin_abonar}'],
+                [$cliente->nombre, number_format($saldoPendiente, 2), $diasSinAbonar ?? 'sin abonos registrados'],
+                Configuracion::valorDe($claveIntro, 'Hola {nombre},')
+            );
+
+            $mensajeWhatsapp = $intro
+                ."\n\nSaldo pendiente: ".number_format($saldoPendiente, 2)
+                ."\nDias sin abonar: ".($diasSinAbonar ?? 'sin abonos registrados')
+                ."\n\nQuedamos atentos, gracias por su preferencia.";
+        }
 
         $ultimaTasaBcv = $tasaBcvService->getLastUpdate();
 
