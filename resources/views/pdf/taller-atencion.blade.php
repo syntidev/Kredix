@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <style>
         @page { margin: 50px 36px 80px 36px; }
+        .banner-pdf { width: 100%; display: block; margin: 0 0 14px; }
         body { font-family: sans-serif; font-size: 11px; color: #101010; }
         h2 { font-size: 13px; margin: 16px 0 6px; }
         .meta { color: #666; font-size: 10px; margin-bottom: 14px; }
@@ -65,6 +66,10 @@
             </td>
         </tr>
     </table>
+
+    @if ($mostrarBanners && $bannerSuperiorBase64)
+        <img class="banner-pdf" src="{{ $bannerSuperiorBase64 }}">
+    @endif
 
     <div class="ficha">
         <table>
@@ -173,6 +178,10 @@
                 @endforeach
             </tr>
         </table>
+    @endif
+
+    @if ($mostrarBanners && $bannerInferiorBase64)
+        <img class="banner-pdf" src="{{ $bannerInferiorBase64 }}" style="margin-top: 14px;">
     @endif
 </body>
 </html>

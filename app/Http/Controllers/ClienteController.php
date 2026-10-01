@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\BuscaTokenizado;
 use App\Models\Cliente;
 use App\Models\Configuracion;
+use App\Models\ConfiguracionPdf;
 use App\Models\Cuota;
 use App\Models\MovimientoCuenta;
 use App\Models\PlanCuota;
@@ -292,6 +293,8 @@ class ClienteController extends Controller
             'saldoPendiente' => MovimientoCuenta::saldoPendiente($cliente->id),
             'planesFinanciamiento' => $this->planesFinanciamiento($cliente),
             'compromisosCuotas' => $this->compromisosCuotas($movimientosRaw),
+            'bannerSuperiorBase64' => ConfiguracionPdf::bannerBase64('banner_superior'),
+            'bannerInferiorBase64' => ConfiguracionPdf::bannerBase64('banner_inferior'),
             'mensajeGlobal' => Configuracion::valorDe('pdf_mensaje_global'),
             'mensajeCliente' => $cliente->mensaje_pdf,
             'empresa' => [

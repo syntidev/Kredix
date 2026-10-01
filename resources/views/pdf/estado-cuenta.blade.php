@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <style>
         @page { margin: 50px 36px 80px 36px; }
+        .banner-pdf { width: 100%; display: block; margin: 0 0 14px; }
         body { font-family: sans-serif; font-size: 11px; color: #101010; }
         h1 { font-size: 16px; margin-bottom: 2px; }
         .meta { color: #666; font-size: 10px; margin-bottom: 14px; }
@@ -105,6 +106,10 @@
             </td>
         </tr>
     </table>
+
+    @if ($bannerSuperiorBase64)
+        <img class="banner-pdf" src="{{ $bannerSuperiorBase64 }}">
+    @endif
 
     <div class="cliente">
         <p class="nombre-cliente">{{ $cliente->nombre }}</p>
@@ -223,6 +228,10 @@
                 <p>{{ $mensajeGlobal }}</p>
             @endif
         </div>
+    @endif
+
+    @if ($bannerInferiorBase64)
+        <img class="banner-pdf" src="{{ $bannerInferiorBase64 }}" style="margin-top: 14px;">
     @endif
 </body>
 </html>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Configuracion;
+use App\Models\ConfiguracionPdf;
 use App\Models\MovimientoCuenta;
 use App\Models\TicketRepuesto;
 use App\Models\TicketTaller;
@@ -122,10 +123,15 @@ class TallerController extends Controller
             ? 'data:'.$logoMedia->mime_type.';base64,'.base64_encode(file_get_contents($logoMedia->getPath()))
             : null;
 
+        $mostrarBanners = (bool) ConfiguracionPdf::instancia()->mostrar_banners_en_taller;
+
         $pdf = Pdf::loadView('pdf.taller-atencion', [
             'ticket' => $ticket,
             'fotosEntrada' => $fotosEntrada,
             'fotosSalida' => $fotosSalida,
+            'mostrarBanners' => $mostrarBanners,
+            'bannerSuperiorBase64' => $mostrarBanners ? ConfiguracionPdf::bannerBase64('banner_superior') : null,
+            'bannerInferiorBase64' => $mostrarBanners ? ConfiguracionPdf::bannerBase64('banner_inferior') : null,
             'empresa' => [
                 'razon_social' => Configuracion::valorDe('empresa_razon_social'),
                 'rif' => Configuracion::valorDe('empresa_rif'),

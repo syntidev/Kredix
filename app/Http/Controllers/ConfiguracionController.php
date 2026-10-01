@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Configuracion;
+use App\Models\ConfiguracionPdf;
 use App\Services\ImagenUploadService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 class ConfiguracionController extends Controller
 {
     private const CLAVES_EMPRESA = ['empresa_razon_social', 'empresa_rif', 'empresa_direccion', 'empresa_telefono', 'empresa_email'];
+
+    private const COLECCIONES_BANNER_PDF = ['banner_superior', 'banner_inferior'];
 
     public function __construct(private ImagenUploadService $imagenUploadService)
     {
@@ -24,6 +27,9 @@ class ConfiguracionController extends Controller
             'whatsappPlantillaActiva' => Configuracion::valorDe('whatsapp_plantilla_activa', '1'),
             'tasaBcvActual' => Configuracion::valorDe('tasa_bcv_actual'),
             'pdfMensajeGlobal' => Configuracion::valorDe('pdf_mensaje_global'),
+            'bannerSuperiorUrl' => ConfiguracionPdf::instancia()->getFirstMediaUrl('banner_superior', 'pdf') ?: null,
+            'bannerInferiorUrl' => ConfiguracionPdf::instancia()->getFirstMediaUrl('banner_inferior', 'pdf') ?: null,
+            'mostrarBannersEnTaller' => (bool) ConfiguracionPdf::instancia()->mostrar_banners_en_taller,
             'empresaRazonSocial' => Configuracion::valorDe('empresa_razon_social'),
             'empresaRif' => Configuracion::valorDe('empresa_rif'),
             'empresaDireccion' => Configuracion::valorDe('empresa_direccion'),
@@ -66,6 +72,45 @@ class ConfiguracionController extends Controller
         ]);
 
         Configuracion::updateOrCreate(['clave' => 'pdf_mensaje_global'], ['valor' => $validated['pdf_mensaje_global'] ?? null]);
+
+        return redirect()->route('configuracion.index');
+    }
+
+    public function subirBannerPdf(Request $request, string $coleccion)
+    {
+        abort_unless(in_array($coleccion, self::COLECCIONES_BANNER_PDF, true), 404);
+
+        $validated = $request->validate([
+            'banner' => ['required', 'image', 'max:5120'],
+        ], [
+            'banner.required' => 'selecciona una imagen',
+            'banner.image' => 'el archivo debe ser una imagen',
+        ]);
+
+        ConfiguracionPdf::instancia()
+            ->addMedia($validated['banner']->getPathname())
+            ->usingFileName($validated['banner']->getClientOriginalName())
+            ->toMediaCollection($coleccion);
+
+        return redirect()->route('configuracion.index');
+    }
+
+    public function quitarBannerPdf(string $coleccion)
+    {
+        abort_unless(in_array($coleccion, self::COLECCIONES_BANNER_PDF, true), 404);
+
+        ConfiguracionPdf::instancia()->clearMediaCollection($coleccion);
+
+        return redirect()->route('configuracion.index');
+    }
+
+    public function updateMostrarBannersTaller(Request $request)
+    {
+        $validated = $request->validate([
+            'mostrar_banners_en_taller' => ['required', 'boolean'],
+        ]);
+
+        ConfiguracionPdf::instancia()->update(['mostrar_banners_en_taller' => $validated['mostrar_banners_en_taller']]);
 
         return redirect()->route('configuracion.index');
     }

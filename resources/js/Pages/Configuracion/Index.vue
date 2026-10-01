@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -11,6 +11,9 @@ const props = defineProps({
     whatsappIntro3: { type: String, default: '' },
     whatsappPlantillaActiva: { type: String, default: '1' },
     pdfMensajeGlobal: { type: String, default: null },
+    bannerSuperiorUrl: { type: String, default: null },
+    bannerInferiorUrl: { type: String, default: null },
+    mostrarBannersEnTaller: { type: Boolean, default: false },
     empresaRazonSocial: { type: String, default: null },
     empresaRif: { type: String, default: null },
     empresaDireccion: { type: String, default: null },
@@ -76,6 +79,51 @@ function guardarEstadoCuenta() {
 function borrarMensajeGlobal() {
     estadoCuentaForm.pdf_mensaje_global = '';
     guardarEstadoCuenta();
+}
+
+// banners publicitarios del PDF -- 722px de ancho es el ancho real de
+// contenido de estado-cuenta.blade.php (medido con el motor de DomPDF:
+// pagina A4 595.28pt - margenes de 36px c/u a 96dpi = 541.28pt = 722px),
+// no un numero inventado
+const subiendoBannerSuperior = ref(false);
+const subiendoBannerInferior = ref(false);
+const erroresBanner = ref({ banner_superior: '', banner_inferior: '' });
+
+function subirBanner(event, coleccion, subiendoRef) {
+    const archivo = event.target.files[0];
+    if (!archivo) return;
+
+    erroresBanner.value[coleccion] = '';
+    subiendoRef.value = true;
+    router.post(`/configuracion/pdf/banner/${coleccion}`, { banner: archivo }, {
+        preserveScroll: true,
+        forceFormData: true,
+        onError: (errors) => {
+            erroresBanner.value[coleccion] = errors.banner ?? 'No se pudo subir la imagen.';
+        },
+        onFinish: () => {
+            subiendoRef.value = false;
+            event.target.value = '';
+        },
+    });
+}
+
+function onBannerSuperiorChange(event) {
+    subirBanner(event, 'banner_superior', subiendoBannerSuperior);
+}
+
+function onBannerInferiorChange(event) {
+    subirBanner(event, 'banner_inferior', subiendoBannerInferior);
+}
+
+function quitarBanner(coleccion) {
+    router.delete(`/configuracion/pdf/banner/${coleccion}`, { preserveScroll: true });
+}
+
+function toggleMostrarBannersTaller() {
+    router.put('/configuracion/pdf/mostrar-banners-taller', {
+        mostrar_banners_en_taller: !props.mostrarBannersEnTaller,
+    }, { preserveScroll: true });
 }
 
 // tab 3: Datos de la empresa -- razon social, RIF, direccion, telefono, email, logo
@@ -185,6 +233,55 @@ function onLogoChange(event) {
                 Guardar
             </button>
         </form>
+
+        <div v-if="tabActivo === 'estado_cuenta'" class="mx-auto flex w-full max-w-md flex-col gap-4 rounded-card bg-white p-4 shadow-card">
+            <div>
+                <h2 class="text-sm font-semibold text-kredix-negro">Banners publicitarios</h2>
+                <p class="mt-1 text-xs leading-snug text-kredix-gris">
+                    Imagenes opcionales que aparecen arriba y abajo del PDF, para promociones o avisos. Si no subes nada, el PDF se ve igual que hoy.
+                    Medida recomendada: ancho 722px (el ancho real del PDF), alto segun tu diseño. Formatos aceptados: webp (preferido, pesa menos) o jpg/png.
+                </p>
+            </div>
+
+            <div class="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+                <label class="text-sm font-medium text-kredix-negro">Banner superior</label>
+                <p class="text-xs text-kredix-gris">Aparece justo despues del encabezado, antes de los datos del cliente.</p>
+                <img v-if="bannerSuperiorUrl" :src="bannerSuperiorUrl" alt="Banner superior" class="w-full rounded border border-gray-200" />
+                <p v-else class="text-xs text-kredix-gris">Sin banner subido.</p>
+                <div class="flex items-center gap-2">
+                    <label class="min-h-9 cursor-pointer rounded-lg border border-gray-300 px-3 text-sm font-medium leading-9 text-kredix-negro active:bg-gray-100">
+                        {{ bannerSuperiorUrl ? 'Cambiar' : 'Subir imagen' }}
+                        <input type="file" accept="image/*" class="hidden" :disabled="subiendoBannerSuperior" @change="onBannerSuperiorChange" />
+                    </label>
+                    <button v-if="bannerSuperiorUrl" type="button" class="min-h-9 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-rojo active:bg-gray-100" @click="quitarBanner('banner_superior')">
+                        Quitar
+                    </button>
+                </div>
+                <p v-if="erroresBanner.banner_superior" class="text-sm text-kredix-rojo">{{ erroresBanner.banner_superior }}</p>
+            </div>
+
+            <div class="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+                <label class="text-sm font-medium text-kredix-negro">Banner inferior</label>
+                <p class="text-xs text-kredix-gris">Aparece al final del PDF, antes del pie de pagina.</p>
+                <img v-if="bannerInferiorUrl" :src="bannerInferiorUrl" alt="Banner inferior" class="w-full rounded border border-gray-200" />
+                <p v-else class="text-xs text-kredix-gris">Sin banner subido.</p>
+                <div class="flex items-center gap-2">
+                    <label class="min-h-9 cursor-pointer rounded-lg border border-gray-300 px-3 text-sm font-medium leading-9 text-kredix-negro active:bg-gray-100">
+                        {{ bannerInferiorUrl ? 'Cambiar' : 'Subir imagen' }}
+                        <input type="file" accept="image/*" class="hidden" :disabled="subiendoBannerInferior" @change="onBannerInferiorChange" />
+                    </label>
+                    <button v-if="bannerInferiorUrl" type="button" class="min-h-9 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-rojo active:bg-gray-100" @click="quitarBanner('banner_inferior')">
+                        Quitar
+                    </button>
+                </div>
+                <p v-if="erroresBanner.banner_inferior" class="text-sm text-kredix-rojo">{{ erroresBanner.banner_inferior }}</p>
+            </div>
+
+            <label class="flex items-center justify-between gap-2 rounded-lg border border-gray-200 p-3">
+                <span class="text-sm font-medium text-kredix-negro">Tambien mostrar en el informe de Taller</span>
+                <input type="checkbox" :checked="mostrarBannersEnTaller" class="h-5 w-5" @change="toggleMostrarBannersTaller" />
+            </label>
+        </div>
 
         <form
             v-if="tabActivo === 'empresa'"
