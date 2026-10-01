@@ -101,5 +101,15 @@ class TicketTaller extends Model implements HasMedia
             ->optimize()
             ->nonQueued()
             ->performOnCollections('entrada', 'salida');
+
+        // para el PDF de atencion -- 'thumb' (200x200, recortado a cuadrado)
+        // se ve pixelado al estirarse en el reporte. Solo width(): sin forzar
+        // alto, respeta la orientacion real de la foto (no recorta)
+        $this->addMediaConversion('print')
+            ->width(1200)
+            ->quality(85)
+            ->optimize()
+            ->nonQueued()
+            ->performOnCollections('entrada', 'salida');
     }
 }

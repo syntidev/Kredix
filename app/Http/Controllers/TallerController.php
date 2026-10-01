@@ -110,12 +110,24 @@ class TallerController extends Controller
     {
         $ticket->load(['cliente:id,nombre,telefono', 'mecanico:id,name', 'registradoPor:id,name', 'repuestos']);
 
-        $fotoBase64 = fn (Media $media) => file_exists($media->getPath('thumb'))
-            ? 'data:'.$media->mime_type.';base64,'.base64_encode(file_get_contents($media->getPath('thumb')))
-            : null;
+        // 'print' (1200px, sin recorte) en vez de 'thumb' (200x200 recortado a
+        // cuadrado) -- 'thumb' se ve pixelado al estirarse en el reporte.
+        // Fallback al original si 'print' aun no existe (fotos subidas antes
+        // de agregar esta conversion, mientras no se regeneren)
+        $fotoBase64 = function (Media $media) {
+            $ruta = $media->hasGeneratedConversion('print') && file_exists($media->getPath('print'))
+                ? $media->getPath('print')
+                : $media->getPath();
+
+            return file_exists($ruta) ? 'data:'.$media->mime_type.';base64,'.base64_encode(file_get_contents($ruta)) : null;
+        };
 
         $fotosEntrada = $ticket->getMedia('entrada')->map($fotoBase64)->filter()->values();
         $fotosSalida = $ticket->getMedia('salida')->map($fotoBase64)->filter()->values();
+        // columnas por seccion: 1 foto -> 1 col, 2 -> 2, 3+ -> 3 (maximo 3 por
+        // fila, el resto envuelve a filas adicionales del mismo ancho)
+        $columnasEntrada = min($fotosEntrada->count(), 3);
+        $columnasSalida = min($fotosSalida->count(), 3);
 
         $logoHost = Configuracion::logoHost();
         $logoMedia = $logoHost->getFirstMedia('logo_empresa');
@@ -129,6 +141,8 @@ class TallerController extends Controller
             'ticket' => $ticket,
             'fotosEntrada' => $fotosEntrada,
             'fotosSalida' => $fotosSalida,
+            'columnasEntrada' => $columnasEntrada,
+            'columnasSalida' => $columnasSalida,
             'mostrarBanners' => $mostrarBanners,
             'bannerSuperiorBase64' => $mostrarBanners ? ConfiguracionPdf::bannerBase64('banner_superior') : null,
             'bannerInferiorBase64' => $mostrarBanners ? ConfiguracionPdf::bannerBase64('banner_inferior') : null,

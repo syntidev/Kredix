@@ -32,9 +32,14 @@
         .empresa-linea { margin: 0 0 1px; font-size: 10px; color: #666; }
         .titulo-documento { margin: 0 0 4px; font-size: 22px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
         .fotos { width: 100%; border-collapse: collapse; }
-        .fotos td { width: 25%; padding: 4px; vertical-align: top; text-align: center; }
-        .fotos img { max-width: 100%; max-height: 130px; border: 1px solid #ddd; }
-        .sin-fotos { color: #666; font-size: 10px; }
+        .fotos td { padding: 4px; vertical-align: top; text-align: center; }
+        .fotos img { border: 1px solid #ddd; }
+        .fotos.cols-1 td { width: 100%; }
+        .fotos.cols-1 img { max-width: 100%; max-height: 380px; }
+        .fotos.cols-2 td { width: 50%; }
+        .fotos.cols-2 img { max-width: 100%; max-height: 280px; }
+        .fotos.cols-3 td { width: 33%; }
+        .fotos.cols-3 img { max-width: 100%; max-height: 200px; }
     </style>
 </head>
 <body>
@@ -154,29 +159,29 @@
         <p class="nota">Total repuestos: {{ formatMoneyPdfTaller($totalRepuestos) }}</p>
     @endif
 
-    <h2>Fotos de entrada</h2>
-    @if ($fotosEntrada->isEmpty())
-        <p class="sin-fotos">Sin fotos de entrada.</p>
-    @else
-        <table class="fotos">
-            <tr>
-                @foreach ($fotosEntrada as $foto)
-                    <td><img src="{{ $foto }}"></td>
-                @endforeach
-            </tr>
+    @if ($fotosEntrada->isNotEmpty())
+        <h2>Fotos de entrada</h2>
+        <table class="fotos cols-{{ $columnasEntrada }}">
+            @foreach ($fotosEntrada->chunk($columnasEntrada) as $fila)
+                <tr>
+                    @foreach ($fila as $foto)
+                        <td><img src="{{ $foto }}"></td>
+                    @endforeach
+                </tr>
+            @endforeach
         </table>
     @endif
 
-    <h2>Fotos de salida</h2>
-    @if ($fotosSalida->isEmpty())
-        <p class="sin-fotos">Sin fotos de salida.</p>
-    @else
-        <table class="fotos">
-            <tr>
-                @foreach ($fotosSalida as $foto)
-                    <td><img src="{{ $foto }}"></td>
-                @endforeach
-            </tr>
+    @if ($fotosSalida->isNotEmpty())
+        <h2>Fotos de salida</h2>
+        <table class="fotos cols-{{ $columnasSalida }}">
+            @foreach ($fotosSalida->chunk($columnasSalida) as $fila)
+                <tr>
+                    @foreach ($fila as $foto)
+                        <td><img src="{{ $foto }}"></td>
+                    @endforeach
+                </tr>
+            @endforeach
         </table>
     @endif
 
