@@ -20,6 +20,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Spatie\Activitylog\Models\Activity;
 
 class ClienteController extends Controller
@@ -445,15 +447,20 @@ class ClienteController extends Controller
             ->values();
     }
 
-    public function cartera(Request $request)
+    /**
+     * Saldo real (SUM cargo-abono, nunca campo fijo), actividad y totales
+     * otorgado/cobrado por cliente -- fuente unica reusada por cartera()
+     * (listado paginado) y carteraExportar() (Excel), ningun calculo
+     * duplicado entre ambos.
+     */
+    private function clientesConMetricasCartera()
     {
-        $q = $request->query('q');
-        $filtroDias = $request->query('filtro_dias'); // reciente | sin_reciente | fria | nunca
-
         $movimientos = MovimientoCuenta::orderBy('fecha')->get()->groupBy('cliente_id');
 
-        $clientes = Cliente::all()->map(function (Cliente $c) use ($movimientos) {
+        return Cliente::all()->map(function (Cliente $c) use ($movimientos) {
             $movs = $movimientos->get($c->id, collect());
+            $totalOtorgado = (float) $movs->where('tipo', 'cargo')->sum('monto');
+            $totalCobrado = (float) $movs->where('tipo', 'abono')->sum('monto');
             $saldo = $movs->sum(fn (MovimientoCuenta $m) => $m->tipo === 'cargo' ? (float) $m->monto : -(float) $m->monto);
             $ultimoAbono = $movs->where('tipo', 'abono')->whereNotNull('fecha')->last();
 
@@ -465,11 +472,24 @@ class ClienteController extends Controller
                 'saldoPendiente' => $saldo,
                 'ultimoAbonoFecha' => $ultimoAbono?->fecha->toDateString(),
                 'diasDesdeUltimoAbono' => $ultimoAbono ? now()->startOfDay()->diffInDays($ultimoAbono->fecha, true) : null,
+                'totalOtorgado' => $totalOtorgado,
+                'totalCobrado' => $totalCobrado,
+                'pctCobrado' => $totalOtorgado > 0 ? round(($totalCobrado / $totalOtorgado) * 100, 1) : null,
             ];
         })
             // orden de severidad: sin abono nunca (null) primero, luego mas dias sin abonar
             ->sortByDesc(fn ($c) => $c['diasDesdeUltimoAbono'] ?? INF)
             ->values();
+    }
+
+    public function cartera(Request $request)
+    {
+        $q = $request->query('q');
+        $filtroDias = $request->query('filtro_dias'); // reciente | sin_reciente | fria | nunca
+        $montoMin = $request->query('monto_min');
+        $montoMax = $request->query('monto_max');
+
+        $clientes = $this->clientesConMetricasCartera();
 
         // el monto agregado ("Cartera activa") es sensible, mismo dato que ya
         // restringimos en KPI -- solo admin lo ve; no-admin ve un conteo operativo
@@ -495,6 +515,8 @@ class ClienteController extends Controller
             ->when($filtroDias === 'sin_reciente', fn ($coll) => $coll->filter(fn ($c) => $c['diasDesdeUltimoAbono'] !== null && $c['diasDesdeUltimoAbono'] > 30 && $c['diasDesdeUltimoAbono'] <= 90))
             ->when($filtroDias === 'fria', fn ($coll) => $coll->filter(fn ($c) => $c['diasDesdeUltimoAbono'] !== null && $c['diasDesdeUltimoAbono'] > 90))
             ->when($filtroDias === 'nunca', fn ($coll) => $coll->filter(fn ($c) => $c['diasDesdeUltimoAbono'] === null))
+            ->when(is_numeric($montoMin), fn ($coll) => $coll->filter(fn ($c) => $c['saldoPendiente'] >= (float) $montoMin))
+            ->when(is_numeric($montoMax), fn ($coll) => $coll->filter(fn ($c) => $c['saldoPendiente'] <= (float) $montoMax))
             ->values();
 
         $page = (int) $request->query('page', 1);
@@ -512,11 +534,71 @@ class ClienteController extends Controller
             'esAdmin' => $esAdmin,
             'q' => $q,
             'filtroDias' => $filtroDias,
+            'montoMin' => $montoMin,
+            'montoMax' => $montoMax,
             'totalCarteraActiva' => $esAdmin ? (float) $clientes->sum('saldoPendiente') : null,
             'clientesConSaldo' => $clientes->filter(fn ($c) => $c['saldoPendiente'] > 0)->count(),
             'clientesRequierenSeguimiento' => $esAdmin
                 ? null
                 : (new CarteleraController())->calcularEventos()->pluck('cliente_id')->unique()->count(),
+        ]);
+    }
+
+    // guard real a nivel de ruta ya aplicado (middleware es_admin, ver
+    // routes/web.php) -- este metodo no vuelve a chequear es_admin porque
+    // si la ruta no estuviera protegida, el bug seria el middleware faltante,
+    // no una validacion redundante aqui
+    public function carteraExportar(Request $request)
+    {
+        $montoMin = $request->query('monto_min');
+        $montoMax = $request->query('monto_max');
+
+        $clientes = $this->clientesConMetricasCartera()
+            ->when(is_numeric($montoMin), fn ($coll) => $coll->filter(fn ($c) => $c['saldoPendiente'] >= (float) $montoMin))
+            ->when(is_numeric($montoMax), fn ($coll) => $coll->filter(fn ($c) => $c['saldoPendiente'] <= (float) $montoMax))
+            ->values();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        // setCellValue() celda por celda, no fromArray() con nullValue=null --
+        // fromArray trata cualquier valor "==" a nullValue como vacio, y en PHP
+        // 0.0 == null es true (igualdad floja), asi que un totalCobrado real de
+        // $0 se perdia como celda vacia en vez de escribirse como 0
+        foreach (['A' => 'Cliente', 'B' => 'Saldo pendiente', 'C' => 'Ultimo abono', 'D' => 'Dias sin abonar', 'E' => 'Total otorgado', 'F' => 'Total cobrado', 'G' => '% cobrado'] as $col => $titulo) {
+            $sheet->setCellValue($col.'1', $titulo);
+        }
+
+        $fila = 2;
+        foreach ($clientes as $c) {
+            // saldo $0.00 -- ya corregido en sprint anterior para no mostrar un
+            // numero de dias falso; aqui el export refleja lo mismo con texto
+            // explicito en vez de un entero sin sentido
+            $diasCelda = $c['saldoPendiente'] <= 0
+                ? 'Sin saldo pendiente'
+                : ($c['diasDesdeUltimoAbono'] !== null ? (int) $c['diasDesdeUltimoAbono'] : 'Nunca abono');
+
+            $sheet->setCellValue('A'.$fila, $c['nombre']);
+            $sheet->setCellValue('B'.$fila, $c['saldoPendiente']);
+            $sheet->setCellValue('C'.$fila, $c['ultimoAbonoFecha'] ?? 'Nunca');
+            $sheet->setCellValue('D'.$fila, $diasCelda);
+            $sheet->setCellValue('E'.$fila, $c['totalOtorgado']);
+            $sheet->setCellValue('F'.$fila, $c['totalCobrado']);
+            $sheet->setCellValue('G'.$fila, $c['pctCobrado'] !== null ? $c['pctCobrado'].'%' : '-');
+            $fila++;
+        }
+
+        foreach (range('A', 'G') as $columna) {
+            $sheet->getColumnDimension($columna)->setAutoSize(true);
+        }
+
+        $writer = new Xlsx($spreadsheet);
+        $nombreArchivo = 'cartera-'.now()->format('Ymd-His').'.xlsx';
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $nombreArchivo, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
         ]);
     }
 

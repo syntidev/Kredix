@@ -15,6 +15,8 @@ const props = defineProps({
     esAdmin: { type: Boolean, required: true },
     q: { type: String, default: '' },
     filtroDias: { type: String, default: null },
+    montoMin: { type: String, default: null },
+    montoMax: { type: String, default: null },
     totalCarteraActiva: { type: Number, default: null },
     clientesConSaldo: { type: Number, required: true },
     clientesRequierenSeguimiento: { type: Number, default: null },
@@ -22,6 +24,9 @@ const props = defineProps({
 
 const search = ref(props.q ?? '');
 let searchTimeout = null;
+const montoMinInput = ref(props.montoMin ?? '');
+const montoMaxInput = ref(props.montoMax ?? '');
+let montoTimeout = null;
 
 const filtrosDias = [
     { valor: 'reciente', etiqueta: 'Con abono reciente' },
@@ -34,6 +39,8 @@ function irA(cambios) {
     const params = {
         q: search.value || undefined,
         filtro_dias: props.filtroDias || undefined,
+        monto_min: montoMinInput.value || undefined,
+        monto_max: montoMaxInput.value || undefined,
         page: 1,
         ...cambios,
     };
@@ -47,12 +54,27 @@ function onSearchInput() {
     searchTimeout = setTimeout(() => irA({}), 300);
 }
 
+function onMontoInput() {
+    clearTimeout(montoTimeout);
+    montoTimeout = setTimeout(() => irA({}), 300);
+}
+
 function elegirFiltroDias(valor) {
     irA({ filtro_dias: props.filtroDias === valor ? undefined : valor });
 }
 
 function irAPagina(pagina) {
     irA({ page: pagina });
+}
+
+// export respeta el filtro de monto activo -- mismos query params, el
+// guard real es el middleware es_admin de la ruta, no este boton
+function urlExportar() {
+    const params = new URLSearchParams();
+    if (montoMinInput.value) params.set('monto_min', montoMinInput.value);
+    if (montoMaxInput.value) params.set('monto_max', montoMaxInput.value);
+    const query = params.toString();
+    return `/cartera/exportar${query ? `?${query}` : ''}`;
 }
 
 </script>
@@ -83,6 +105,32 @@ function irAPagina(pagina) {
                 {{ f.etiqueta }}
             </button>
         </div>
+
+        <div class="flex items-center gap-2">
+            <input
+                v-model="montoMinInput"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Monto minimo"
+                class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                @input="onMontoInput"
+            />
+            <span class="shrink-0 text-sm text-kredix-gris">a</span>
+            <input
+                v-model="montoMaxInput"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Monto maximo"
+                class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                @input="onMontoInput"
+            />
+        </div>
+
+        <a v-if="esAdmin" :href="urlExportar()" class="flex min-h-11 w-fit items-center gap-2 self-start rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100">
+            Exportar a Excel
+        </a>
 
         <p v-if="clientes.total === 0" class="text-sm text-kredix-gris">Sin clientes para estos filtros.</p>
 
