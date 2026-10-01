@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <style>
-        @page { margin: 50px 36px 80px 36px; }
+        @page { margin: 50px 36px {{ $margenPiePx }}px 36px; }
         .banner-pdf { width: 100%; display: block; margin: 0 0 14px; }
         body { font-family: sans-serif; font-size: 11px; color: #101010; }
         h2 { font-size: 13px; margin: 16px 0 6px; }
@@ -31,7 +31,13 @@
         .razon-social { margin: 0 0 3px; font-size: 13px; font-weight: bold; }
         .empresa-linea { margin: 0 0 1px; font-size: 10px; color: #666; }
         .titulo-documento { margin: 0 0 4px; font-size: 22px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+        .seccion-fotos { page-break-inside: avoid; }
+        .salto-pagina { page-break-after: always; }
+        .mini-encabezado { page-break-inside: avoid; margin-bottom: 10px; }
+        .mini-encabezado img { max-height: 28px; vertical-align: middle; margin-right: 8px; }
+        .mini-encabezado span { font-size: 11px; color: #666; vertical-align: middle; }
         .fotos { width: 100%; border-collapse: collapse; }
+        .fotos tr { page-break-inside: avoid; }
         .fotos td { padding: 4px; vertical-align: top; text-align: center; }
         .fotos img { border: 1px solid #ddd; }
         .fotos.cols-1 td { width: 100%; }
@@ -53,7 +59,13 @@
         $tipoServicioLabel = ['basico' => 'Basico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro'];
         $totalRepuestos = $ticket->totalRepuestos();
         $totalTicket = $ticket->totalTicket();
+        // el salto forzado + mini-encabezado de continuidad solo tienen
+        // sentido cuando hay DOS secciones compitiendo por la misma pagina --
+        // con una sola seccion (o ninguna), se deja fluir normal, sin saltos
+        // artificiales ni encabezado de continuidad sin nada que continuar
+        $haySplitEntradaSalida = $fotosEntrada->isNotEmpty() && $fotosSalida->isNotEmpty();
     @endphp
+
     <table class="encabezado">
         <tr>
             <td class="col-empresa">
@@ -160,33 +172,41 @@
     @endif
 
     @if ($fotosEntrada->isNotEmpty())
-        <h2>Fotos de entrada</h2>
-        <table class="fotos cols-{{ $columnasEntrada }}">
-            @foreach ($fotosEntrada->chunk($columnasEntrada) as $fila)
-                <tr>
-                    @foreach ($fila as $foto)
-                        <td><img src="{{ $foto }}"></td>
-                    @endforeach
-                </tr>
-            @endforeach
-        </table>
+        <div class="seccion-fotos {{ $haySplitEntradaSalida ? 'salto-pagina' : '' }}">
+            <h2>Fotos de entrada</h2>
+            <table class="fotos cols-{{ $columnasEntrada }}">
+                @foreach ($fotosEntrada->chunk($columnasEntrada) as $fila)
+                    <tr>
+                        @foreach ($fila as $foto)
+                            <td><img src="{{ $foto }}"></td>
+                        @endforeach
+                    </tr>
+                @endforeach
+            </table>
+        </div>
     @endif
 
     @if ($fotosSalida->isNotEmpty())
-        <h2>Fotos de salida</h2>
-        <table class="fotos cols-{{ $columnasSalida }}">
-            @foreach ($fotosSalida->chunk($columnasSalida) as $fila)
-                <tr>
-                    @foreach ($fila as $foto)
-                        <td><img src="{{ $foto }}"></td>
-                    @endforeach
-                </tr>
-            @endforeach
-        </table>
-    @endif
-
-    @if ($mostrarBanners && $bannerInferiorBase64)
-        <img class="banner-pdf" src="{{ $bannerInferiorBase64 }}" style="margin-top: 14px;">
+        @if ($haySplitEntradaSalida)
+            <div class="mini-encabezado">
+                @if ($empresa['logo_base64'])
+                    <img src="{{ $empresa['logo_base64'] }}">
+                @endif
+                <span>Ticket #{{ $ticket->id }} — {{ $ticket->cliente->nombre ?? 'Armado interno' }}</span>
+            </div>
+        @endif
+        <div class="seccion-fotos">
+            <h2>Fotos de salida</h2>
+            <table class="fotos cols-{{ $columnasSalida }}">
+                @foreach ($fotosSalida->chunk($columnasSalida) as $fila)
+                    <tr>
+                        @foreach ($fila as $foto)
+                            <td><img src="{{ $foto }}"></td>
+                        @endforeach
+                    </tr>
+                @endforeach
+            </table>
+        </div>
     @endif
 </body>
 </html>
