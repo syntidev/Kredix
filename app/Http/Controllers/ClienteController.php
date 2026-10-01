@@ -545,6 +545,59 @@ class ClienteController extends Controller
         ]);
     }
 
+    // texto libre (nombre, telefono) escrito sin sanitizar en una celda es
+    // CSV/Excel formula injection: si empieza con =, +, -, @, tab o CR,
+    // Excel/Sheets lo interpreta como formula al abrir. telefono en este
+    // sistema SIEMPRE empieza con '+' (formato +58..., ver regex de
+    // validacion en store()), asi que esto aplica a el 100% de las veces,
+    // no es un caso raro
+    private function celdaTextoSeguro($valor): string
+    {
+        $texto = (string) $valor;
+
+        return preg_match('/^[=+\-@\t\r]/', $texto) ? "'".$texto : $texto;
+    }
+
+    /**
+     * Clientes que comparten telefono (telefono no vacio, HAVING COUNT > 1),
+     * con numero de movimientos y actividad post-import -- misma logica SQL
+     * validada manualmente hoy para los casos reales conocidos. Solo lectura,
+     * no fusiona ni modifica nada.
+     */
+    private function clientesConTelefonoDuplicado()
+    {
+        $telefonosDuplicados = Cliente::query()
+            ->whereNotNull('telefono')
+            ->where('telefono', '!=', '')
+            ->groupBy('telefono')
+            ->havingRaw('COUNT(*) > 1')
+            ->pluck('telefono');
+
+        $movimientos = MovimientoCuenta::orderBy('created_at')->get()->groupBy('cliente_id');
+
+        return Cliente::whereIn('telefono', $telefonosDuplicados)
+            ->orderBy('telefono')
+            ->get()
+            ->map(function (Cliente $c) use ($movimientos) {
+                $movs = $movimientos->get($c->id, collect());
+                $primero = $movs->first()?->created_at;
+                $ultimo = $movs->last()?->created_at;
+
+                return [
+                    'telefono' => $c->telefono,
+                    'nombre' => $c->nombre,
+                    'fechaCreacion' => $c->created_at,
+                    'numMovimientos' => $movs->count(),
+                    'primerMovimiento' => $primero,
+                    'ultimoMovimiento' => $ultimo,
+                    // SI = actividad real despues de la carga inicial, NO = todos
+                    // los movimientos caen en el mismo instante (volcado crudo
+                    // sin tocar) -- mismo criterio usado manualmente hoy
+                    'actividadPostImport' => ($primero && $ultimo && ! $ultimo->equalTo($primero)) ? 'SI' : 'NO',
+                ];
+            });
+    }
+
     // guard real a nivel de ruta ya aplicado (middleware es_admin, ver
     // routes/web.php) -- este metodo no vuelve a chequear es_admin porque
     // si la ruta no estuviera protegida, el bug seria el middleware faltante,
@@ -560,12 +613,15 @@ class ClienteController extends Controller
             ->values();
 
         $spreadsheet = new Spreadsheet();
+
+        // ---- Hoja 1: Cartera ----
         $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Cartera');
         // setCellValue() celda por celda, no fromArray() con nullValue=null --
         // fromArray trata cualquier valor "==" a nullValue como vacio, y en PHP
         // 0.0 == null es true (igualdad floja), asi que un totalCobrado real de
         // $0 se perdia como celda vacia en vez de escribirse como 0
-        foreach (['A' => 'Cliente', 'B' => 'Saldo pendiente', 'C' => 'Ultimo abono', 'D' => 'Dias sin abonar', 'E' => 'Total otorgado', 'F' => 'Total cobrado', 'G' => '% cobrado'] as $col => $titulo) {
+        foreach (['A' => 'Cliente', 'B' => 'Telefono', 'C' => 'Saldo pendiente', 'D' => 'Ultimo abono', 'E' => 'Dias sin abonar', 'F' => 'Total otorgado', 'G' => 'Total cobrado', 'H' => '% cobrado'] as $col => $titulo) {
             $sheet->setCellValue($col.'1', $titulo);
         }
 
@@ -578,24 +634,46 @@ class ClienteController extends Controller
                 ? 'Sin saldo pendiente'
                 : ($c['diasDesdeUltimoAbono'] !== null ? (int) $c['diasDesdeUltimoAbono'] : 'Nunca abono');
 
-            // nombre es texto libre del cliente -- si empieza con =, +, -, @, tab
-            // o CR, Excel/Sheets lo interpreta como formula al abrir (CSV/Excel
-            // formula injection). Prefijo con comilla simple neutraliza sin
-            // alterar el texto visible
-            $nombreSeguro = preg_match('/^[=+\-@\t\r]/', (string) $c['nombre']) ? "'".$c['nombre'] : $c['nombre'];
-            $sheet->setCellValueExplicit('A'.$fila, $nombreSeguro, DataType::TYPE_STRING);
-            $sheet->setCellValue('B'.$fila, $c['saldoPendiente']);
-            $sheet->setCellValue('C'.$fila, $c['ultimoAbonoFecha'] ?? 'Nunca');
-            $sheet->setCellValue('D'.$fila, $diasCelda);
-            $sheet->setCellValue('E'.$fila, $c['totalOtorgado']);
-            $sheet->setCellValue('F'.$fila, $c['totalCobrado']);
-            $sheet->setCellValue('G'.$fila, $c['pctCobrado'] !== null ? $c['pctCobrado'].'%' : '-');
+            $sheet->setCellValueExplicit('A'.$fila, $this->celdaTextoSeguro($c['nombre']), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('B'.$fila, $this->celdaTextoSeguro($c['telefono'] ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValue('C'.$fila, $c['saldoPendiente']);
+            $sheet->setCellValue('D'.$fila, $c['ultimoAbonoFecha'] ?? 'Nunca');
+            $sheet->setCellValue('E'.$fila, $diasCelda);
+            $sheet->setCellValue('F'.$fila, $c['totalOtorgado']);
+            $sheet->setCellValue('G'.$fila, $c['totalCobrado']);
+            $sheet->setCellValue('H'.$fila, $c['pctCobrado'] !== null ? $c['pctCobrado'].'%' : '-');
             $fila++;
         }
 
-        foreach (range('A', 'G') as $columna) {
+        foreach (range('A', 'H') as $columna) {
             $sheet->getColumnDimension($columna)->setAutoSize(true);
         }
+
+        // ---- Hoja 2: Posibles duplicados ----
+        $duplicados = $this->clientesConTelefonoDuplicado();
+        $sheetDuplicados = $spreadsheet->createSheet();
+        $sheetDuplicados->setTitle('Posibles duplicados');
+        foreach (['A' => 'Telefono', 'B' => 'Cliente', 'C' => 'Fecha creacion', 'D' => 'Num. movimientos', 'E' => 'Primer movimiento', 'F' => 'Ultimo movimiento', 'G' => 'Actividad post-import'] as $col => $titulo) {
+            $sheetDuplicados->setCellValue($col.'1', $titulo);
+        }
+
+        $filaDup = 2;
+        foreach ($duplicados as $d) {
+            $sheetDuplicados->setCellValueExplicit('A'.$filaDup, $this->celdaTextoSeguro($d['telefono']), DataType::TYPE_STRING);
+            $sheetDuplicados->setCellValueExplicit('B'.$filaDup, $this->celdaTextoSeguro($d['nombre']), DataType::TYPE_STRING);
+            $sheetDuplicados->setCellValue('C'.$filaDup, $d['fechaCreacion']->format('Y-m-d H:i:s'));
+            $sheetDuplicados->setCellValue('D'.$filaDup, $d['numMovimientos']);
+            $sheetDuplicados->setCellValue('E'.$filaDup, $d['primerMovimiento']?->format('Y-m-d H:i:s') ?? '-');
+            $sheetDuplicados->setCellValue('F'.$filaDup, $d['ultimoMovimiento']?->format('Y-m-d H:i:s') ?? '-');
+            $sheetDuplicados->setCellValue('G'.$filaDup, $d['actividadPostImport']);
+            $filaDup++;
+        }
+
+        foreach (range('A', 'G') as $columna) {
+            $sheetDuplicados->getColumnDimension($columna)->setAutoSize(true);
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
 
         $writer = new Xlsx($spreadsheet);
         $nombreArchivo = 'cartera-'.now()->format('Ymd-His').'.xlsx';
