@@ -207,6 +207,9 @@ class ClienteController extends Controller
 
         return Inertia::render('Clientes/Show', [
             'cliente' => $cliente,
+            // TEMPORAL -- retirar cuando se resuelva el tratamiento de las
+            // cuentas en revision (ver tambien cuentasEnRevision() abajo)
+            'registroRetiradoMismoTelefono' => $this->registroRetiradoMismoTelefono($cliente),
             'usuarios' => User::where('es_oculto', false)->orderBy('name')->get(['id', 'name']),
             'movimientos' => $movimientos,
             'saldoPendiente' => $saldoPendiente,
@@ -609,6 +612,107 @@ class ClienteController extends Controller
                     'actividadPostImport' => ($primero && $ultimo && ! $ultimo->equalTo($primero)) ? 'SI' : 'NO',
                 ];
             });
+    }
+
+    /**
+     * TEMPORAL -- pantalla de solo lectura para destrabar el tratamiento de
+     * clientes soft-deleted con saldo pendiente (ver diagnostico KPI vs
+     * Cartera del 2026-10-01: dineroEnCalle excluye soft-deleted, esta
+     * pantalla es donde se consultan esas cuentas sin pedir un export cada
+     * vez). Retirar esta vista y su ruta una vez se decida el tratamiento
+     * final de cada cuenta -- restaurar, fusionar o eliminar. Sin acciones
+     * de escritura, guard real a nivel de ruta (es_admin, ver routes/web.php).
+     */
+    // TEMPORAL -- los 4 valores validos de estado_revision, ver migracion
+    // 2026_10_01_120000_add_estado_revision_to_clientes
+    private const ESTADOS_REVISION = ['pendiente', 'verificado', 'posible_fusion', 'recomendado_descartar'];
+
+    public function cuentasEnRevision(Request $request)
+    {
+        $filtroEstado = $request->query('estado_revision');
+
+        $todos = MovimientoCuenta::orderBy('fecha')->get();
+        $porCliente = $todos->groupBy('cliente_id');
+        $saldoDe = fn ($movs) => (float) $movs->sum(fn (MovimientoCuenta $m) => match ($m->tipo) {
+            'cargo' => (float) $m->monto,
+            'abono', 'ajuste_devolucion' => -(float) $m->monto,
+            default => 0,
+        });
+
+        $cuentas = Cliente::onlyTrashed()->with('revisadoPor:id,name')->get()
+            ->map(fn (Cliente $c) => [
+                'id' => $c->id,
+                'nombre' => $c->nombre,
+                'saldo' => round($saldoDe($porCliente->get($c->id, collect())), 2),
+                'deletedAt' => $c->deleted_at->toDateString(),
+                // "duplicado activo" = existe un cliente NO borrado con el mismo
+                // telefono (Cliente::where sin withTrashed respeta el scope
+                // default, solo mira activos)
+                'coincideDuplicado' => (bool) ($c->telefono && Cliente::where('telefono', $c->telefono)->exists()),
+                'estadoRevision' => $c->estado_revision,
+                'revisadoPor' => $c->revisadoPor?->name,
+                'revisadoEn' => $c->revisado_en?->format('Y-m-d H:i'),
+            ])
+            ->when($filtroEstado, fn ($coll) => $coll->filter(fn (array $c) => $c['estadoRevision'] === $filtroEstado))
+            ->sortByDesc('saldo')
+            ->values();
+
+        return Inertia::render('CuentasEnRevision/Index', [
+            'cuentas' => $cuentas,
+            'totalSaldo' => $cuentas->sum('saldo'),
+            'filtroEstado' => $filtroEstado,
+            'estadosRevision' => self::ESTADOS_REVISION,
+        ]);
+    }
+
+    // TEMPORAL -- ver cuentasEnRevision() arriba. Update minimo: SOLO
+    // estado_revision + revisado_por + revisado_en -- nunca restore(),
+    // forceDelete() ni movimientos_cuenta nuevos. Ejecutar algo real sobre
+    // la cuenta (reactivar, fusionar, eliminar definitivo) se hace en una
+    // tarea aparte, con aprobacion explicita
+    public function actualizarEstadoRevision(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'estado_revision' => ['required', 'in:'.implode(',', self::ESTADOS_REVISION)],
+        ]);
+
+        $cliente = Cliente::onlyTrashed()->findOrFail($id);
+
+        $cliente->update([
+            'estado_revision' => $validated['estado_revision'],
+            'revisado_por' => $request->user()->id,
+            'revisado_en' => now(),
+        ]);
+
+        return redirect()->route('cuentas-en-revision');
+    }
+
+    // TEMPORAL -- ver cuentasEnRevision() arriba, se retira junto con esa
+    // vista. Nota cruzada en la ficha de un cliente activo cuando su
+    // telefono coincide con un registro soft-deleted con saldo
+    private function registroRetiradoMismoTelefono(Cliente $cliente): ?array
+    {
+        if (! $cliente->telefono) {
+            return null;
+        }
+
+        $retirado = Cliente::onlyTrashed()->where('telefono', $cliente->telefono)->first();
+
+        if (! $retirado) {
+            return null;
+        }
+
+        $saldoDe = fn ($movs) => (float) $movs->sum(fn (MovimientoCuenta $m) => match ($m->tipo) {
+            'cargo' => (float) $m->monto,
+            'abono', 'ajuste_devolucion' => -(float) $m->monto,
+            default => 0,
+        });
+
+        return [
+            'saldo' => round($saldoDe(MovimientoCuenta::where('cliente_id', $retirado->id)->get()), 2),
+            'deletedAt' => $retirado->deleted_at->toDateString(),
+            'estadoRevision' => $retirado->estado_revision,
+        ];
     }
 
     // guard real a nivel de ruta ya aplicado (middleware es_admin, ver

@@ -21,6 +21,9 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     cliente: { type: Object, required: true },
+    // TEMPORAL -- retirar cuando se resuelva el tratamiento de las cuentas
+    // en revision (ver ClienteController::registroRetiradoMismoTelefono())
+    registroRetiradoMismoTelefono: { type: Object, default: null },
     movimientos: { type: Array, required: true },
     saldoPendiente: { type: [Number, String], required: true },
     totalCobrado: { type: [Number, String], required: true },
@@ -928,6 +931,10 @@ watch(algunModalAbierto, (abierto) => {
                     </button>
                 </div>
             </div>
+        </div>
+
+        <div v-if="registroRetiradoMismoTelefono" class="rounded-card border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+            Existe un registro retirado con el mismo telefono — saldo {{ formatMoney(registroRetiradoMismoTelefono.saldo) }}, dado de baja el {{ formatFecha(registroRetiradoMismoTelefono.deletedAt) }}, estado: {{ registroRetiradoMismoTelefono.estadoRevision }}.
         </div>
 
         <!-- saldo pendiente: elemento hero de la ficha, deliberadamente sin

@@ -20,10 +20,24 @@ class Cliente extends Model
         'contacto_alterno_nombre',
         'contacto_alterno_telefono',
         'usuario_responsable_id',
+        // TEMPORAL -- ver ClienteController::cuentasEnRevision()
+        'estado_revision',
+        'revisado_por',
+        'revisado_en',
+    ];
+
+    protected $casts = [
+        'revisado_en' => 'datetime',
     ];
 
     public function usuarioResponsable()
     {
         return $this->belongsTo(User::class, 'usuario_responsable_id');
+    }
+
+    // TEMPORAL -- ver ClienteController::cuentasEnRevision()
+    public function revisadoPor()
+    {
+        return $this->belongsTo(User::class, 'revisado_por');
     }
 }
