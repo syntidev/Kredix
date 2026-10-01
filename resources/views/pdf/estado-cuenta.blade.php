@@ -40,6 +40,7 @@
         table.cuotas td { padding: 2px 6px; border-bottom: 1px solid #eee; }
         .estado-cubierta { color: #15803d; }
         .estado-parcial { color: #b45309; }
+        .estado-vencida { color: #c00000; font-weight: bold; }
         .estado-pendiente { color: #666; }
         .mensajes { margin-top: 18px; border-top: 1px solid #ddd; padding-top: 10px; }
         .mensajes p { margin: 0 0 8px; white-space: pre-wrap; }
@@ -126,6 +127,25 @@
             </td>
         </tr>
     </table>
+
+    @if ($planesFinanciamiento->isNotEmpty())
+        <h2>Plan de pagos</h2>
+        @foreach ($planesFinanciamiento as $plan)
+            <div class="cargo-cuotas">
+                <p class="titulo">{{ $plan['descripcion'] }} — {{ formatMoneyPdf($plan['monto_total']) }} ({{ formatFechaPdf($plan['fecha']) }})</p>
+                <table class="cuotas">
+                    @foreach ($plan['cuotas'] as $cuota)
+                        <tr>
+                            <td>Cuota {{ $cuota['numero'] }}</td>
+                            <td>{{ formatFechaPdf($cuota['fecha_vencimiento']) }}</td>
+                            <td class="monto">{{ formatMoneyPdf($cuota['monto_pactado']) }}</td>
+                            <td class="estado-{{ $cuota['estado'] }}">{{ ucfirst($cuota['estado']) }}</td>
+                        </tr>
+                    @endforeach
+                </table>
+            </div>
+        @endforeach
+    @endif
 
     <table class="movimientos">
         <thead>

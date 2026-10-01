@@ -277,6 +277,7 @@ class ClienteController extends Controller
             'cliente' => $cliente,
             'movimientos' => $movimientos,
             'saldoPendiente' => MovimientoCuenta::saldoPendiente($cliente->id),
+            'planesFinanciamiento' => $this->planesFinanciamiento($cliente),
             'compromisosCuotas' => $this->compromisosCuotas($movimientosRaw),
             'mensajeGlobal' => Configuracion::valorDe('pdf_mensaje_global'),
             'mensajeCliente' => $cliente->mensaje_pdf,
