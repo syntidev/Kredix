@@ -84,9 +84,17 @@ class HomeController extends Controller
 
         // agregado de TODA la cartera -- mismo criterio que totalCarteraActiva en
         // ClienteController::cartera(): solo admin, null para el resto (el saldo
-        // de UN cliente individual sigue visible para todos en su ficha)
+        // de UN cliente individual sigue visible para todos en su ficha).
+        // OJO: NO reusar $saldosActivos aqui (tiene havingRaw('saldo > 0'),
+        // correcto para carteraConMora -- "quien debe" -- pero si se usa para
+        // el total agregado excluye en vez de restar a los clientes activos
+        // con saldo negativo, inflando el numero vs KpiController::dineroEnCalle
+        // (bug real encontrado 2026-10-01, diagnosticado por Carlos)
+        $idsClientesActivos = Cliente::pluck('id');
         $enCalle = $esAdmin
-            ? (float) DB::query()->fromSub($saldosActivos, 'saldos')->sum('saldo')
+            ? (float) MovimientoCuenta::whereIn('cliente_id', $idsClientesActivos)
+                ->selectRaw("SUM(CASE WHEN tipo = 'cargo' THEN monto WHEN tipo IN ('abono', 'ajuste_devolucion') THEN -monto ELSE 0 END) as total")
+                ->value('total')
             : null;
 
         $cobradoHoy = $esAdmin
