@@ -1,7 +1,7 @@
 <script setup>
 import { computed, defineAsyncComponent, ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
-import { ChevronDown, TrendingDown, TrendingUp, Users, Wallet } from '@lucide/vue';
+import { Archive, ChevronDown, TrendingDown, TrendingUp, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import StatCard from '../../Components/StatCard.vue';
 import { formatMoney } from '../../lib/formatMoney';
@@ -12,6 +12,7 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     dineroEnCalle: { type: Number, required: true },
+    saldoEnRevision: { type: Number, required: true },
     periodos: { type: Object, required: true },
     semanasDelMes: { type: Array, required: true },
     ultimos6Meses: { type: Array, required: true },
@@ -228,6 +229,10 @@ function filtrarRangoTaller(valor) {
         </div>
 
         <StatCard label="Dinero en calle" :value="formatMoney(dineroEnCalle)" :icon="Wallet" variant="negro" tamano="grande" />
+
+        <StatCard label="Saldo en revision" :value="formatMoney(saldoEnRevision)" :icon="Archive" variant="amarillo">
+            <p class="mt-1 text-xs text-kredix-gris">Clientes dados de baja con saldo pendiente — no incluido en Dinero en calle hasta su revision</p>
+        </StatCard>
 
         <StatCard label="Total clientes" :value="String(totalClientesActivos)" :icon="crecimientoClientesPct !== null && crecimientoClientesPct < 0 ? TrendingDown : TrendingUp" :variant="crecimientoClientesPct !== null && crecimientoClientesPct < 0 ? 'rojo' : 'verde'">
             <p class="mt-1 text-xs text-kredix-gris">{{ clientesNuevosEsteMes }} nuevos este mes</p>

@@ -6,7 +6,7 @@ defineProps({
     label: { type: String, required: true },
     value: { type: String, required: true },
     icon: { type: [Object, Function], required: true },
-    variant: { type: String, default: 'negro' }, // 'rojo' | 'negro' | 'verde'
+    variant: { type: String, default: 'negro' }, // 'rojo' | 'negro' | 'verde' | 'amarillo'
     tamano: { type: String, default: 'normal' }, // 'normal' | 'grande' -- el numero principal de la pantalla usa 'grande'
     ayuda: { type: String, default: null }, // texto del tooltip "?" -- omitir para no mostrar el icono
     colorValor: { type: String, default: null }, // clase Tailwind que reemplaza el color del numero principal (default: text-kredix-negro)
@@ -16,6 +16,7 @@ const VARIANTS = {
     rojo: { bg: 'bg-red-50', icon: 'text-kredix-rojo' },
     negro: { bg: 'bg-gray-100', icon: 'text-kredix-negro' },
     verde: { bg: 'bg-green-50', icon: 'text-green-600' },
+    amarillo: { bg: 'bg-amber-50', icon: 'text-amber-600' },
 };
 
 function classesFor(variant) {

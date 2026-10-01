@@ -38,8 +38,28 @@ class KpiController extends Controller
             default => 0,
         });
 
-        // 1. dinero en calle: suma de saldo pendiente de toda la cartera
-        $dineroEnCalle = $porCliente->sum($saldoDe);
+        // 1. dinero en calle: suma de saldo pendiente de toda la cartera --
+        // excluye clientes soft-deleted (mismo scope que Cliente::all() usa
+        // ClienteController::clientesConMetricasCartera() para Cartera/export);
+        // antes sumaba sobre $porCliente completo e incluia deuda de clientes
+        // borrados, dando una cifra distinta a la de Cartera para "cuanto se debe"
+        // filter(), no only() -- $porCliente es Eloquent\Collection (hereda el
+        // tipo via groupBy() sobre el resultado de MovimientoCuenta::get()), y
+        // el only() de Eloquent\Collection espera modelos con getKey(), no
+        // grupos; aqui las claves son cliente_id simples, filter() es generico
+        $idsClientesActivos = Cliente::pluck('id')->all();
+        $dineroEnCalle = $porCliente->filter(fn ($movs, $clienteId) => in_array($clienteId, $idsClientesActivos, true))->sum($saldoDe);
+
+        // 1b. saldo en revision: deuda de clientes dados de baja (soft-deleted),
+        // excluida a proposito de "dinero en calle" de arriba -- se muestra
+        // aparte en vez de perderse, consulta real cada vez (nunca un numero
+        // fijo), asi si manana se restaura o se elimina definitivamente a
+        // alguno de estos clientes el valor lo refleja solo. Suma sobre TODOS
+        // los soft-deleted sin filtrar por saldo > 0 -- los pocos con saldo
+        // negativo deben seguir restando aqui, si no dineroEnCalle +
+        // saldoEnRevision ya no reconstruye el total original
+        $saldoEnRevision = Cliente::onlyTrashed()->get()
+            ->sum(fn (Cliente $c) => $saldoDe($porCliente->get($c->id, collect())));
 
         // 2. KPI segmentado por periodo -- solo movimientos desde PISO_FECHA_KPI en
         // adelante (asi los 12 movimientos aislados pre-2025 y los sin fecha nunca
@@ -232,6 +252,7 @@ class KpiController extends Controller
 
         return Inertia::render('Kpi/Index', [
             'dineroEnCalle' => $dineroEnCalle,
+            'saldoEnRevision' => $saldoEnRevision,
             'periodos' => $periodos,
             'semanasDelMes' => $semanasDelMes,
             'ultimos6Meses' => $ultimos6Meses,

@@ -649,11 +649,14 @@ class ClienteController extends Controller
 
             $sheet->setCellValueExplicit('A'.$fila, $this->celdaTextoSeguro($c['nombre']), DataType::TYPE_STRING);
             $sheet->setCellValueExplicit('B'.$fila, $this->celdaTextoSeguro($c['telefono'] ?? ''), DataType::TYPE_STRING);
-            $sheet->setCellValue('C'.$fila, $c['saldoPendiente']);
+            // round() antes de escribir -- el valor subyacente de la celda debe
+            // quedar en 2 decimales exactos, no solo el formato visual de Excel
+            // (floats de PHP arrastran imprecision binaria, ej. 5449.98999999999978)
+            $sheet->setCellValue('C'.$fila, round($c['saldoPendiente'], 2));
             $sheet->setCellValue('D'.$fila, $c['ultimoAbonoFecha'] ?? 'Nunca');
             $sheet->setCellValue('E'.$fila, $diasCelda);
-            $sheet->setCellValue('F'.$fila, $c['totalOtorgado']);
-            $sheet->setCellValue('G'.$fila, $c['totalCobrado']);
+            $sheet->setCellValue('F'.$fila, round($c['totalOtorgado'], 2));
+            $sheet->setCellValue('G'.$fila, round($c['totalCobrado'], 2));
             $sheet->setCellValue('H'.$fila, $c['pctCobrado'] !== null ? $c['pctCobrado'].'%' : '-');
             $fila++;
         }
