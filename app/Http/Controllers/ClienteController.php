@@ -20,6 +20,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Spatie\Activitylog\Models\Activity;
@@ -577,7 +578,12 @@ class ClienteController extends Controller
                 ? 'Sin saldo pendiente'
                 : ($c['diasDesdeUltimoAbono'] !== null ? (int) $c['diasDesdeUltimoAbono'] : 'Nunca abono');
 
-            $sheet->setCellValue('A'.$fila, $c['nombre']);
+            // nombre es texto libre del cliente -- si empieza con =, +, -, @, tab
+            // o CR, Excel/Sheets lo interpreta como formula al abrir (CSV/Excel
+            // formula injection). Prefijo con comilla simple neutraliza sin
+            // alterar el texto visible
+            $nombreSeguro = preg_match('/^[=+\-@\t\r]/', (string) $c['nombre']) ? "'".$c['nombre'] : $c['nombre'];
+            $sheet->setCellValueExplicit('A'.$fila, $nombreSeguro, DataType::TYPE_STRING);
             $sheet->setCellValue('B'.$fila, $c['saldoPendiente']);
             $sheet->setCellValue('C'.$fila, $c['ultimoAbonoFecha'] ?? 'Nunca');
             $sheet->setCellValue('D'.$fila, $diasCelda);
