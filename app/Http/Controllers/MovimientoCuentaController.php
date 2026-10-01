@@ -16,6 +16,9 @@ class MovimientoCuentaController extends Controller
 {
     private const DIAS_POR_FRECUENCIA = ['semanal' => 7, 'quincenal' => 15, 'mensual' => 30];
 
+    // ventana de tiempo para detectar un posible abono duplicado -- ajustable
+    private const VENTANA_HORAS_DUPLICADO_ABONO = 12;
+
     public function __construct(private ImagenUploadService $imagenUploadService)
     {
     }
@@ -27,6 +30,38 @@ class MovimientoCuentaController extends Controller
         $movimiento->addMedia($rutaComprimida)
             ->usingFileName($file->getClientOriginalName())
             ->toMediaCollection($coleccion);
+    }
+
+    // pre-chequeo ANTES del submit final -- el frontend llama esto, y solo si
+    // hay match muestra el modal de confirmacion. No bloquea nada por si solo:
+    // si no hay coincidencia, el formulario sigue su flujo normal sin friccion
+    public function verificarAbonoDuplicado(Request $request)
+    {
+        $validated = $request->validate([
+            'cliente_id' => ['required', 'exists:clientes,id'],
+            'monto' => ['required', 'numeric'],
+            'moneda' => ['nullable', 'in:usd,ves'],
+        ]);
+
+        $existente = MovimientoCuenta::where('cliente_id', $validated['cliente_id'])
+            ->where('tipo', 'abono')
+            ->where('monto', $validated['monto'])
+            ->where('moneda', $validated['moneda'] ?? 'usd')
+            ->where('created_at', '>=', now()->subHours(self::VENTANA_HORAS_DUPLICADO_ABONO))
+            ->with('registradoPor:id,name')
+            ->latest('created_at')
+            ->first();
+
+        if (! $existente) {
+            return response()->json(['duplicado' => null]);
+        }
+
+        return response()->json(['duplicado' => [
+            'monto' => (float) $existente->monto,
+            'hora' => $existente->created_at->format('H:i'),
+            'fecha_hoy' => $existente->created_at->isToday(),
+            'usuario' => $existente->registradoPor?->name ?? 'desconocido',
+        ]]);
     }
 
     public function store(Request $request)
@@ -151,6 +186,7 @@ class MovimientoCuentaController extends Controller
             'comentario' => ['required', 'string', 'max:1000'],
             'comprobante' => ['nullable', 'image', 'max:5120'],
             'plan_financiamiento_id' => [$tipo === 'abono' ? 'nullable' : 'prohibited', 'exists:planes_financiamiento,id'],
+            'duplicado_confirmado' => ['nullable', 'boolean'],
         ], [
             'comentario.required' => 'comentario requerido',
             'monto.required' => 'monto requerido',
@@ -174,6 +210,9 @@ class MovimientoCuentaController extends Controller
             'referencia' => ($validated['metodo_pago'] ?? null) !== 'efectivo' ? ($validated['referencia'] ?? null) : null,
             'comentario' => $validated['comentario'] ?? null,
             'registrado_por' => auth()->id(),
+            // solo tiene sentido para tipo=abono -- el checkbox de confirmacion
+            // de duplicado no existe para ajuste_devolucion/gestion
+            'duplicado_confirmado' => $tipo === 'abono' && $request->boolean('duplicado_confirmado'),
         ];
 
         $planId = $validated['plan_financiamiento_id'] ?? null;

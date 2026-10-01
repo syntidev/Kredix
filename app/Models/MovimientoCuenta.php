@@ -37,6 +37,7 @@ class MovimientoCuenta extends Model implements HasMedia
         'metodo_pago',
         'referencia',
         'comentario',
+        'duplicado_confirmado',
         'registrado_por',
         'estado_validacion',
         'validado_por',
@@ -53,6 +54,7 @@ class MovimientoCuenta extends Model implements HasMedia
         'monto' => 'decimal:2',
         'tasa_cambio' => 'decimal:4',
         'validado_en' => 'datetime',
+        'duplicado_confirmado' => 'boolean',
     ];
 
     public function cliente(): BelongsTo

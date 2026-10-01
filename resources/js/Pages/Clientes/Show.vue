@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
+import axios from 'axios';
 import { ArrowDown, ArrowUp, ChevronDown, Download, FileText, ImageOff, Link2, MessageCircle, NotebookPen, Pencil, Plus, Repeat, Search, Trash2, X } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
@@ -527,17 +528,61 @@ async function onFileChange(event) {
     abonoForm.comprobante = archivo;
 }
 
-function submitAbono() {
+// alerta de posible abono duplicado: el chequeo corre ANTES del submit real,
+// solo para tipo=abono (ajuste_devolucion sigue su flujo normal, sin chequeo
+// ni friccion). Si no hay match, se envia igual que siempre -- cero friccion
+const verificandoDuplicado = ref(false);
+const duplicadoInfo = ref(null);
+const modalDuplicadoAbierto = ref(false);
+
+async function submitAbono() {
     abonoForm.tipo = esAjuste.value ? 'ajuste_devolucion' : 'abono';
     abonoForm.descripcion = esAjuste.value ? 'Ajuste / devolucion' : 'Abono';
     // un ajuste/devolucion nunca puede ir ligado a un plan -- el backend lo
     // rechaza (prohibited) si tipo no es abono
     abonoForm.plan_financiamiento_id = (!esAjuste.value && abonoForm.plan_financiamiento_id) || null;
 
-    abonoForm.post('/movimientos', {
+    if (abonoForm.tipo === 'abono') {
+        verificandoDuplicado.value = true;
+        try {
+            const { data } = await axios.post('/movimientos/verificar-duplicado-abono', {
+                cliente_id: abonoForm.cliente_id,
+                monto: abonoForm.monto,
+                moneda: abonoForm.moneda,
+            });
+            if (data.duplicado) {
+                duplicadoInfo.value = data.duplicado;
+                modalDuplicadoAbierto.value = true;
+                verificandoDuplicado.value = false;
+                return; // espera confirmacion explicita, no envia todavia
+            }
+        } catch {
+            // si el chequeo falla, no bloquear el flujo normal -- sigue como
+            // si no hubiera match (fail-open, nunca le impide al operador
+            // registrar un abono legitimo por un error de red)
+        }
+        verificandoDuplicado.value = false;
+    }
+
+    enviarAbono(false);
+}
+
+function confirmarDuplicadoYEnviar() {
+    modalDuplicadoAbierto.value = false;
+    enviarAbono(true);
+}
+
+function cancelarDuplicado() {
+    modalDuplicadoAbierto.value = false;
+    duplicadoInfo.value = null;
+}
+
+function enviarAbono(duplicadoConfirmado) {
+    abonoForm.transform((data) => ({ ...data, duplicado_confirmado: duplicadoConfirmado })).post('/movimientos', {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
+            duplicadoInfo.value = null;
             abonoForm.reset();
             abonoForm.fecha = today();
             abonoForm.moneda = 'usd';
@@ -1408,7 +1453,7 @@ watch(algunModalAbierto, (abierto) => {
 
             <div class="mt-1 flex gap-2 md:col-span-2">
                 <button type="button" class="min-h-11 flex-1 rounded-2xl border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
-                <button type="submit" class="min-h-11 flex-1 rounded-2xl bg-abono-bg text-sm font-semibold text-abono-text disabled:opacity-60" :disabled="abonoForm.processing">Guardar abono</button>
+                <button type="submit" class="min-h-11 flex-1 rounded-2xl bg-abono-bg text-sm font-semibold text-abono-text disabled:opacity-60" :disabled="abonoForm.processing || verificandoDuplicado">{{ verificandoDuplicado ? 'Verificando...' : 'Guardar abono' }}</button>
             </div>
         </form>
         </div>
@@ -1656,6 +1701,21 @@ watch(algunModalAbierto, (abierto) => {
                 <div class="mt-4 flex gap-2">
                     <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="cancelarDescarte">Cancelar</button>
                     <button type="button" class="min-h-11 flex-1 rounded-lg bg-kredix-rojo text-sm font-semibold text-white active:opacity-80" @click="confirmarDescarte">Salir sin guardar</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="modalDuplicadoAbierto" class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4" @click.self="cancelarDuplicado">
+            <div class="w-full max-w-sm rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+                <p class="font-medium text-kredix-negro">Posible abono duplicado</p>
+                <p class="mt-1 text-sm text-kredix-gris">
+                    Ya existe un abono de <span class="font-medium text-kredix-negro">{{ formatMoney(duplicadoInfo?.monto) }}</span> registrado
+                    {{ duplicadoInfo?.fecha_hoy ? 'hoy' : 'hace poco' }} a las {{ duplicadoInfo?.hora }} por {{ duplicadoInfo?.usuario }}.
+                    Confirma que este es un abono distinto antes de continuar.
+                </p>
+                <div class="mt-4 flex gap-2">
+                    <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="cancelarDuplicado">Cancelar</button>
+                    <button type="button" class="min-h-11 flex-1 rounded-lg bg-abono-bg text-sm font-semibold text-abono-text active:opacity-80" @click="confirmarDuplicadoYEnviar">Confirmar, es un abono distinto</button>
                 </div>
             </div>
         </div>
