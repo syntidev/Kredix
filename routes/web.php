@@ -86,9 +86,9 @@ Route::middleware('auth')->group(function () {
     Route::middleware('es_admin')->group(function () {
         Route::get('/kpi', [KpiController::class, 'index'])->name('kpi');
         Route::get('/cartera/exportar', [ClienteController::class, 'carteraExportar'])->name('cartera.exportar');
-        // TEMPORAL -- ver comentario en ClienteController::cuentasEnRevision()
-        Route::get('/cuentas-en-revision', [ClienteController::class, 'cuentasEnRevision'])->name('cuentas-en-revision');
-        Route::patch('/cuentas-en-revision/{id}/estado', [ClienteController::class, 'actualizarEstadoRevision'])->name('cuentas-en-revision.estado');
+        // Herramienta de triage retirada el 2026-10-01 tras decision de negocio
+        // sobre cartera en revision -- controlador (ClienteController::
+        // cuentasEnRevision/actualizarEstadoRevision) queda sin ruta activa
         Route::get('/usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
         Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
         Route::patch('/usuarios/{usuario}/toggle-activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.toggle-activo');

@@ -50,9 +50,6 @@ const links = computed(() => {
         { href: '/taller', label: 'Taller' },
         ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
         ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
-        // TEMPORAL -- ver ClienteController::cuentasEnRevision(), retirar junto
-        // con esa vista cuando se resuelva el tratamiento de esas cuentas
-        ...(esAdmin.value ? [{ href: '/cuentas-en-revision', label: 'Cuentas en revision' }] : []),
     ];
 });
 
@@ -100,8 +97,8 @@ const masItems = computed(() => {
         { href: '/prospectos', label: 'Prospectos' },
         ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
         ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
-        // TEMPORAL -- ver comentario identico arriba en `links`
-        ...(esAdmin.value ? [{ href: '/cuentas-en-revision', label: 'Cuentas en revision' }] : []),
+        // Herramienta de triage retirada el 2026-10-01 tras decision de negocio
+        // sobre cartera en revision
         { href: '/configuracion', label: 'Configuracion' },
         ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),
         { href: '/profile', label: 'Mi Perfil' },

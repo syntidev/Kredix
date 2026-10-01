@@ -207,9 +207,6 @@ class ClienteController extends Controller
 
         return Inertia::render('Clientes/Show', [
             'cliente' => $cliente,
-            // TEMPORAL -- retirar cuando se resuelva el tratamiento de las
-            // cuentas en revision (ver tambien cuentasEnRevision() abajo)
-            'registroRetiradoMismoTelefono' => $this->registroRetiradoMismoTelefono($cliente),
             'usuarios' => User::where('es_oculto', false)->orderBy('name')->get(['id', 'name']),
             'movimientos' => $movimientos,
             'saldoPendiente' => $saldoPendiente,
@@ -615,15 +612,11 @@ class ClienteController extends Controller
     }
 
     /**
-     * TEMPORAL -- pantalla de solo lectura para destrabar el tratamiento de
-     * clientes soft-deleted con saldo pendiente (ver diagnostico KPI vs
-     * Cartera del 2026-10-01: dineroEnCalle excluye soft-deleted, esta
-     * pantalla es donde se consultan esas cuentas sin pedir un export cada
-     * vez). Retirar esta vista y su ruta una vez se decida el tratamiento
-     * final de cada cuenta -- restaurar, fusionar o eliminar. Sin acciones
-     * de escritura, guard real a nivel de ruta (es_admin, ver routes/web.php).
+     * Herramienta de triage retirada el 2026-10-01 tras decision de negocio
+     * sobre cartera en revision -- sin ruta activa (ver routes/web.php),
+     * metodo y vista (CuentasEnRevision/Index.vue) quedan sin borrar.
      */
-    // TEMPORAL -- los 4 valores validos de estado_revision, ver migracion
+    // los 4 valores validos de estado_revision, ver migracion
     // 2026_10_01_120000_add_estado_revision_to_clientes
     private const ESTADOS_REVISION = ['pendiente', 'verificado', 'posible_fusion', 'recomendado_descartar'];
 
@@ -687,9 +680,8 @@ class ClienteController extends Controller
         return redirect()->route('cuentas-en-revision');
     }
 
-    // TEMPORAL -- ver cuentasEnRevision() arriba, se retira junto con esa
-    // vista. Nota cruzada en la ficha de un cliente activo cuando su
-    // telefono coincide con un registro soft-deleted con saldo
+    // Herramienta de triage retirada el 2026-10-01 tras decision de negocio
+    // sobre cartera en revision -- metodo sin caller activo, ver show()
     private function registroRetiradoMismoTelefono(Cliente $cliente): ?array
     {
         if (! $cliente->telefono) {
