@@ -136,6 +136,7 @@ Laravel Breeze       → Auth basica (login 3+ usuarios), self-signup deshabilit
 - **Recuperacion de producto (ej. bicicleta) es un movimiento distinto a un abono** — tipo `ajuste`/`devolucion`, nunca contado como dinero cobrado.
 - **Soft-deletes obligatorios** en creditos y abonos — jamas borrado fisico de un registro financiero.
 - **`registrado_por` (user_id) obligatorio en cada abono** — trazabilidad de autoria para el KPI de efectividad de cobranza. Los operadores no-admin ven fichas de cliente individuales completas (saldo y movimientos de ESE cliente — mismo dato que ya se muestra en Cartera general y "Atencion hoy"), pero **NO agregados/totales de toda la cartera** (dinero en calle, cobrado hoy, cierre del dia por metodo de pago). Esos agregados son exclusivos de admin/Sistema, gateados via `users.es_admin` (boolean). La restriccion se aplica SIEMPRE en el backend — el dato no debe viajar en el payload HTTP/Inertia para el rol que no debe verlo — nunca solo ocultando el elemento en el frontend con `v-if`, porque el dato seguiria expuesto en DevTools/Network.
+- **Permiso granular por feature (nuevo — v1.2):** ademas de `es_admin`, el modulo Conciliacion (feed cruzado de pagos electronicos de TODA la cartera, no un cliente a la vez) usa `users.acceso_conciliacion` (boolean por usuario) — bloqueado por defecto como KPI, otorgable a operadores especificos sin hacerlos admin completo. Reusar este patron si aparece otra pantalla de "vista completa de cartera" que amerite control fino — no crear un sistema de roles/permisos generico sin necesidad real (Principio 2, simplicidad primero).
 - **`frecuencia_pago` por credito** (semanal/quincenal/mensual) — sin esto el modulo de notificaciones no puede detectar inactividad real.
 - **Renegociacion de plazo/monto versiona el credito existente** — nunca crea un duplicado.
 - **Productos/items son texto libre reutilizable** (nombre + tipo + marca + talla en un solo string, precio, cantidad) — no hay catalogo cerrado.
@@ -148,14 +149,20 @@ Bugs reales ya diagnosticados esta sesion. Si algo similar reaparece, empezar
 por aqui antes de re-investigar desde cero.
 
 ### Modal "flota" / se arrastra con el dedo en Safari iOS (no PWA)
-Causa probable: `position:fixed` en WebKit/Safari se vuelve relativo al
-ancestro transformado mas cercano si CUALQUIER elemento padre del modal tiene
-`transform`, `filter`, `perspective`, `will-change:transform`, o
-**`backdrop-filter`** (el mismo `backdrop-blur-card` usado para el efecto
-"glass" del rediseño puede ser la causa). No ocurre en Chrome/Android. Antes
-de tocar el CSS del modal, rastrear TODA la cadena de ancestros buscando esas
-propiedades — el fix es casi siempre eliminar/aislar el transform/filter del
-ancestro, no tocar el modal mismo.
+Causa CONFIRMADA (commit 3ede137, no es la primera hipotesis que se probo):
+ninguno de los modales de `<div v-if>` armados a mano bloqueaba
+`document.body.style.overflow` al abrirse. Sin ese lock, el body sigue
+siendo "pannable" por debajo del overlay `position:fixed` durante gestos de
+pan en Safari — el modal no se mueve, es el documento completo el que se
+desplaza debajo de un overlay fijo sin ancoraje. No ocurre en Chrome/Android.
+Fix: un `watch` combinado sobre las variables reactivas de visibilidad de
+todos los modales que bloquea/restaura `body.style.overflow`.
+**Hipotesis ya descartada, no reinvestigar:** `transform`/`filter`/
+`backdrop-filter` en algun ancestro — se rastreo toda la cadena de ancestros
+de los 8 modales de `Show.vue` y no habia ninguna de esas propiedades. Si el
+sintoma reaparece en OTRO archivo/componente distinto a estos 8 modales, ahi
+si vale la pena revisar transform/filter como primera hipotesis — pero en
+Show.vue especificamente, la causa ya esta cerrada: era ausencia de scroll-lock.
 
 ### "No veo el cambio" en local/produccion tras un deploy correcto
 Antes de sospechar del codigo: 1) `php artisan view:clear && config:clear &&
@@ -177,6 +184,28 @@ y el comportamiento difiere segun el contexto de acceso:
   Confirmar SIEMPRE con el usuario real como accede (Safari vs PWA instalada)
   antes de asumir cual de los dos fixes aplica — son causas distintas con el
   mismo sintoma superficial.
+
+### Estandar unico de visualizacion de imagenes (nuevo — 2026-10-02)
+Un solo componente para CUALQUIER imagen clickeable del sistema:
+`resources/js/Components/ComprobanteLightbox.vue`. Nunca crear un modal de
+imagen nuevo o distinto — importar y reusar ese, siempre.
+- **Overlay con boton X** para cerrar, click afuera (`@click.self`) y tecla
+  Esc, igual en todos los casos.
+- **Carrusel (flechas izq/der) cuando hay 2+ imagenes relacionadas** del
+  mismo registro — prop `fotos` (array de URLs) + `indice-inicial`. Ejemplo
+  real: comprobante + foto de producto de UN MISMO movimiento en
+  `Clientes/Show.vue::abrirFotoMovimiento()`, mismo patron que
+  `Taller/Show.vue::abrirFoto()` (fotos de entrada/salida de un ticket).
+- **Una sola imagen suelta** (sin ninguna otra relacionada en ese registro)
+  usa la prop `url` en vez de `fotos` — el carrusel se desactiva solo
+  (`tieneCarrusel = fotos.length > 1`), no hace falta logica aparte.
+- **Siempre resolucion real** (`getFirstMediaUrl()` sin conversion), nunca la
+  URL del thumbnail, aunque el thumb sea lo que se ve en la miniatura
+  clickeable.
+- No agrupar imagenes que NO son el mismo tipo de contenido solo por
+  conveniencia (ej. banner superior/inferior/logo en Configuracion son 3
+  imagenes independientes, cada una su propio `url`, sin carrusel entre
+  ellas — agruparlas no tendria sentido de uso).
 
 ---
 

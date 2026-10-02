@@ -205,8 +205,16 @@ class ClienteController extends Controller
 
         $ultimaTasaBcv = $tasaBcvService->getLastUpdate();
 
+        // mismo orden que el listado principal (ClienteController::index(),
+        // orderBy('clientes.nombre') plano) -- la collation de la columna ya
+        // es case-insensitive, no hace falta LOWER()
+        $siguienteCliente = Cliente::where('nombre', '>', $cliente->nombre)
+            ->orderBy('nombre')
+            ->first(['id', 'nombre']);
+
         return Inertia::render('Clientes/Show', [
             'cliente' => $cliente,
+            'siguienteClienteId' => $siguienteCliente?->id,
             'usuarios' => User::where('es_oculto', false)->orderBy('name')->get(['id', 'name']),
             'movimientos' => $movimientos,
             'saldoPendiente' => $saldoPendiente,

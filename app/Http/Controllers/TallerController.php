@@ -64,7 +64,12 @@ class TallerController extends Controller
             ->when($rango === 'este_mes', fn ($query) => $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]))
             ->when($tipoServicio === 'vip', fn ($query) => $query->where('tipo_servicio', 'vip'))
             ->when($tipoServicio === 'normal', fn ($query) => $query->where(fn ($q) => $q->whereNull('tipo_servicio')->orWhere('tipo_servicio', '!=', 'vip')))
+            // desempate por id -- tickets reales comparten el mismo
+            // created_at exacto (al segundo), sin este desempate el orden
+            // entre ellos queda indefinido y "Siguiente" en show() no puede
+            // navegarlos de forma consistente con lo que ve el usuario aqui
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
@@ -113,21 +118,72 @@ class TallerController extends Controller
         // 'print' (1200px, sin recorte) en vez de 'thumb' (200x200 recortado a
         // cuadrado) -- 'thumb' se ve pixelado al estirarse en el reporte.
         // Fallback al original si 'print' aun no existe (fotos subidas antes
-        // de agregar esta conversion, mientras no se regeneren)
-        $fotoBase64 = function (Media $media) {
-            $ruta = $media->hasGeneratedConversion('print') && file_exists($media->getPath('print'))
-                ? $media->getPath('print')
-                : $media->getPath();
+        // de agregar esta conversion, mientras no se regeneren). El layout
+        // (ancho % por foto, orientacion) se calcula aqui en PHP -- la vista
+        // solo pinta el % ya resuelto, no decide nada (sin flexbox/grid,
+        // DomPDF no lo soporta)
+        $construirFotos = function (string $coleccion) use ($ticket) {
+            $medias = $ticket->getMedia($coleccion);
+            $total = $medias->count();
 
-            return file_exists($ruta) ? 'data:'.$media->mime_type.';base64,'.base64_encode(file_get_contents($ruta)) : null;
+            return $medias->map(function (Media $media) use ($total) {
+                $ruta = $media->hasGeneratedConversion('print') && file_exists($media->getPath('print'))
+                    ? $media->getPath('print')
+                    : $media->getPath();
+
+                if (! file_exists($ruta)) {
+                    return null;
+                }
+
+                $dimensiones = getimagesize($ruta);
+                $esVertical = $dimensiones && $dimensiones[1] > $dimensiones[0];
+
+                // 1 foto: el ancho va en la IMG (centrada dentro de una celda
+                // de 100%) -- vertical ocupa menos ancho relativo (55%) porque
+                // ya gana alto; horizontal aprovecha mas ancho (80%).
+                // 2/3 fotos: el ancho va en la TD (columnas reales lado a
+                // lado), la IMG llena el 100% de su celda
+                [$tdAnchoPct, $imgAnchoPct] = match (true) {
+                    $total <= 1 => [100, $esVertical ? 55 : 80],
+                    $total === 2 => [48, 100],
+                    default => [31.5, 100],
+                };
+
+                return [
+                    'src' => 'data:'.$media->mime_type.';base64,'.base64_encode(file_get_contents($ruta)),
+                    'tdAnchoPct' => $tdAnchoPct,
+                    'imgAnchoPct' => $imgAnchoPct,
+                ];
+            })->filter()->values();
         };
 
-        $fotosEntrada = $ticket->getMedia('entrada')->map($fotoBase64)->filter()->values();
-        $fotosSalida = $ticket->getMedia('salida')->map($fotoBase64)->filter()->values();
+        $fotosEntrada = $construirFotos('entrada');
+        $fotosSalida = $construirFotos('salida');
         // columnas por seccion: 1 foto -> 1 col, 2 -> 2, 3+ -> 3 (maximo 3 por
         // fila, el resto envuelve a filas adicionales del mismo ancho)
         $columnasEntrada = min($fotosEntrada->count(), 3);
         $columnasSalida = min($fotosSalida->count(), 3);
+        // alto maximo por seccion -- probado contra el caso extremo visto en
+        // produccion (retrato 1200x2598): con 1 foto el ancho de celda es
+        // generoso (55-80%) asi que el alto necesita un techo mayor; con 3
+        // columnas (31.5% de celda) una foto muy alta se ve proporcionalmente
+        // mas angosta, techo menor alcanza
+        $alturaMaxima = fn (int $total) => match (true) {
+            $total <= 1 => 420,
+            $total === 2 => 320,
+            default => 260,
+        };
+        $alturaEntrada = $alturaMaxima($fotosEntrada->count());
+        $alturaSalida = $alturaMaxima($fotosSalida->count());
+        // gap entre columnas -- 12px con 2 fotos, 10px con 3+ (mitad de cada
+        // lado via padding, no hay gap real en tablas)
+        $gapPadding = fn (int $total) => match (true) {
+            $total === 2 => 6,
+            $total >= 3 => 5,
+            default => 0,
+        };
+        $padEntrada = $gapPadding($fotosEntrada->count());
+        $padSalida = $gapPadding($fotosSalida->count());
 
         $logoHost = Configuracion::logoHost();
         $logoMedia = $logoHost->getFirstMedia('logo_empresa');
@@ -164,6 +220,10 @@ class TallerController extends Controller
             'fotosSalida' => $fotosSalida,
             'columnasEntrada' => $columnasEntrada,
             'columnasSalida' => $columnasSalida,
+            'alturaEntrada' => $alturaEntrada,
+            'alturaSalida' => $alturaSalida,
+            'padEntrada' => $padEntrada,
+            'padSalida' => $padSalida,
             'margenPiePx' => $margenPiePx,
             'mostrarBanners' => $mostrarBanners,
             'bannerSuperiorBase64' => $mostrarBanners ? ConfiguracionPdf::bannerBase64('banner_superior') : null,
@@ -285,7 +345,26 @@ class TallerController extends Controller
     {
         $ticket->load(['cliente:id,nombre,telefono', 'mecanico:id,name', 'registradoPor:id,name', 'repuestos']);
 
+        // mismo orden que el listado (TallerController::index(),
+        // orderByDesc('created_at') + orderByDesc('id')) -- comparacion por
+        // tupla (created_at, id), no solo created_at: tickets reales
+        // comparten el mismo created_at exacto (al segundo), con solo
+        // created_at la query no encontraba nada y el boton quedaba
+        // deshabilitado en todos. "Siguiente" = el que sigue mas abajo en
+        // una lista descendente por (created_at, id)
+        $siguienteTicket = TicketTaller::where(function ($query) use ($ticket) {
+            $query->where('created_at', '<', $ticket->created_at)
+                ->orWhere(function ($query) use ($ticket) {
+                    $query->where('created_at', $ticket->created_at)
+                        ->where('id', '<', $ticket->id);
+                });
+        })
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first(['id']);
+
         return Inertia::render('Taller/Show', [
+            'siguienteTicketId' => $siguienteTicket?->id,
             'ticket' => [
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',

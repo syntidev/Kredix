@@ -38,14 +38,8 @@
         .mini-encabezado span { font-size: 11px; color: #666; vertical-align: middle; }
         .fotos { width: 100%; border-collapse: collapse; }
         .fotos tr { page-break-inside: avoid; }
-        .fotos td { padding: 4px; vertical-align: top; text-align: center; }
-        .fotos img { border: 1px solid #ddd; }
-        .fotos.cols-1 td { width: 100%; }
-        .fotos.cols-1 img { max-width: 100%; max-height: 380px; }
-        .fotos.cols-2 td { width: 50%; }
-        .fotos.cols-2 img { max-width: 100%; max-height: 280px; }
-        .fotos.cols-3 td { width: 33%; }
-        .fotos.cols-3 img { max-width: 100%; max-height: 200px; }
+        .fotos td { vertical-align: top; text-align: center; }
+        .fotos img { border: 1px solid #ddd; display: block; margin: 0 auto; }
     </style>
 </head>
 <body>
@@ -146,18 +140,35 @@
         </tr>
     </table>
 
-    @if ($ticket->repuestos->isNotEmpty())
-        <h2>Repuestos</h2>
+    @php
+        // el servicio base (ej. "Full" $20) entraba en $totalTicket pero nunca
+        // se imprimia como linea -- el cliente no podia ver de donde salia el
+        // total cuando solo habia repuestos en la tabla. Se funde en una sola
+        // tabla "Desglose" junto con los repuestos (bug real, confirmado con
+        // el ticket #13: $35 de repuesto + $20 de servicio = $55 de total,
+        // pero el PDF solo mostraba el repuesto)
+        $mostrarServicio = $ticket->tipo === 'servicio_cliente' && (float) $ticket->monto_servicio > 0;
+    @endphp
+    @if ($mostrarServicio || $ticket->repuestos->isNotEmpty())
+        <h2>Desglose</h2>
         <table class="repuestos">
             <thead>
                 <tr>
-                    <th>Producto</th>
+                    <th>Concepto</th>
                     <th class="monto">Cant.</th>
                     <th class="monto">Precio</th>
                     <th class="monto">Subtotal</th>
                 </tr>
             </thead>
             <tbody>
+                @if ($mostrarServicio)
+                    <tr>
+                        <td>Servicio {{ $tipoServicioLabel[$ticket->tipo_servicio] ?? $ticket->tipo_servicio }}</td>
+                        <td class="monto">1</td>
+                        <td class="monto">{{ formatMoneyPdfTaller($ticket->monto_servicio) }}</td>
+                        <td class="monto">{{ formatMoneyPdfTaller($ticket->monto_servicio) }}</td>
+                    </tr>
+                @endif
                 @foreach ($ticket->repuestos as $repuesto)
                     <tr>
                         <td>{{ $repuesto->producto }}</td>
@@ -168,17 +179,16 @@
                 @endforeach
             </tbody>
         </table>
-        <p class="nota">Total repuestos: {{ formatMoneyPdfTaller($totalRepuestos) }}</p>
     @endif
 
     @if ($fotosEntrada->isNotEmpty())
         <div class="seccion-fotos {{ $haySplitEntradaSalida ? 'salto-pagina' : '' }}">
             <h2>Fotos de entrada</h2>
-            <table class="fotos cols-{{ $columnasEntrada }}">
+            <table class="fotos">
                 @foreach ($fotosEntrada->chunk($columnasEntrada) as $fila)
                     <tr>
                         @foreach ($fila as $foto)
-                            <td><img src="{{ $foto }}"></td>
+                            <td style="width: {{ $foto['tdAnchoPct'] }}%; padding: 4px {{ $padEntrada }}px;"><img src="{{ $foto['src'] }}" style="max-width: {{ $foto['imgAnchoPct'] }}%; max-height: {{ $alturaEntrada }}px;"></td>
                         @endforeach
                     </tr>
                 @endforeach
@@ -197,11 +207,11 @@
         @endif
         <div class="seccion-fotos">
             <h2>Fotos de salida</h2>
-            <table class="fotos cols-{{ $columnasSalida }}">
+            <table class="fotos">
                 @foreach ($fotosSalida->chunk($columnasSalida) as $fila)
                     <tr>
                         @foreach ($fila as $foto)
-                            <td><img src="{{ $foto }}"></td>
+                            <td style="width: {{ $foto['tdAnchoPct'] }}%; padding: 4px {{ $padSalida }}px;"><img src="{{ $foto['src'] }}" style="max-width: {{ $foto['imgAnchoPct'] }}%; max-height: {{ $alturaSalida }}px;"></td>
                         @endforeach
                     </tr>
                 @endforeach

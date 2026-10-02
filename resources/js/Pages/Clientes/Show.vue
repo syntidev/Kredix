@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import { ArrowDown, ArrowUp, ChevronDown, Download, FileText, ImageOff, Link2, MessageCircle, NotebookPen, Pencil, Plus, Repeat, Search, Trash2, X } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
@@ -22,6 +22,7 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     cliente: { type: Object, required: true },
+    siguienteClienteId: { type: Number, default: null },
     movimientos: { type: Array, required: true },
     saldoPendiente: { type: [Number, String], required: true },
     totalCobrado: { type: [Number, String], required: true },
@@ -915,7 +916,23 @@ function confirmarYEliminarMov() {
 // (a diferencia de Components/Modal.vue, que si lo hace). Un solo computed
 // cubre los 8: formMode no-null son 4 (cargo/abono/gestion/editar), el resto
 // un booleano/id cada uno.
-const comprobanteLightboxUrl = ref(null);
+// mismo tratamiento que Taller/Show.vue (abrirFoto): comprobante + foto de
+// producto de UN MISMO movimiento se abren como grupo navegable (izq/der) si
+// ambos existen -- un solo componente, un solo estandar de visualizacion en
+// todo el sistema, nunca una imagen suelta sin carrusel cuando hay mas de una
+// relacionada
+const fotoModalUrls = ref([]);
+const fotoModalIndice = ref(0);
+
+function abrirFotoMovimiento(m, tipoClicado) {
+    const fotos = [];
+    let indice = 0;
+    if (m.comprobante_url) fotos.push(m.comprobante_url);
+    if (m.producto_url) fotos.push(m.producto_url);
+    if (tipoClicado === 'producto' && m.comprobante_url && m.producto_url) indice = 1;
+    fotoModalUrls.value = fotos;
+    fotoModalIndice.value = indice;
+}
 
 const algunModalAbierto = computed(() => formMode.value !== null
     || mostrarConfirmarDescarte.value
@@ -940,7 +957,24 @@ watch(algunModalAbierto, (abierto) => {
 
     <div class="-m-4 flex flex-col gap-4 bg-crema p-4 md:-m-6 md:p-6">
     <div class="mx-auto flex w-full max-w-3xl flex-col gap-4">
-        <BackButton href="/clientes" label="Clientes" />
+        <div class="flex items-center justify-between gap-2">
+            <BackButton href="/clientes" label="Clientes" />
+            <Link
+                v-if="siguienteClienteId"
+                :href="`/clientes/${siguienteClienteId}`"
+                class="inline-flex min-h-11 w-fit items-center justify-center gap-1.5 self-start rounded-lg bg-abono-bg px-4 text-sm font-medium text-abono-text shadow-card active:opacity-80"
+            >
+                Siguiente
+                <span aria-hidden="true">→</span>
+            </Link>
+            <span
+                v-else
+                class="inline-flex min-h-11 w-fit cursor-not-allowed items-center justify-center gap-1.5 self-start rounded-lg bg-abono-bg px-4 text-sm font-medium text-abono-text opacity-40"
+            >
+                Siguiente
+                <span aria-hidden="true">→</span>
+            </span>
+        </div>
 
         <div class="rounded-card bg-white p-4 shadow-card">
             <div class="flex flex-wrap items-start justify-between gap-2">
@@ -1632,11 +1666,11 @@ watch(algunModalAbierto, (abierto) => {
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Foto de comprobante <span class="font-normal text-kredix-gris">(opcional, reemplaza la actual)</span></label>
-                    <a v-if="editComprobanteUrlActual" :href="editComprobanteUrlActual" target="_blank" class="flex w-fit items-center gap-1.5 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro">
+                    <button v-if="editComprobanteUrlActual" type="button" class="flex w-fit items-center gap-1.5 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro" @click="fotoModalUrls = [editComprobanteUrlActual]; fotoModalIndice = 0">
                         <img v-if="!imgErrores[`ec${editingMovId}`]" :src="editComprobanteThumbUrlActual" alt="comprobante actual" class="h-10 w-10 rounded object-cover" @error="onImgError(`ec${editingMovId}`)" />
                         <ImageOff v-else :size="18" class="text-kredix-gris" />
                         Comprobante actual
-                    </a>
+                    </button>
                     <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onEditComprobanteChange" />
                     <p v-if="editComprobanteHeicError" class="text-sm text-kredix-rojo">{{ editComprobanteHeicError }}</p>
                     <p v-if="editForm.errors.comprobante" class="text-sm text-kredix-rojo">{{ editForm.errors.comprobante }}</p>
@@ -1788,16 +1822,16 @@ watch(algunModalAbierto, (abierto) => {
                     <p v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</p>
                     <p v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="text-kredix-gris">{{ m.comentario }}</p>
                     <div v-if="m.comprobante_url || m.producto_url" class="flex gap-3">
-                        <button v-if="m.comprobante_url" type="button" class="flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro" @click.stop="comprobanteLightboxUrl = m.comprobante_url">
+                        <button v-if="m.comprobante_url" type="button" class="flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro" @click.stop="abrirFotoMovimiento(m, 'comprobante')">
                             <img v-if="!imgErrores[`mc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`mc${m.id}`)" />
                             <ImageOff v-else :size="18" class="text-kredix-gris" />
                             comprobante
                         </button>
-                        <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro">
+                        <button v-if="m.producto_url" type="button" class="flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro" @click.stop="abrirFotoMovimiento(m, 'producto')">
                             <img v-if="!imgErrores[`mp${m.id}`]" :src="m.producto_thumb_url" alt="foto producto" class="h-8 w-8 rounded object-cover" @error="onImgError(`mp${m.id}`)" />
                             <ImageOff v-else :size="18" class="text-kredix-gris" />
                             foto producto
-                        </a>
+                        </button>
                     </div>
                     <div v-if="m.editado" class="flex flex-col gap-0.5">
                         <span class="w-fit rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700">editado</span>
@@ -1860,16 +1894,16 @@ watch(algunModalAbierto, (abierto) => {
                                 {{ m.descripcion }}
                                 <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="block text-xs text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
                                 <span v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="block text-xs text-kredix-gris">{{ m.comentario }}</span>
-                                <button v-if="m.comprobante_url" type="button" class="mt-1 flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1 text-sm text-kredix-negro" @click.stop="comprobanteLightboxUrl = m.comprobante_url">
+                                <button v-if="m.comprobante_url" type="button" class="mt-1 flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1 text-sm text-kredix-negro" @click.stop="abrirFotoMovimiento(m, 'comprobante')">
                                     <img v-if="!imgErrores[`dc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`dc${m.id}`)" />
                                     <ImageOff v-else :size="16" class="text-kredix-gris" />
                                     comprobante
                                 </button>
-                                <a v-if="m.producto_url" :href="m.producto_url" target="_blank" class="mt-1 flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1 text-sm text-kredix-negro">
+                                <button v-if="m.producto_url" type="button" class="mt-1 flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1 text-sm text-kredix-negro" @click.stop="abrirFotoMovimiento(m, 'producto')">
                                     <img v-if="!imgErrores[`dp${m.id}`]" :src="m.producto_thumb_url" alt="foto producto" class="h-8 w-8 rounded object-cover" @error="onImgError(`dp${m.id}`)" />
                                     <ImageOff v-else :size="16" class="text-kredix-gris" />
                                     foto producto
-                                </a>
+                                </button>
                             </template>
                             <button
                                 v-if="m.editado"
@@ -2098,7 +2132,7 @@ watch(algunModalAbierto, (abierto) => {
             </div>
         </div>
 
-        <ComprobanteLightbox :url="comprobanteLightboxUrl" @close="comprobanteLightboxUrl = null" />
+        <ComprobanteLightbox :fotos="fotoModalUrls" :indice-inicial="fotoModalIndice" @close="fotoModalUrls = []" />
     </div>
     </div>
 </template>

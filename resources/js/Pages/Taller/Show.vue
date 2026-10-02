@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import { AlertTriangle, Check, Crown, Download, FileText, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
@@ -15,6 +15,7 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     ticket: { type: Object, required: true },
+    siguienteTicketId: { type: Number, default: null },
     mecanicos: { type: Array, required: true },
     empresaNombre: { type: String, default: 'Kredix' },
     ticketQrDataUri: { type: String, default: '' },
@@ -399,7 +400,24 @@ const itemsFaltantesParaCerrar = computed(() => {
     <Head :title="`Ticket #${ticket.id} — Taller`" />
 
     <div class="mx-auto flex max-w-3xl flex-col gap-4">
-        <BackButton href="/taller" label="Taller" />
+        <div class="flex items-center justify-between gap-2">
+            <BackButton href="/taller" label="Taller" />
+            <Link
+                v-if="siguienteTicketId"
+                :href="`/taller/${siguienteTicketId}`"
+                class="inline-flex min-h-11 w-fit items-center justify-center gap-1.5 self-start rounded-lg bg-abono-bg px-4 text-sm font-medium text-abono-text shadow-card active:opacity-80"
+            >
+                Siguiente
+                <span aria-hidden="true">→</span>
+            </Link>
+            <span
+                v-else
+                class="inline-flex min-h-11 w-fit cursor-not-allowed items-center justify-center gap-1.5 self-start rounded-lg bg-abono-bg px-4 text-sm font-medium text-abono-text opacity-40"
+            >
+                Siguiente
+                <span aria-hidden="true">→</span>
+            </span>
+        </div>
 
         <div class="flex items-center justify-between">
             <h1 class="text-xl font-semibold text-kredix-negro">

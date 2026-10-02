@@ -2,8 +2,11 @@
 import { ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
+import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
 
 defineOptions({ layout: AppLayout });
+
+const lightboxUrl = ref(null);
 
 const props = defineProps({
     whatsappIntro1: { type: String, default: '' },
@@ -246,7 +249,9 @@ function onLogoChange(event) {
             <div class="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
                 <label class="text-sm font-medium text-kredix-negro">Banner superior</label>
                 <p class="text-xs text-kredix-gris">Aparece justo despues del encabezado, antes de los datos del cliente.</p>
-                <img v-if="bannerSuperiorUrl" :src="bannerSuperiorUrl" alt="Banner superior" class="w-full rounded border border-gray-200" />
+                <button v-if="bannerSuperiorUrl" type="button" class="block w-full" @click="lightboxUrl = bannerSuperiorUrl">
+                    <img :src="bannerSuperiorUrl" alt="Banner superior" class="w-full rounded border border-gray-200" />
+                </button>
                 <p v-else class="text-xs text-kredix-gris">Sin banner subido.</p>
                 <div class="flex items-center gap-2">
                     <label class="min-h-9 cursor-pointer rounded-lg border border-gray-300 px-3 text-sm font-medium leading-9 text-kredix-negro active:bg-gray-100">
@@ -263,7 +268,9 @@ function onLogoChange(event) {
             <div class="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
                 <label class="text-sm font-medium text-kredix-negro">Banner inferior</label>
                 <p class="text-xs text-kredix-gris">Aparece al final del PDF, antes del pie de pagina.</p>
-                <img v-if="bannerInferiorUrl" :src="bannerInferiorUrl" alt="Banner inferior" class="w-full rounded border border-gray-200" />
+                <button v-if="bannerInferiorUrl" type="button" class="block w-full" @click="lightboxUrl = bannerInferiorUrl">
+                    <img :src="bannerInferiorUrl" alt="Banner inferior" class="w-full rounded border border-gray-200" />
+                </button>
                 <p v-else class="text-xs text-kredix-gris">Sin banner subido.</p>
                 <div class="flex items-center gap-2">
                     <label class="min-h-9 cursor-pointer rounded-lg border border-gray-300 px-3 text-sm font-medium leading-9 text-kredix-negro active:bg-gray-100">
@@ -316,7 +323,9 @@ function onLogoChange(event) {
 
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Logo</label>
-                <img v-if="empresaLogoUrl" :src="empresaLogoUrl" alt="Logo actual" class="h-12 w-auto self-start rounded border border-gray-200 object-contain" />
+                <button v-if="empresaLogoUrl" type="button" class="w-fit" @click="lightboxUrl = empresaLogoUrl">
+                    <img :src="empresaLogoUrl" alt="Logo actual" class="h-12 w-auto self-start rounded border border-gray-200 object-contain" />
+                </button>
                 <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onLogoChange" />
                 <p v-if="empresaForm.errors.logo" class="text-sm text-kredix-rojo">{{ empresaForm.errors.logo }}</p>
             </div>
@@ -325,5 +334,7 @@ function onLogoChange(event) {
                 Guardar
             </button>
         </form>
+
+        <ComprobanteLightbox :url="lightboxUrl" @close="lightboxUrl = null" />
     </div>
 </template>
