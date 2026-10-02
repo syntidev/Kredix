@@ -540,12 +540,24 @@ class TallerController extends Controller
             // si ya tiene movimiento_cuenta_id, el cargo ya se genero antes --
             // no duplicar si el ticket se vuelve a guardar/reabrir
             if ($esServicioCliente && ! $pagadoEnTaller && ! $ticket->movimiento_cuenta_id) {
+                $monto = $ticket->totalTicket();
+
+                // cantidad/precio_unitario/modalidad_precio -- un cargo creado
+                // manualmente desde el formulario de Clientes SIEMPRE los llena
+                // (viene de un producto real); este cargo automatico los dejaba
+                // en null. Clientes/Show.vue muestra el monto de un cargo via
+                // m.precio_unitario (no m.monto) en la fila del listado -- con
+                // null ahi, se veia $0.00 aunque el monto real fuera correcto
+                // (bug real, confirmado con ticket #24, 2026-10-02)
                 $movimiento = MovimientoCuenta::create([
                     'cliente_id' => $ticket->cliente_id,
                     'fecha' => now(),
                     'tipo' => 'cargo',
                     'descripcion' => "Servicio de taller — {$ticket->bici_marca_modelo}",
-                    'monto' => $ticket->totalTicket(),
+                    'cantidad' => 1,
+                    'precio_unitario' => $monto,
+                    'modalidad_precio' => 'divisa',
+                    'monto' => $monto,
                     'moneda' => 'usd',
                     'tasa_cambio' => null,
                     'metodo_pago' => null,
@@ -555,6 +567,18 @@ class TallerController extends Controller
 
                 $ticket->movimiento_cuenta_id = $movimiento->id;
             }
+
+            // guard permanente: un ticket a credito NUNCA debe quedar
+            // "atendido" sin un cargo real en la cuenta del cliente -- si por
+            // cualquier motivo la creacion de arriba no dejo un
+            // movimiento_cuenta_id valido, toda la transaccion revierte
+            // (el ticket NO queda atendido) en vez de quedar a medias.
+            // Encontrado real: 8 tickets quedaron asi entre 2026-09-18 y
+            // 2026-09-29 porque esta funcion de cargo automatico todavia no
+            // existia (se agrego en acc2463, 2026-09-29 16:32) -- este guard
+            // no corrige esos retroactivamente, solo blinda el flujo de aqui
+            // en adelante
+            abort_if($esServicioCliente && ! $pagadoEnTaller && ! $ticket->movimiento_cuenta_id, 500, 'No se pudo generar el cargo del servicio -- el ticket no se marco como atendido. Intenta de nuevo.');
 
             $ticket->estado = 'atendido';
             $ticket->pagado_en_taller = $pagadoEnTaller;
