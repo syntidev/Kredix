@@ -185,7 +185,17 @@ class MovimientoCuentaController extends Controller
             'referencia' => [Rule::requiredIf($requiereMonto && $request->input('metodo_pago') !== 'efectivo'), 'nullable', 'string', 'max:255'],
             'comentario' => ['required', 'string', 'max:1000'],
             'comprobante' => ['nullable', 'image', 'max:5120'],
-            'plan_financiamiento_id' => [$tipo === 'abono' ? 'nullable' : 'prohibited', 'exists:planes_financiamiento,id'],
+            // sin 'nullable' en la rama ajuste_devolucion/gestion, 'exists'
+            // igual corria contra el valor null (la key sigue presente en el
+            // request aunque el valor sea null) -- Laravel solo salta reglas
+            // no-implicitas cuando el campo es null Y 'nullable' esta en la
+            // lista. exists:planes_financiamiento,id contra null siempre
+            // fallaba ("selected plan financiamiento id is invalid"),
+            // bloqueando CUALQUIER ajuste/devolucion. Bug real, confirmado
+            // 2026-10-02. Para tipo=abono 'exists' sigue aplicando normal
+            'plan_financiamiento_id' => $tipo === 'abono'
+                ? ['nullable', 'exists:planes_financiamiento,id']
+                : ['nullable', 'prohibited'],
             'duplicado_confirmado' => ['nullable', 'boolean'],
         ], [
             'comentario.required' => 'comentario requerido',
