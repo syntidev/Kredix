@@ -139,14 +139,19 @@ class TallerController extends Controller
                 $esVertical = $dimensiones && $dimensiones[1] > $dimensiones[0];
 
                 // 1 foto: el ancho va en la IMG (centrada dentro de una celda
-                // de 100%) -- vertical ocupa menos ancho relativo (55%) porque
-                // ya gana alto; horizontal aprovecha mas ancho (80%).
+                // de 100%) -- vertical ocupa menos ancho relativo porque ya
+                // gana alto; horizontal aprovecha mas ancho.
                 // 2/3 fotos: el ancho va en la TD (columnas reales lado a
-                // lado), la IMG llena el 100% de su celda
+                // lado), la IMG llena el 100% de su celda. % exprimido al
+                // maximo contra el gap real (ver $gapPadding mas abajo) --
+                // antes 31.5%/48% dejaban margen de sobra sin ganancia
+                // perceptible de tamano (bug real, confirmado por Carlos con
+                // el ticket #7: 31.5% calculado es casi igual al 33% fijo de
+                // antes del fix)
                 [$tdAnchoPct, $imgAnchoPct] = match (true) {
-                    $total <= 1 => [100, $esVertical ? 55 : 80],
-                    $total === 2 => [48, 100],
-                    default => [31.5, 100],
+                    $total <= 1 => [100, $esVertical ? 60 : 85],
+                    $total === 2 => [49.5, 100],
+                    default => [32.7, 100],
                 };
 
                 return [
@@ -163,23 +168,25 @@ class TallerController extends Controller
         // fila, el resto envuelve a filas adicionales del mismo ancho)
         $columnasEntrada = min($fotosEntrada->count(), 3);
         $columnasSalida = min($fotosSalida->count(), 3);
-        // alto maximo por seccion -- probado contra el caso extremo visto en
-        // produccion (retrato 1200x2598): con 1 foto el ancho de celda es
-        // generoso (55-80%) asi que el alto necesita un techo mayor; con 3
-        // columnas (31.5% de celda) una foto muy alta se ve proporcionalmente
-        // mas angosta, techo menor alcanza
+        // alto maximo por seccion -- subido respecto al primer intento (el
+        // techo anterior era conservador y no dejaba ganar alto real, solo
+        // ancho). Probado contra el caso extremo visto en produccion
+        // (retrato 1200x2598) + el ticket #7 real (3 entrada + 1 salida) sin
+        // volver a romper la paginacion de 2 paginas
         $alturaMaxima = fn (int $total) => match (true) {
-            $total <= 1 => 420,
-            $total === 2 => 320,
-            default => 260,
+            $total <= 1 => 460,
+            $total === 2 => 380,
+            default => 340,
         };
         $alturaEntrada = $alturaMaxima($fotosEntrada->count());
         $alturaSalida = $alturaMaxima($fotosSalida->count());
-        // gap entre columnas -- 12px con 2 fotos, 10px con 3+ (mitad de cada
-        // lado via padding, no hay gap real en tablas)
+        // gap entre columnas reducido al minimo visualmente aceptable (antes
+        // 12px/10px) -- 4px real entre columnas en los dos casos (2px de
+        // padding por lado), libera ancho real para las fotos en vez de
+        // quedar como margen muerto
         $gapPadding = fn (int $total) => match (true) {
-            $total === 2 => 6,
-            $total >= 3 => 5,
+            $total === 2 => 2,
+            $total >= 3 => 2,
             default => 0,
         };
         $padEntrada = $gapPadding($fotosEntrada->count());

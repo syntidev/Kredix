@@ -7,6 +7,7 @@ import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
+import { forzarVerticalSiEsNecesario, comprimirImagenSiEsNecesario } from '../../lib/forzarVertical';
 
 defineOptions({ layout: AppLayout });
 
@@ -159,14 +160,15 @@ async function onFotosEntradaChange(event) {
     fotosEntradaError.value = '';
     const archivos = [];
     for (const raw of event.target.files) {
-        const archivo = await convertirHeicSiEsNecesario(raw);
-        if (archivo === null) {
+        const convertido = await convertirHeicSiEsNecesario(raw);
+        if (convertido === null) {
             fotosEntradaError.value = MENSAJE_HEIC_FALLO;
             event.target.value = '';
             form.fotos_entrada = [];
             return;
         }
-        archivos.push(archivo);
+        const vertical = await forzarVerticalSiEsNecesario(convertido);
+        archivos.push(await comprimirImagenSiEsNecesario(vertical));
     }
     form.fotos_entrada = archivos;
 }

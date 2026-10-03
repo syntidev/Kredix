@@ -10,6 +10,7 @@ import PhoneInput from '../../Components/PhoneInput.vue';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
+import { forzarVerticalSiEsNecesario, comprimirImagenSiEsNecesario } from '../../lib/forzarVertical';
 
 defineOptions({ layout: AppLayout });
 
@@ -314,13 +315,16 @@ async function subirFotosColeccion(event, coleccion, errorRef, subiendoRef, exit
     exitoRef.value = '';
     const archivos = [];
     for (const raw of event.target.files) {
-        const archivo = await convertirHeicSiEsNecesario(raw);
-        if (archivo === null) {
+        const convertido = await convertirHeicSiEsNecesario(raw);
+        if (convertido === null) {
             errorRef.value = MENSAJE_HEIC_FALLO;
             event.target.value = '';
             return;
         }
-        archivos.push(archivo);
+        // horizontal -> vertical ANTES de subir -- elimina la mezcla de
+        // orientaciones que complicaba el layout del PDF de atencion
+        const vertical = await forzarVerticalSiEsNecesario(convertido);
+        archivos.push(await comprimirImagenSiEsNecesario(vertical));
     }
     if (archivos.length === 0) return;
 

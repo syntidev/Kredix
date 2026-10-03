@@ -12,6 +12,7 @@ import TasaBcvInput from '../../Components/TasaBcvInput.vue';
 import UserAvatar from '../../Components/UserAvatar.vue';
 import { colorDias } from '../../lib/colorDias';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
+import { comprimirImagenSiEsNecesario } from '../../lib/forzarVertical';
 import { estadoValidacionEfectivo } from '../../lib/estadoValidacion';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
@@ -437,13 +438,13 @@ const fotoProductoHeicError = ref('');
 
 async function onFotoProductoChange(event) {
     fotoProductoHeicError.value = '';
-    const archivo = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
-    if (archivo === null) {
+    const convertido = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    if (convertido === null) {
         fotoProductoHeicError.value = MENSAJE_HEIC_FALLO;
         event.target.value = '';
         return;
     }
-    cargoForm.foto_producto = archivo;
+    cargoForm.foto_producto = await comprimirImagenSiEsNecesario(convertido);
 }
 
 // preview en vivo, puramente informativo -- el backend recalcula esto de forma
@@ -520,13 +521,13 @@ const comprobanteHeicError = ref('');
 
 async function onFileChange(event) {
     comprobanteHeicError.value = '';
-    const archivo = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
-    if (archivo === null) {
+    const convertido = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    if (convertido === null) {
         comprobanteHeicError.value = MENSAJE_HEIC_FALLO;
         event.target.value = '';
         return;
     }
-    abonoForm.comprobante = archivo;
+    abonoForm.comprobante = await comprimirImagenSiEsNecesario(convertido);
 }
 
 // alerta de posible abono duplicado: el chequeo corre ANTES del submit real,
@@ -733,24 +734,24 @@ const editFotoProductoHeicError = ref('');
 
 async function onEditComprobanteChange(event) {
     editComprobanteHeicError.value = '';
-    const archivo = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
-    if (archivo === null) {
+    const convertido = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    if (convertido === null) {
         editComprobanteHeicError.value = MENSAJE_HEIC_FALLO;
         event.target.value = '';
         return;
     }
-    editForm.comprobante = archivo;
+    editForm.comprobante = await comprimirImagenSiEsNecesario(convertido);
 }
 
 async function onEditFotoProductoChange(event) {
     editFotoProductoHeicError.value = '';
-    const archivo = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
-    if (archivo === null) {
+    const convertido = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    if (convertido === null) {
         editFotoProductoHeicError.value = MENSAJE_HEIC_FALLO;
         event.target.value = '';
         return;
     }
-    editForm.foto_producto = archivo;
+    editForm.foto_producto = await comprimirImagenSiEsNecesario(convertido);
 }
 
 function submitEditMov() {
