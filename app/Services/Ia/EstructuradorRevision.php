@@ -2,25 +2,12 @@
 
 namespace App\Services\Ia;
 
+use App\Services\Taller\InformeRevision;
 use JsonException;
 
-// Dictado del técnico -> JSON de revisión contra un catálogo cerrado.
+// Dictado del técnico -> JSON de revisión contra el catálogo de config/taller.php.
 class EstructuradorRevision
 {
-    // PROVISIONAL: CLI-A crea el catálogo oficial en config/taller.php con las mismas claves.
-    // Cuando exista, leer de ahí y borrar estas constantes.
-    public const COMPONENTES = [
-        'cadena', 'pinones', 'platos_bielas', 'cambio_trasero', 'cambio_delantero', 'guayas_cambio',
-        'pastillas', 'discos', 'mordazas', 'sistema_freno',
-        'cauchos', 'tripa_tubeless', 'rayos_centrado', 'mazas',
-        'direccion', 'pedalier', 'cuadro', 'horquilla', 'cockpit', 'pedales',
-        'bateria', 'motor', 'cableado',
-    ];
-
-    public const ACCIONES = ['ok', 'ajustado', 'lubricado', 'limpiado', 'cambiado', 'recomendar'];
-
-    public const MOTIVOS = ['desgaste', 'holgura', 'ruido', 'fisura', 'fuga'];
-
     public function __construct(private ClienteIa $ia) {}
 
     /** @return array{revision: ?array, errores: list<string>, crudo: string, modelo: string, latencia_ms: int} */
@@ -29,18 +16,10 @@ class EstructuradorRevision
         $r = $this->ia->chat([
             ['role' => 'system', 'content' => $this->prompt()],
             ['role' => 'user', 'content' => $dictado],
-        ], array_filter([
-            'model' => $modelo,
-            'temperature' => 0,
-            'max_tokens' => 800,
-            // Razonamiento apagado: cada familia usa su propia bandera; las que no la conocen la ignoran.
-            'chat_template_kwargs' => ['thinking' => false, 'enable_thinking' => false],
-        ]));
+        ], array_filter(['model' => $modelo, 'temperature' => 0, 'max_tokens' => 800]));
 
         try {
-            // Algunos modelos envuelven el JSON en ```json``` o dejan basura alrededor: se toma del primer { al último }.
-            preg_match('/\{.*\}/s', $r['texto'], $m);
-            $revision = json_decode($m[0] ?? '', true, 16, JSON_THROW_ON_ERROR);
+            $revision = ClienteIa::extraerJson($r['texto']);
             $errores = self::validar($revision);
         } catch (JsonException $e) {
             [$revision, $errores] = [null, ['JSON inválido: '.$e->getMessage()]];
@@ -59,7 +38,7 @@ class EstructuradorRevision
 
         $errores = [];
         foreach ($revision['componentes'] as $clave => $c) {
-            if (! in_array($clave, self::COMPONENTES, true)) {
+            if (! array_key_exists($clave, InformeRevision::componentes())) {
                 $errores[] = "Componente fuera del catálogo: {$clave}";
             }
             $acciones = $c['acciones'] ?? null;
@@ -69,10 +48,10 @@ class EstructuradorRevision
 
                 continue;
             }
-            foreach (array_diff($acciones, self::ACCIONES) as $a) {
+            foreach (array_diff($acciones, array_keys(config('taller.acciones'))) as $a) {
                 $errores[] = "{$clave}: acción fuera del catálogo: {$a}";
             }
-            foreach (array_diff($motivos, self::MOTIVOS) as $m) {
+            foreach (array_diff($motivos, array_keys(config('taller.motivos'))) as $m) {
                 $errores[] = "{$clave}: motivo fuera del catálogo: {$m}";
             }
             if ($motivos !== [] && ! in_array('recomendar', $acciones, true)) {
@@ -85,9 +64,9 @@ class EstructuradorRevision
 
     private function prompt(): string
     {
-        $componentes = implode(', ', self::COMPONENTES);
-        $acciones = implode(', ', self::ACCIONES);
-        $motivos = implode(', ', self::MOTIVOS);
+        $componentes = implode(', ', array_keys(InformeRevision::componentes()));
+        $acciones = implode(', ', array_keys(config('taller.acciones')));
+        $motivos = implode(', ', array_keys(config('taller.motivos')));
 
         return <<<PROMPT
         Eres el asistente de un taller de bicicletas en Venezuela. Conviertes el dictado de un técnico en JSON.

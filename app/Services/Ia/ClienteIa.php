@@ -5,26 +5,35 @@ namespace App\Services\Ia;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use JsonException;
 use RuntimeException;
 
 // Cliente OpenAI-compatible para NVIDIA. Los errores se re-lanzan como RuntimeException
 // con mensaje propio: nunca se propaga el request (headers con la key) a logs ni pantalla.
 class ClienteIa
 {
-    /** @return array{texto: string, modelo: string, latencia_ms: int} */
+    /**
+     * $opciones van al body tal cual, salvo 'timeout' (segundos, no se envía).
+     *
+     * @return array{texto: string, modelo: string, latencia_ms: int}
+     */
     public function chat(array $mensajes, array $opciones = []): array
     {
+        $timeout = (int) Arr::pull($opciones, 'timeout', config('ia.timeout'));
         $modelo = $opciones['model'] ?? config('ia.modelo_texto');
         if (! $modelo) {
             throw new RuntimeException('Falta el modelo: define NVIDIA_MODELO_TEXTO o pasa --modelo.');
         }
 
         $inicio = hrtime(true);
-        $r = $this->enviar(fn (PendingRequest $h) => $h->post('/chat/completions', [
+        $r = $this->enviar(fn (PendingRequest $h) => $h->timeout($timeout)->post('/chat/completions', [
             'model' => $modelo,
             'messages' => $mensajes,
+            // Razonamiento apagado: cada familia usa su propia bandera; las que no la conocen la ignoran.
+            'chat_template_kwargs' => ['thinking' => false, 'enable_thinking' => false],
             ...$opciones,
         ]));
 
@@ -40,6 +49,19 @@ class ClienteIa
     {
         return collect($this->enviar(fn (PendingRequest $h) => $h->get('/models'))->json('data', []))
             ->pluck('id')->sort()->values()->all();
+    }
+
+    /**
+     * Algunos modelos envuelven el JSON en ```json``` o dejan basura alrededor: se toma del primer { al último }.
+     *
+     * @throws JsonException
+     */
+    public static function extraerJson(string $texto): array
+    {
+        preg_match('/\{.*\}/s', $texto, $m);
+        $datos = json_decode($m[0] ?? '', true, 16, JSON_THROW_ON_ERROR);
+
+        return is_array($datos) ? $datos : throw new JsonException('La respuesta no es un objeto JSON');
     }
 
     private function enviar(callable $llamada): Response
