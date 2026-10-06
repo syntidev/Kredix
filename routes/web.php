@@ -71,6 +71,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/taller/{ticket}/marcar-atendido', [TallerController::class, 'marcarAtendido'])->name('taller.marcar-atendido');
     Route::get('/taller/{ticket}/revision', [TallerController::class, 'revision'])->name('taller.revision');
     Route::patch('/taller/{ticket}/revision', [TallerController::class, 'guardarRevision'])->name('taller.revision.update');
+    Route::post('/taller/{ticket}/sugerencias/{clave}/descartar', [TallerController::class, 'descartarSugerencia'])->name('taller.sugerencias.descartar');
+    Route::patch('/taller/{ticket}/informe/aprobar', [TallerController::class, 'aprobarInforme'])->name('taller.informe.aprobar');
+    Route::post('/taller/{ticket}/informe/reintentar', [TallerController::class, 'reintentarInforme'])->name('taller.informe.reintentar');
     Route::patch('/taller/{ticket}/trabajo-realizado', [TallerController::class, 'guardarTrabajoRealizado'])->name('taller.trabajo-realizado');
     Route::post('/taller/{ticket}/fotos/{coleccion}', [TallerController::class, 'subirFotos'])->name('taller.fotos.store');
     Route::post('/taller/{ticket}/repuestos', [TallerController::class, 'agregarRepuesto'])->name('taller.repuestos.store');

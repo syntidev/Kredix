@@ -8,6 +8,7 @@ use App\Models\MovimientoCuenta;
 use App\Models\TicketRepuesto;
 use App\Models\TicketTaller;
 use App\Models\User;
+use App\Jobs\RedactarInforme;
 use App\Services\ImagenUploadService;
 use App\Services\Taller\InformeRevision;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -413,6 +414,12 @@ class TallerController extends Controller
                     'revisado_en' => $ticket->revisado_en?->format('d/m/Y H:i'),
                     'texto' => $this->informeRevision->generarTexto($ticket),
                 ] : null,
+                // IA apagada: nada de IA en pantalla (el PDF sigue usando un texto ya aprobado)
+                'informe' => config('ia.activa') && $ticket->informe_ia_estado ? [
+                    'estado' => $ticket->informe_ia_estado === 'aprobado' && $ticket->informe_ia_desactualizado ? 'desactualizado' : $ticket->informe_ia_estado,
+                    'texto' => $ticket->informe_ia,
+                    'aprobado_por' => $ticket->informe_ia_aprobado_por ? User::whereKey($ticket->informe_ia_aprobado_por)->value('name') : null,
+                ] : null,
             ],
             'mecanicos' => $this->mecanicosOpciones($ticket->mecanico_id),
             // mismo valor ya usado como razon_social en el PDF de estado de
@@ -557,6 +564,7 @@ class TallerController extends Controller
                 'revision_tecnica' => $ticket->revision_tecnica,
                 'fotos_salida' => count($ticket->getMedia('salida')),
             ],
+            'sugerencias' => $this->sugerenciasPendientes($ticket),
             'catalogo' => [
                 'grupos' => collect($catalogo['grupos'])
                     ->reject(fn ($g) => ($g['solo_electrica'] ?? false) && ! $ticket->es_electrica)
@@ -594,6 +602,7 @@ class TallerController extends Controller
             'componentes.*.motivos' => ['nullable', 'array'],
             'componentes.*.motivos.*' => [Rule::in(array_keys(config('taller.motivos')))],
             'componentes.*.nota' => ['nullable', 'string', 'max:500'],
+            'componentes.*.origen' => ['nullable', Rule::in(['manual', 'ia'])],
         ]);
 
         // texto generado de la revision ANTERIOR -- si trabajo_realizado sigue
@@ -611,7 +620,8 @@ class TallerController extends Controller
                     'acciones' => array_values(array_unique($c['acciones'])),
                     'motivos' => in_array('recomendar', $c['acciones'], true) ? array_values(array_unique($c['motivos'] ?? [])) : [],
                     'nota' => in_array('recomendar', $c['acciones'], true) ? trim($c['nota'] ?? '') : '',
-                    'origen' => 'manual',
+                    // 'ia' solo cuando el tecnico confirmo una sugerencia con un toque
+                    'origen' => $c['origen'] ?? 'manual',
                 ])
                 ->all(),
         ];
@@ -629,6 +639,71 @@ class TallerController extends Controller
         $ticket->save();
 
         return response()->json(['ok' => true]);
+    }
+
+    // null = IA apagada o sin nada que mostrar. Fuera las ya aplicadas (estan
+    // en la revision) y las descartadas; nunca se marca nada sin un toque
+    private function sugerenciasPendientes(TicketTaller $ticket): ?array
+    {
+        if (! config('ia.activa') || $ticket->estado === 'atendido') {
+            return null;
+        }
+        $s = $ticket->sugerencias_ia;
+        if ($s === null) {
+            return filled($ticket->motivo_ingreso) ? ['analizando' => true, 'componentes' => []] : null;
+        }
+        $fuera = [...array_keys($ticket->revision_tecnica['componentes'] ?? []), ...($s['descartadas'] ?? [])];
+
+        return ['analizando' => false, 'componentes' => array_diff_key($s['componentes'] ?? [], array_flip($fuera))];
+    }
+
+    public function descartarSugerencia(TicketTaller $ticket, string $clave)
+    {
+        abort_unless(config('ia.activa'), 422, 'La IA está desactivada.');
+        $s = $ticket->sugerencias_ia ?? [];
+        abort_unless(isset($s['componentes'][$clave]), 422, 'Sugerencia inexistente.');
+
+        $s['descartadas'] = array_values(array_unique([...($s['descartadas'] ?? []), $clave]));
+        $ticket->updateQuietly(['sugerencias_ia' => $s]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    // aprobar el borrador o editar uno ya aprobado: quien guarda queda como aprobador
+    public function aprobarInforme(Request $request, TicketTaller $ticket)
+    {
+        $yaAprobado = $ticket->informe_ia_estado === 'aprobado';
+        abort_unless(config('ia.activa') || $yaAprobado, 422, 'La IA está desactivada.');
+        abort_unless($yaAprobado || in_array($ticket->informe_ia_estado, ['listo', 'requiere_revision'], true), 422, 'No hay un borrador para aprobar.');
+
+        $validated = $request->validate([
+            'texto' => ['required', 'string', 'min:80', 'max:1500'],
+        ], [
+            'texto.min' => 'El informe debe tener al menos 80 caracteres.',
+            'texto.max' => 'El informe no puede pasar de 1.500 caracteres.',
+        ]);
+
+        $ticket->update([
+            'informe_ia' => trim($validated['texto']),
+            'informe_ia_estado' => 'aprobado',
+            'informe_ia_aprobado_por' => $request->user()->id,
+            'informe_ia_hash' => RedactarInforme::hash($ticket->revision_tecnica),
+            'informe_ia_desactualizado' => false,
+        ]);
+
+        return redirect()->route('taller.show', $ticket->id);
+    }
+
+    // error -> reintentar; desactualizado -> regenerar (deja de estar aprobado)
+    public function reintentarInforme(TicketTaller $ticket)
+    {
+        abort_unless(config('ia.activa'), 422, 'La IA está desactivada.');
+        abort_unless(InformeRevision::tieneContenido($ticket->revision_tecnica), 422, 'El ticket no tiene revisión técnica.');
+
+        $ticket->update(['informe_ia_estado' => 'pendiente', 'informe_ia_desactualizado' => false]);
+        RedactarInforme::dispatch($ticket);
+
+        return redirect()->route('taller.show', $ticket->id);
     }
 
     public function marcarAtendido(Request $request, TicketTaller $ticket)

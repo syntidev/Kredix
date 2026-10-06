@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import { ClipboardCheck, Crown, Download, FileText, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
@@ -297,6 +297,54 @@ function guardarTrabajoRealizado() {
 function generarDesdeRevision() {
     trabajoRealizadoForm.trabajo_realizado = props.ticket.revision.texto;
 }
+
+// --- informe para el cliente (IA). ticket.informe null = IA apagada o sin informe ---
+const informe = computed(() => props.ticket.informe);
+const informeForm = useForm({ texto: props.ticket.informe?.texto ?? '' });
+const editandoInforme = ref(false);
+
+watch(() => props.ticket.informe?.texto, (texto) => {
+    if (!editandoInforme.value) informeForm.texto = texto ?? '';
+});
+
+// router/useForm de Inertia no devuelven promesa: onFinish es su "finally"
+// (corre siempre, con exito, error o cancelacion) y libera el bloqueo
+const procesandoInforme = ref(false);
+const errorInforme = ref('');
+
+function aprobarInforme() {
+    procesandoInforme.value = true;
+    informeForm.patch(`/taller/${props.ticket.id}/informe/aprobar`, {
+        preserveScroll: true,
+        onSuccess: () => (editandoInforme.value = false),
+        onFinish: () => (procesandoInforme.value = false),
+    });
+}
+
+function reintentarInforme() {
+    procesandoInforme.value = true;
+    errorInforme.value = '';
+    router.post(`/taller/${props.ticket.id}/informe/reintentar`, {}, {
+        preserveScroll: true,
+        onError: () => (errorInforme.value = 'No se pudo volver a pedir el informe. Intenta de nuevo.'),
+        onFinish: () => (procesandoInforme.value = false),
+    });
+}
+
+// pendiente: recarga solo el ticket cada 15 s, maximo 10 min
+const RECARGA_MS = 15000;
+const RECARGAS_MAX = 40;
+let recargaInforme = null;
+watch(() => informe.value?.estado, (estado) => {
+    clearInterval(recargaInforme);
+    if (estado !== 'pendiente') return;
+    let recargas = 0;
+    recargaInforme = setInterval(() => {
+        if (++recargas > RECARGAS_MAX) return clearInterval(recargaInforme);
+        router.reload({ only: ['ticket'] });
+    }, RECARGA_MS);
+}, { immediate: true });
+onUnmounted(() => clearInterval(recargaInforme));
 
 // --- fotos: mismo endpoint generico sirve para ambas colecciones
 // (entrada/salida), sin limite de MediaLibrary -- se puede agregar en
@@ -746,6 +794,42 @@ const itemsFaltantesParaCerrar = computed(() => {
                     {{ trabajoRealizadoForm.processing ? 'Guardando...' : 'Guardar' }}
                 </button>
                 <p v-if="exitoTrabajoRealizado" class="text-sm font-medium text-green-700">{{ exitoTrabajoRealizado }}</p>
+            </form>
+        </div>
+
+        <div v-if="informe" class="flex flex-col gap-2 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+            <h2 class="font-medium text-kredix-negro">Informe para el cliente</h2>
+            <p v-if="errorInforme" class="text-sm text-kredix-rojo">{{ errorInforme }}</p>
+
+            <p v-if="informe.estado === 'pendiente'" class="text-sm text-kredix-gris">Redactando…</p>
+
+            <template v-else-if="informe.estado === 'error'">
+                <p class="text-sm text-kredix-gris">No se pudo redactar. Se usará el texto automático.</p>
+                <button type="button" class="min-h-11 self-start rounded-lg bg-kredix-negro px-4 text-sm font-semibold text-white disabled:opacity-60" :disabled="procesandoInforme" @click="reintentarInforme">Reintentar</button>
+            </template>
+
+            <template v-else-if="informe.estado === 'desactualizado'">
+                <p class="rounded-lg bg-amber-50 p-2 text-sm text-amber-800">La revisión cambió después de este texto.</p>
+                <p class="whitespace-pre-line text-sm text-kredix-negro">{{ informe.texto }}</p>
+                <button type="button" class="min-h-11 self-start rounded-lg bg-kredix-negro px-4 text-sm font-semibold text-white disabled:opacity-60" :disabled="procesandoInforme" @click="reintentarInforme">Regenerar</button>
+            </template>
+
+            <template v-else-if="informe.estado === 'aprobado' && !editandoInforme">
+                <p class="whitespace-pre-line text-sm text-kredix-negro">{{ informe.texto }}</p>
+                <p class="text-xs text-kredix-gris">Aprobado por {{ informe.aprobado_por ?? '-' }}</p>
+                <button type="button" class="min-h-11 self-start rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="editandoInforme = true">Editar</button>
+            </template>
+
+            <form v-else class="flex flex-col gap-2" @submit.prevent="aprobarInforme">
+                <p v-if="informe.estado === 'requiere_revision'" class="rounded-lg bg-amber-50 p-2 text-sm text-amber-800">La IA mencionó algo que no está en la revisión. Revísalo antes de aprobar.</p>
+                <textarea v-model="informeForm.texto" rows="5" class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
+                <p v-if="informeForm.errors.texto" class="text-sm text-kredix-rojo">{{ informeForm.errors.texto }}</p>
+                <div class="flex gap-2">
+                    <button v-if="editandoInforme" type="button" class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="editandoInforme = false">Cancelar</button>
+                    <button type="submit" class="min-h-11 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white disabled:opacity-60" :disabled="procesandoInforme">
+                        {{ editandoInforme ? 'Guardar' : 'Aprobar' }}
+                    </button>
+                </div>
             </form>
         </div>
 

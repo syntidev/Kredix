@@ -118,7 +118,13 @@
                     <td colspan="3">{{ $ticket->motivo_ingreso }}</td>
                 </tr>
             @endif
-            @if ($ticket->trabajo_realizado)
+            {{-- informe aprobado por una persona reemplaza al texto automatico, nunca los dos --}}
+            @if ($ticket->informe_ia_estado === 'aprobado' && filled($ticket->informe_ia))
+                <tr>
+                    <td class="label">Resumen del servicio</td>
+                    <td colspan="3">{{ $ticket->informe_ia }}</td>
+                </tr>
+            @elseif ($ticket->trabajo_realizado)
                 <tr>
                     <td class="label">Trabajo realizado</td>
                     <td colspan="3">{{ $ticket->trabajo_realizado }}</td>

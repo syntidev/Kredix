@@ -11,6 +11,12 @@ class InformeRevision
 {
     private const PAQUETE_LABEL = ['basico' => 'Básico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro'];
 
+    // tope por debajo del max:2000 del guardado manual de trabajo_realizado
+    public const TOPE_TEXTO = 1500;
+
+    // hallazgos que no se recomiendan cambiar: los evalua un especialista
+    private const MOTIVOS_SEGURIDAD = ['fisura', 'fuga'];
+
     // clave => etiqueta de todos los grupos, plano
     public static function componentes(): array
     {
@@ -70,14 +76,9 @@ class InformeRevision
         return $resumen;
     }
 
-    // tope por debajo del max:2000 del guardado manual de trabajo_realizado
-    public const TOPE_TEXTO = 1500;
-
-    private const MOTIVOS_SEGURIDAD = ['fisura', 'fuga'];
-
-    // sin notas (viven en la revision y en el PDF). Si se pasa del tope, quita
-    // componentes completos desde el final -- primero recomendaciones comunes,
-    // luego piezas cambiadas, al final las de seguridad -- y lo dice al cierre
+    // sin notas, precios ni fechas. Si se pasa del tope, quita componentes
+    // completos desde el final -- primero recomendaciones normales, luego
+    // piezas cambiadas, al final hallazgos de seguridad -- y lo dice al cierre
     public function generarTexto(TicketTaller $t): string
     {
         $r = self::resumen($t->revision_tecnica);
@@ -85,10 +86,10 @@ class InformeRevision
         $esSeguridad = fn ($rec) => (bool) array_intersect($rec['motivos_claves'], self::MOTIVOS_SEGURIDAD);
         $partes = [
             'tareas' => $r['tareas'],
+            'seguridad' => array_values(array_filter($r['recomendados'], $esSeguridad)),
             'cambiados' => array_values(array_filter($r['intervenidos'], $esCambio)),
             'otros' => array_values(array_filter($r['intervenidos'], fn ($i) => ! $esCambio($i))),
             'ok' => $r['ok'],
-            'seguridad' => array_values(array_filter($r['recomendados'], $esSeguridad)),
             'recomendados' => array_values(array_filter($r['recomendados'], fn ($rec) => ! $esSeguridad($rec))),
         ];
         $omitidos = 0;
@@ -110,8 +111,9 @@ class InformeRevision
         return $texto;
     }
 
-    // tono de .doc/GUIA_VOZ_ONBIKE.md: primera persona plural, tuteo, una sola
-    // "y" por enumeracion, sin "Intervenido" ni "Revisado sin novedad"
+    // tono de .doc/GUIA_VOZ_ONBIKE.md: tuteo, primera persona plural, comas y
+    // una sola "y" por enumeracion. Orden: servicio, seguridad, cambiado, el
+    // resto agrupado, recomendaciones normales
     private function armarTexto(TicketTaller $t, array $p, int $omitidos): string
     {
         $nombre = fn ($item) => config("taller.componentes_cliente.{$item['clave']}", $item['componente']);
@@ -131,47 +133,62 @@ class InformeRevision
             $frases[] = "Le hicimos el servicio $paquete completo a tu $bici.";
         } else {
             // la tarea que repite a un componente ya nombrado sobra
+            // sin texto de cliente en el config: la etiqueta normal como respaldo
             $tareas = array_filter(
-                array_map(fn ($clave) => config("taller.tareas_cliente.$clave"), array_keys($p['tareas'])),
-                fn ($frase) => ! (count($nombresOtros) <= 3 && in_array(explode(' ', $frase, 2)[1], $nombresOtros, true)),
+                array_map(fn ($clave) => config("taller.tareas_cliente.$clave") ?? mb_strtolower($p['tareas'][$clave]), array_keys($p['tareas'])),
+                fn ($frase) => ! (count($nombresOtros) <= 3 && in_array(explode(' ', $frase, 2)[1] ?? '', $nombresOtros, true)),
             );
             // mismo verbo junto: "ajustamos los frenos y los cambios"; con mas
             // de un verbo, solo comas dentro del grupo para no encadenar "y"
             $porVerbo = [];
             foreach ($tareas as $frase) {
-                [$verbo, $objeto] = explode(' ', $frase, 2);
+                [$verbo, $objeto] = array_pad(explode(' ', $frase, 2), 2, null);
                 $porVerbo[$verbo][] = $objeto;
             }
             $unirGrupo = count($porVerbo) === 1 ? self::unirConY(...) : fn ($objetos) => implode(', ', $objetos);
-            $tareas = array_map(fn ($verbo, $objetos) => "$verbo ".$unirGrupo($objetos), array_keys($porVerbo), $porVerbo);
+            $tareas = array_map(fn ($verbo, $objetos) => trim("$verbo ".$unirGrupo(array_filter($objetos))), array_keys($porVerbo), $porVerbo);
             $frases[] = ($paquete ? "Le hicimos el servicio $paquete a tu $bici" : "Trabajamos en tu $bici")
                 .($tareas ? ': '.self::unirConY($tareas) : '').'.';
+        }
+
+        // todos los hallazgos de seguridad en una sola frase; nunca "cambiar"
+        if ($p['seguridad']) {
+            $hallazgos = collect($p['seguridad'])->flatMap(fn ($rec) => $rec['motivos_claves'])
+                ->intersect(self::MOTIVOS_SEGURIDAD)->unique()
+                ->map(fn ($m) => config("taller.motivos_cliente.$m.0"))->values()->all();
+            $frases[] = 'Por seguridad, te recomendamos no rodar hasta que un especialista evalúe '
+                .self::unirConY(array_map($nombre, $p['seguridad'])).': encontramos '.self::unirConY($hallazgos).'.';
         }
 
         if ($p['cambiados']) {
             $frases[] = 'Cambiamos '.self::unirConY(array_map($nombre, $p['cambiados'])).'.';
         }
-        if ($p['otros']) {
-            $verbos = self::unirConY($verbosOtros);
-            $frases[] = ucfirst(count($p['otros']) <= 3
-                ? "$verbos ".self::unirConY($nombresOtros).'.'
-                : "$verbos ".count($p['otros']).' componentes más.');
+        if ($p['otros'] && count($p['otros']) > 3) {
+            $frases[] = ucfirst(self::unirConY($verbosOtros).' '.count($p['otros']).' componentes más.');
+        } elseif ($p['otros']) {
+            // una frase por conjunto de verbos: exacto (nunca "lubricamos" algo
+            // que solo se ajusto) y sin encadenar "y"
+            $porVerbos = [];
+            foreach ($p['otros'] as $i) {
+                $verbos = collect(config('taller.acciones'))
+                    ->filter(fn ($a, $clave) => isset($a['verbo']) && in_array($clave, $i['hechas'], true))
+                    ->pluck('verbo')->all();
+                $porVerbos[self::unirConY($verbos)][] = $nombre($i);
+            }
+            foreach ($porVerbos as $verbos => $objetos) {
+                $frases[] = ucfirst("$verbos ".self::unirConY($objetos)).'.';
+            }
         }
         if ($p['ok']) {
             $frases[] = 'Revisamos el resto y está en buen estado.';
         }
 
-        $motivoTexto = fn (array $claves) => self::unirConY(array_map(
-            fn ($m) => str_replace('/', ' o ', mb_strtolower(config("taller.motivos.$m", $m))),
-            $claves,
-        ));
-        foreach ($p['seguridad'] as $rec) {
-            $frases[] = 'Por seguridad, te recomendamos no volver a rodar hasta cambiar '.$nombre($rec)
-                .': encontramos '.$motivoTexto(array_values(array_intersect($rec['motivos_claves'], self::MOTIVOS_SEGURIDAD))).'.';
-        }
         foreach ($p['recomendados'] as $n => $rec) {
+            // concordancia: "los piñones muestran", "la cadena muestra"
+            $plural = (int) preg_match('/^(los|las) /', $nombre($rec));
+            $porque = array_values(array_filter(array_map(fn ($m) => config("taller.motivos_cliente.$m.$plural"), $rec['motivos_claves'])));
             $frases[] = ($n === 0 ? 'Te recomendamos cambiar '.$nombre($rec).' en el próximo servicio' : 'También te recomendamos cambiar '.$nombre($rec))
-                .($rec['motivos_claves'] ? ' por '.$motivoTexto($rec['motivos_claves']) : '').'.';
+                .($porque ? ' porque '.self::unirConY($porque) : '').'.';
         }
 
         if ($omitidos) {
@@ -183,7 +200,8 @@ class InformeRevision
 
     private static function unirConY(array $items): string
     {
-        $ultimo = array_pop($items);
+        $items = array_values($items);
+        $ultimo = (string) array_pop($items);
 
         return $items ? implode(', ', $items).' y '.$ultimo : $ultimo;
     }

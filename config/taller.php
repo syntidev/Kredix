@@ -109,6 +109,17 @@ return [
         'lavado' => 'lavamos la bici',
     ],
 
+    // motivo en el texto al cliente: [singular, plural] ("la cadena muestra
+    // desgaste", "los piñones muestran desgaste"). Fisura y fuga son hallazgos
+    // de seguridad: "encontramos una fisura". La etiqueta del boton no se usa ahi
+    'motivos_cliente' => [
+        'desgaste' => ['muestra desgaste', 'muestran desgaste'],
+        'holgura' => ['tiene juego', 'tienen juego'],
+        'ruido' => ['presenta ruido', 'presentan ruido'],
+        'fisura' => ['una fisura', 'una fisura'],
+        'fuga' => ['una fuga', 'una fuga'],
+    ],
+
     'motivos' => [
         'desgaste' => 'Desgaste',
         'holgura' => 'Holgura',

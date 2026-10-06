@@ -13,6 +13,8 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
     ticket: { type: Object, required: true },
     catalogo: { type: Object, required: true },
+    // null = IA apagada (nada de IA en pantalla)
+    sugerencias: { type: Object, default: null },
 });
 
 const TIPO_SERVICIO_LABEL = { basico: 'Básico', full: 'Full', vip: 'VIP', otro: 'Otro' };
@@ -27,6 +29,33 @@ const revision = reactive({
 });
 
 const abierto = ref(null);
+
+// --- sugerencias de la IA: solo se aplican con un toque (✓), con origen 'ia' ---
+const etiquetas = Object.assign({}, ...Object.values(props.catalogo.grupos).map((g) => g.componentes));
+const descartadas = ref([]);
+const sugerenciasVisibles = computed(() => Object.entries(props.sugerencias?.componentes ?? {})
+    .filter(([clave]) => etiquetas[clave] && !revision.componentes[clave] && !descartadas.value.includes(clave)));
+
+function aplicarSugerencia(clave, s) {
+    revision.componentes[clave] = { acciones: [...s.acciones], motivos: [...(s.motivos ?? [])], nota: '', origen: 'ia' };
+}
+
+const descartando = ref('');
+const errorSugerencia = ref('');
+
+async function descartarSugerencia(clave) {
+    if (descartando.value) return;
+    descartando.value = clave;
+    errorSugerencia.value = '';
+    try {
+        await axios.post(`/taller/${props.ticket.id}/sugerencias/${clave}/descartar`);
+        descartadas.value.push(clave);
+    } catch (error) {
+        errorSugerencia.value = error.response?.data?.message || 'No se pudo descartar la sugerencia. Intenta de nuevo.';
+    } finally {
+        descartando.value = '';
+    }
+}
 
 function estado(clave) {
     const acciones = revision.componentes[clave]?.acciones ?? [];
@@ -139,8 +168,11 @@ async function onFotoSalida(event) {
         await axios.post(`/taller/${props.ticket.id}/fotos/salida`, datos);
         fotosSalida.value += archivos.length;
         fotoExito.value = 'Foto de salida subida.';
-    } catch {
-        fotoError.value = 'No se pudo subir la foto. Intenta de nuevo.';
+    } catch (error) {
+        // sin respuesta del servidor = fallo al procesar la foto en el telefono
+        fotoError.value = error.response
+            ? (Object.values(error.response.data?.errors ?? {})[0]?.[0] ?? 'El servidor no aceptó la foto. Intenta de nuevo.')
+            : 'No se pudo procesar o enviar la foto. Revisa la conexión e intenta de nuevo.';
     } finally {
         etapaFoto.value = '';
         event.target.value = '';
@@ -167,6 +199,20 @@ async function onFotoSalida(event) {
         </div>
 
         <p v-if="atendido" class="rounded-xl bg-green-50 p-3 text-sm font-medium text-green-800">Ticket atendido — la revision ya no se puede modificar.</p>
+
+        <p v-if="sugerencias?.analizando" class="rounded-xl bg-blue-50 p-3 text-sm font-medium text-blue-800">La IA está analizando el motivo de ingreso…</p>
+        <div v-else-if="sugerenciasVisibles.length" class="flex flex-col gap-2 rounded-xl border-2 border-blue-200 bg-blue-50 p-3">
+            <p class="text-sm font-semibold text-blue-900">La IA sugiere revisar:</p>
+            <div v-for="[clave, s] in sugerenciasVisibles" :key="clave" class="flex items-center gap-2 rounded-xl bg-white p-2">
+                <span class="min-w-0 flex-1 text-base text-kredix-negro">
+                    <span class="font-semibold">{{ etiquetas[clave] }}</span>
+                    · {{ s.acciones.map((a) => catalogo.acciones[a]?.chip ?? a).join(', ') }}
+                </span>
+                <button type="button" title="Aplicar sugerencia" class="flex min-h-14 min-w-14 items-center justify-center rounded-xl bg-green-600 text-xl font-bold text-white active:opacity-80" @click="aplicarSugerencia(clave, s)">✓</button>
+                <button type="button" title="Descartar sugerencia" class="flex min-h-14 min-w-14 items-center justify-center rounded-xl border-2 border-gray-300 text-xl font-bold text-kredix-gris active:bg-gray-100 disabled:opacity-50" :disabled="descartando === clave" @click="descartarSugerencia(clave)">✕</button>
+            </div>
+            <p v-if="errorSugerencia" class="text-sm font-medium text-kredix-rojo">{{ errorSugerencia }}</p>
+        </div>
 
         <fieldset :disabled="atendido" class="flex flex-col gap-4">
             <div v-if="Object.keys(catalogo.tareas).length" class="flex flex-col gap-2 rounded-xl bg-white p-4 shadow-card">
