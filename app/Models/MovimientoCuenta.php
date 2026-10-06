@@ -20,6 +20,7 @@ class MovimientoCuenta extends Model implements HasMedia
 
     protected $fillable = [
         'cliente_id',
+        'compra_id',
         'fecha',
         'tipo',
         'tipo_contacto',

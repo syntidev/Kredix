@@ -36,7 +36,11 @@ class PlanFinanciamientoController extends Controller
         abort_if($plan->aplicado_mora, 422, 'La mora ya fue aplicada sobre este plan');
 
         $plan->loadMissing('cargo');
-        $montoMora = round((float) $plan->cargo->monto * ((float) $plan->porcentaje_mora / 100), 2);
+        // sobre el total del carrito, no sobre el cargo que sostiene el plan --
+        // con compra_id suma todas las lineas (incluidas las anuladas: el
+        // contrato pactado no cambia por un soft-delete); sin compra_id devuelve
+        // el monto del cargo, identico al comportamiento anterior
+        $montoMora = round($plan->montoTotalCompra() * ((float) $plan->porcentaje_mora / 100), 2);
 
         DB::transaction(function () use ($plan, $montoMora) {
             MovimientoCuenta::create([

@@ -451,7 +451,9 @@ class ClienteController extends Controller
                 'id' => $plan->id,
                 'cargo_id' => $plan->movimiento_cuenta_id,
                 'descripcion' => $plan->cargo->descripcion,
-                'monto_total' => (float) $plan->cargo->monto,
+                // total del carrito con compra_id; sin el, el monto del cargo
+                // (igual que antes). Alimenta la ficha y el PDF de estado de cuenta
+                'monto_total' => $plan->montoTotalCompra(),
                 'fecha' => $plan->cargo->fecha?->toDateString(),
                 'monto_inicial' => (float) $plan->monto_inicial,
                 'porcentaje_mora' => (float) $plan->porcentaje_mora,

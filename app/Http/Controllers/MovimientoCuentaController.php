@@ -10,6 +10,7 @@ use App\Services\ImagenUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class MovimientoCuentaController extends Controller
@@ -110,9 +111,10 @@ class MovimientoCuentaController extends Controller
             ]);
 
             if ($esFinanciada) {
-                abort_if(count($validated['productos']) !== 1, 422, 'Una venta financiada solo admite un producto');
-
-                $montoTotal = $validated['productos'][0]['cantidad'] * $validated['productos'][0]['precio_unitario'];
+                // el carrito completo se financia: el total es la suma de todas
+                // las lineas del mismo envio, no la del primer producto
+                $montoTotal = collect($validated['productos'])
+                    ->sum(fn (array $p) => (float) $p['cantidad'] * (float) $p['precio_unitario']);
                 abort_if((float) $validated['monto_inicial'] >= $montoTotal, 422, 'La inicial debe ser menor al monto total de la venta');
             }
 
@@ -120,9 +122,12 @@ class MovimientoCuentaController extends Controller
                 // fecha/modalidad/plazo/frecuencia se comparten entre todos los productos
                 // del mismo envio; cada uno crea su propio registro tipo=cargo
                 // independiente -- el plan de cuotas y la foto (si se adjunto) quedan
-                // en el primero, ya que el frontend solo permite cuotas/financiamiento
-                // con 1 producto
-                $movimientos = collect($validated['productos'])->map(function (array $producto) use ($validated) {
+                // en el primero. compra_id une las lineas del mismo envio (el
+                // "carrito"): es lo que permite financiar el total de la operacion
+                // sin perder el detalle por producto
+                $compraId = (string) Str::uuid();
+
+                $movimientos = collect($validated['productos'])->map(function (array $producto) use ($validated, $compraId) {
                     $catalogo = Producto::firstOrCreate(
                         ['nombre' => Producto::normalizarNombre($producto['descripcion'])],
                         ['veces_usado' => 0]
@@ -131,6 +136,7 @@ class MovimientoCuentaController extends Controller
 
                     return MovimientoCuenta::create([
                         'cliente_id' => $validated['cliente_id'],
+                        'compra_id' => $compraId,
                         'fecha' => $validated['fecha'],
                         'tipo' => 'cargo',
                         'descripcion' => $producto['descripcion'],
@@ -267,7 +273,10 @@ class MovimientoCuentaController extends Controller
     // restantes sobre el saldo remanente
     private function crearPlanFinanciamiento(MovimientoCuenta $cargo, array $validated): void
     {
-        $montoTotal = (float) $cargo->monto;
+        // total del carrito (todas las lineas con el mismo compra_id), no solo
+        // el cargo que sostiene el plan -- misma fuente que usan la mora y la
+        // ficha del cliente, para que nunca puedan discrepar
+        $montoTotal = PlanFinanciamiento::montoTotalDeCompra($cargo);
         $montoInicial = (float) $validated['monto_inicial'];
         $numeroCuotas = (int) $validated['numero_cuotas_financiamiento'];
         $montoAFinanciar = round($montoTotal - $montoInicial, 2);

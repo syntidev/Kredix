@@ -1361,12 +1361,12 @@ watch(algunModalAbierto, (abierto) => {
                 <p v-if="cargoForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ cargoForm.errors.foto_producto }}</p>
             </div>
 
-            <label v-if="cargoForm.productos.length === 1" class="flex items-center gap-2 text-sm font-medium text-kredix-negro md:col-span-2">
+            <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro md:col-span-2">
                 <input v-model="cargoForm.es_financiada" type="checkbox" class="h-4 w-4" />
                 ¿Es una venta financiada?
             </label>
 
-            <template v-if="cargoForm.productos.length === 1 && cargoForm.es_financiada">
+            <template v-if="cargoForm.es_financiada">
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Monto inicial</label>
                     <input v-model="cargoForm.monto_inicial" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
