@@ -86,6 +86,21 @@ Los 4 commits del cierre de jornada del 01-02/10:
   llama "mercancia entregada") y lo inflan en **$2,415.00** [cifra aportada por Carlos,
   no re-derivada en esta actualizacion]. Todas las cuentas quedaron con la misma nota
   de auditoria y con `registrado_por` trazable.
+- **06/10 — La tarea programada de Kredix paso del cron de root al de www-data.**
+  Antes dejaba vistas compiladas y caches a nombre de root que la web no podia
+  reescribir (43 archivos, entre ellos `app.blade.php` y el PDF de taller).
+  Respaldo del cron anterior en `/root/crontab-backup-*`. Permisos normalizados con
+  `chown`; 0 archivos de root en `storage` y `bootstrap/cache`.
+  Verificado en el servidor el 06/10 a las 12:44 (hora del VPS): el cron de root ya
+  no tiene la linea de Kredix, el de www-data si la tiene, existe
+  `/root/crontab-backup-20261006-1241.txt`, `find storage bootstrap/cache -user root`
+  devuelve 0, y `sudo -u www-data php artisan schedule:list` arranca y lista las 9
+  tareas de BCV.
+  [sin verificar] Que una tarea se ejecute de punta a punta bajo www-data: el
+  respaldo es de las 12:41 y la siguiente tarea vence a las 14:00, asi que al momento
+  de escribir esto ninguna habia corrido todavia con el cron nuevo. Confirmar
+  despues de las 14:00 que la tasa BCV de esa corrida quedo registrada.
+
 - **02/10 — Limites de subida ampliados en el VPS** (verificado en el servidor el
   06/10):
   - Nginx `/etc/nginx/sites-available/kredix`: `client_max_body_size 30M`
