@@ -302,21 +302,25 @@ npm run build
 # parametros que ya no son los del codigo recien traido
 php artisan migrate --force
 
-# view:clear es OBLIGATORIO, no opcional: el cron de Kredix corre como root
-# (* * * * * cd /var/www/kredix && php artisan schedule:run), y root deja vistas
-# compiladas en storage/framework/views a nombre de root:root 644 que www-data NO
-# puede reescribir. Si una plantilla Blade cambio en este deploy y su compilado
-# quedo a nombre de root, Laravel intenta reescribirlo, falla y la pagina
-# devuelve 500. view:clear los borra (root pasa por encima de los permisos) y
-# www-data los recompila a su nombre en la primera visita.
+# view:clear es OBLIGATORIO, no opcional. Cualquier artisan corrido a mano como
+# root -- INCLUIDO ESTE DEPLOY, que se hace como root -- deja vistas compiladas
+# en storage/framework/views a nombre de root:root 644 que www-data NO puede
+# reescribir. Si una plantilla Blade cambio y su compilado quedo a nombre de
+# root, Laravel intenta reescribirlo, falla y la pagina devuelve 500.
+# view:clear los borra (root pasa por encima de los permisos) y www-data los
+# recompila a su nombre en la primera visita.
+# El cron de Kredix ya NO es la causa: desde el 2026-10-06 corre bajo el crontab
+# de www-data, no el de root. Pero el deploy manual sigue siendo root, asi que el
+# problema se reproduce igual sin este paso.
 # Caso real encontrado el 2026-10-06: el compilado de pdf/taller-atencion.blade.php
 # estaba a nombre de root justo cuando la rama feat/taller-revision modificaba ese
 # blade -- sin view:clear, el PDF de taller rompia en todos los tickets
 php artisan config:clear && php artisan cache:clear && php artisan view:clear
 
-# Ultimo paso, siempre: devuelve la propiedad a www-data. Los comandos de arriba
-# corridos como root (y el cron de cada minuto) dejan archivos root:root en
-# storage y bootstrap/cache que la web no puede sobreescribir despues
+# Ultimo paso, siempre: devuelve la propiedad a www-data. Los comandos de arriba,
+# corridos como root, dejan archivos root:root en storage y bootstrap/cache que
+# la web no puede sobreescribir despues. Vale aunque el cron ya corra como
+# www-data: el deploy mismo es la fuente de archivos de root
 chown -R www-data:www-data storage bootstrap/cache
 ```
 
