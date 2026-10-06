@@ -22,7 +22,15 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
     use Queueable;
 
     // v2: guia de voz OnBike (.doc/GUIA_VOZ_ONBIKE.md) con ejemplos few-shot
-    public const PROMPT_VERSION = 'v2';
+    // v3: reglas finales R1 -- orden fijo, fisura/fuga = especialista (nunca cambiar), nombres componentes_cliente
+    public const PROMPT_VERSION = 'v3';
+
+    private const MOTIVOS_SEGURIDAD = ['fisura', 'fuga'];
+
+    private const MAX_TEXTO = 700;
+
+    // mismo texto que InformeRevision::PAQUETE_LABEL (privado en ese archivo)
+    private const PAQUETES = ['basico' => 'Básico', 'full' => 'Full', 'vip' => 'VIP'];
 
     // jerga prohibida por la guia de voz; si aparece, el texto queda en requiere_revision
     public const JERGA = ['pana', 'chamo', 'vaina', 'burda', 'chevere', 'fino', 'epale', 'quedo full', 'quedaron full'];
@@ -86,7 +94,7 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
         }
 
         try {
-            $texto = self::validarTexto($r['texto']);
+            $texto = self::validarTexto($r['texto'], self::frasesFijas($actual));
         } catch (JsonException|UnexpectedValueException $e) {
             $actual->updateQuietly(['informe_ia_estado' => 'error']);
             $log('error', ['error' => $e->getMessage()]);
@@ -97,6 +105,7 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
         $hallazgos = array_filter([
             'menciones' => self::menciones($texto, $actual->revision_tecnica),
             'jerga' => self::jerga($texto),
+            'cambio_por_seguridad' => self::cambioPorSeguridad($texto, $actual->revision_tecnica),
         ]);
         $actual->updateQuietly([
             'informe_ia' => $texto,
@@ -128,28 +137,118 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
         return sha1(json_encode($ordenar($revision ?? [])));
     }
 
-    // Lo unico que ve el modelo: revision confirmada + paquete + bici. Nunca sugerencias_ia.
+    // Revision confirmada agrupada en el orden del texto, con nombres de config('taller.componentes_cliente').
+    // Sin notas: viven en la revision y en el PDF.
+    private static function clasificar(TicketTaller $t): array
+    {
+        $nombre = fn ($clave) => config("taller.componentes_cliente.{$clave}", $clave);
+        $verbos = collect(config('taller.acciones'))->map(fn ($a) => $a['verbo'] ?? null)->filter();
+        $r = ['seguridad' => [], 'cambiados' => [], 'otros_trabajos' => [], 'sin_novedad' => [], 'recomendaciones' => []];
+
+        // orden del catalogo, no del JSON -- MySQL reordena las claves de una columna JSON
+        foreach (array_keys(InformeRevision::componentes()) as $clave) {
+            $acciones = $t->revision_tecnica['componentes'][$clave]['acciones'] ?? [];
+            $motivos = $t->revision_tecnica['componentes'][$clave]['motivos'] ?? [];
+            $seguridad = array_values(array_intersect($motivos, self::MOTIVOS_SEGURIDAD));
+
+            if (in_array('cambiado', $acciones, true)) {
+                $r['cambiados'][] = $nombre($clave);
+            }
+            if ($otros = array_values(array_intersect_key($verbos->all(), array_flip(array_diff($acciones, ['cambiado']))))) {
+                $r['otros_trabajos'][] = ['componente' => $nombre($clave), 'hicimos' => $otros];
+            }
+            if ($acciones === ['ok']) {
+                $r['sin_novedad'][] = $nombre($clave);
+            }
+            if (in_array('recomendar', $acciones, true)) {
+                $seguridad
+                    ? $r['seguridad'][] = ['componente' => $nombre($clave), 'hallazgos' => $seguridad]
+                    : $r['recomendaciones'][] = ['componente' => $nombre($clave), 'motivos' => $motivos];
+            }
+        }
+
+        return $r;
+    }
+
+    // Lo unico que ve el modelo: lo hecho en la revision confirmada + paquete + bici. Nunca sugerencias_ia ni
+    // notas. Seguridad y recomendaciones no pasan por el modelo: son frases fijas (frasesFijas).
     public static function entrada(TicketTaller $t): array
     {
-        $etiquetas = InformeRevision::componentes();
-        $sinNovedad = collect($t->revision_tecnica['componentes'] ?? [])
-            ->filter(fn ($c) => ($c['acciones'] ?? []) === ['ok'])
-            ->keys()->map(fn ($k) => $etiquetas[$k] ?? $k)->values()->all();
+        $r = self::clasificar($t);
+        $fijas = self::frasesFijas($t);
+
+        // hechos ya redactados en el orden de la guia (cambiado -> resto); el modelo solo los une
+        $porVerbo = [];
+        foreach ($r['otros_trabajos'] as $o) {
+            foreach ($o['hicimos'] as $verbo) {
+                $porVerbo[$verbo][] = $o['componente'];
+            }
+        }
+        $sin = $r['sin_novedad'];
+        $hechos = array_values(array_unique(array_filter([
+            $r['cambiados'] ? 'cambiamos '.self::unir($r['cambiados']) : null,
+            ...array_map(fn ($verbo, $comps) => "{$verbo} ".self::unir($comps), array_keys($porVerbo), $porVerbo),
+            ...collect($t->revision_tecnica['tareas'] ?? [])->filter()->keys()->map(fn ($k) => config("taller.tareas_cliente.{$k}"))->all(),
+            $sin ? 'revisamos '.self::unir($sin).(count($sin) > 1 || preg_match('/^(los|las) /', $sin[0]) ? ' y están' : ' y está').' en buen estado' : null,
+        ])));
 
         return [
-            'paquete' => $t->tipo_servicio,
-            'bici' => $t->bici_marca_modelo,
-            'revision' => [...InformeRevision::resumen($t->revision_tecnica), 'sin_novedad' => $sinNovedad],
+            'bici' => trim((string) $t->bici_marca_modelo) ?: null,
+            'paquete' => self::PAQUETES[$t->tipo_servicio] ?? null,
+            'hechos' => $hechos,
+            'max_caracteres' => self::MAX_TEXTO - mb_strlen(implode(' ', array_filter([$fijas['seguridad'], ...$fijas['recomendaciones']]))) - 1,
         ];
     }
 
-    /** @throws JsonException|UnexpectedValueException */
-    public static function validarTexto(string $respuesta): string
+    private static function unir(array $items): string
     {
-        $texto = trim((string) (ClienteIa::extraerJson($respuesta)['texto'] ?? ''));
+        return count($items) > 1 ? implode(', ', array_slice($items, 0, -1)).' y '.end($items) : (string) reset($items);
+    }
+
+    // Plantillas obligatorias de la guia: fisura/fuga = especialista (nunca cambiar), resto = cambiar en el proximo servicio.
+    public static function frasesFijas(TicketTaller $t): array
+    {
+        $r = self::clasificar($t);
+        $unir = self::unir(...);
+        $plural = fn (string $nombre) => (bool) preg_match('/^(los|las) /', $nombre);
+
+        $seguridad = null;
+        if ($r['seguridad']) {
+            $tipos = array_values(array_unique(array_merge(...array_column($r['seguridad'], 'hallazgos'))));
+            $hallazgos = count($tipos) === 1 && count($r['seguridad']) > 1
+                ? ($tipos[0] === 'fisura' ? 'fisuras' : 'fugas')
+                : $unir(array_map(fn ($m) => $m === 'fisura' ? 'una fisura' : 'una fuga', $tipos));
+            $seguridad = 'Por seguridad, te recomendamos no rodar hasta que un especialista evalúe '
+                .$unir(array_column($r['seguridad'], 'componente')).": encontramos {$hallazgos}.";
+        }
+
+        $recomendaciones = array_map(function ($rec) use ($unir, $plural) {
+            $n = $plural($rec['componente']) ? 'n' : '';
+            $porque = array_map(fn ($m) => match ($m) {
+                'desgaste' => "ya muestra{$n} desgaste",
+                'holgura' => "tiene{$n} holgura",
+                'ruido' => "hace{$n} ruido",
+                default => mb_strtolower(config("taller.motivos.{$m}", $m)),
+            }, $rec['motivos']);
+
+            return "Te recomendamos cambiar {$rec['componente']} en el próximo servicio".($porque ? ' porque '.$unir($porque) : '').'.';
+        }, $r['recomendaciones']);
+
+        return ['seguridad' => $seguridad, 'recomendaciones' => $recomendaciones];
+    }
+
+    // El modelo devuelve {"texto": cuerpo}; el texto final es seguridad + cuerpo + recomendaciones.
+    /** @throws JsonException|UnexpectedValueException */
+    public static function validarTexto(string $respuesta, array $fijas = ['seguridad' => null, 'recomendaciones' => []]): string
+    {
+        $cuerpo = trim((string) (ClienteIa::extraerJson($respuesta)['texto'] ?? ''));
+        if ($cuerpo === '') {
+            throw new UnexpectedValueException('respuesta sin "texto"');
+        }
+        $texto = implode(' ', array_filter([$fijas['seguridad'], $cuerpo, ...$fijas['recomendaciones']]));
         $largo = mb_strlen($texto);
-        if ($largo < 80 || $largo > 700) {
-            throw new UnexpectedValueException("texto con {$largo} caracteres (se esperan 80-700)");
+        if ($largo < 80 || $largo > self::MAX_TEXTO) {
+            throw new UnexpectedValueException("texto con {$largo} caracteres (se esperan 80-".self::MAX_TEXTO.')');
         }
 
         return $texto;
@@ -161,12 +260,14 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
     {
         $norm = fn (string $s) => mb_strtolower(Str::ascii($s));
         $terminos = fn (string $etiqueta) => collect(preg_split('/[\/(),]|\s+(?:y|o)\s+/', $norm($etiqueta)))
-            ->map(fn ($s) => preg_replace('/^(juego|caja) de /', '', trim($s)))
+            ->map(fn ($s) => preg_replace('/^((el|la|los|las) )?((juego|caja) de )?/', '', trim($s)))
             ->filter(fn ($s) => strlen($s) >= 4);
 
         $etiquetas = InformeRevision::componentes();
         $presentes = collect($revision['componentes'] ?? [])->filter(fn ($c) => ! empty($c['acciones']))->keys();
         // terminos compartidos con lo que si esta (ej. "guayas", "centrado de ruedas") no cuentan como ajenos
+        // etiqueta de pantalla + nombre para el cliente ("Manubrio, potencia y tija" / "el manubrio")
+        $etiquetas = collect($etiquetas)->map(fn ($e, $k) => $e.' / '.config("taller.componentes_cliente.{$k}", ''))->all();
         $permitido = $presentes->map(fn ($k) => $etiquetas[$k] ?? '')
             ->merge(collect($revision['tareas'] ?? [])->filter()->keys()->map(fn ($k) => config("taller.tareas.{$k}", '')))
             ->map($norm)->implode(' | ');
@@ -175,7 +276,24 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
         return collect($etiquetas)->except($presentes->all())
             ->filter(fn ($etiqueta) => $terminos($etiqueta)->contains(
                 fn ($term) => ! str_contains($permitido, $term) && preg_match('/\b'.preg_quote($term, '/').'\b/', $t)
-            ))->values()->all();
+            ))->map(fn ($e, $k) => InformeRevision::componentes()[$k])->values()->all();
+    }
+
+    // Componentes con fisura/fuga que el texto sugiere cambiar en la misma frase: el taller no diagnostico
+    // un cambio, solo puede mandar a evaluar.
+    public static function cambioPorSeguridad(string $texto, ?array $revision): array
+    {
+        $norm = fn (string $s) => mb_strtolower(Str::ascii($s));
+        $frases = collect(preg_split('/(?<=[.;:!?])\s+/', $norm($texto)))->filter(fn ($f) => preg_match('/\bcambi\w*/', $f));
+
+        return collect($revision['componentes'] ?? [])
+            ->filter(fn ($c) => array_intersect($c['motivos'] ?? [], self::MOTIVOS_SEGURIDAD))
+            ->keys()
+            ->filter(function ($clave) use ($norm, $frases) {
+                $nombre = preg_replace('/^(el|la|los|las) /', '', $norm(config("taller.componentes_cliente.{$clave}", $clave)));
+
+                return $frases->contains(fn ($f) => preg_match('/\b'.preg_quote($nombre, '/').'\b/', $f));
+            })->values()->all();
     }
 
     public static function jerga(string $texto): array
@@ -187,41 +305,38 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
 
     private static function prompt(): string
     {
-        $trato = config('ia.trato') === 'usted'
-            ? 'Trata al cliente de USTED ("le recomendamos", "su bici"). Los ejemplos están en tú: adapta el trato, no el tono.'
-            : 'Trata al cliente de TÚ ("te recomendamos", "tu bici").';
+        return <<<'PROMPT'
+        Eres un mecánico de confianza del taller OnBike Margarita (Venezuela). Redactas la parte central del mensaje
+        para el cliente con el JSON de la revisión técnica. Tono profesional y humano: sabes lo que haces y lo explicas claro.
 
-        return <<<PROMPT
-        Eres un mecánico de confianza del taller OnBike Margarita (Venezuela). Con el JSON de la revisión técnica
-        redactas el mensaje para el cliente. Sabes lo que haces y lo explicas claro: profesional sin ser frío,
-        cercano sin ser informal de más.
+        Cómo se arma el mensaje completo (orden fijo):
+        1) hallazgos de seguridad -> 2) lo cambiado -> 3) el resto agrupado -> 4) recomendaciones.
+        El sistema agrega por su cuenta las partes 1 y 4 con frases fijas. TÚ escribes solo las partes 2 y 3:
+        - Abre nombrando la bici y el paquete si vienen ("Le hicimos el servicio Básico a tu Trek"); si "bici" es null,
+          "tu bici"; si "paquete" es null, "Trabajamos en tu Trek".
+        - Sigue con las frases de "hechos", TODAS y EN ESE ORDEN. Puedes unirlas con dos puntos, comas o "y" y poner
+          mayúsculas, pero no cambies, quites ni agregues ningún trabajo ni componente.
+        - Si "hechos" está vacío, escribe solo la apertura ("Recibimos tu Trek para el servicio Básico.").
 
-        Voz:
-        - Primera persona del plural: "revisamos", "ajustamos", "te recomendamos".
-        - {$trato}
-        - 3 o 4 frases completas, máximo 700 caracteres. El detalle técnico ya está en la tabla del PDF.
-        - Nombra la bici por su marca o modelo si viene en "bici" ("tu Trek"); si no, "tu bici".
-        - Cuando recomiendes algo, di por qué en pocas palabras. Las recomendaciones van al final, con su motivo.
-        - Si hay un hallazgo de seguridad (fisura, fuga, freno), menciónalo primero y con claridad, sin alarmar.
+        Reglas:
+        - Trato de tú y primera persona del plural: "revisamos", "cambiamos", "tu bici".
+        - Términos del oficio sí (cauchos, rolineras, tripa, piñones). Jerga no: pana, chamo, vaina, burda, chévere,
+          épale, "full" como adjetivo. Tono de formulario no: "Se realizó", "Intervenido", "Revisado sin novedad".
+        - PROHIBIDO escribir recomendaciones, hallazgos, problemas o la palabra "recomendamos": eso lo agrega el sistema.
+        - Nombra los componentes exactamente como vienen en el JSON ("los piñones", "la caja de pedalier").
+        - Solo lo que está en "hechos". Si no está ahí, no existe: no menciones otros componentes ni trabajos, y no
+          digas que "el resto" o "los demás" están bien. Los ejemplos de abajo tienen datos inventados: copiar de ellos
+          un trabajo que no esté en "hechos" invalida el mensaje.
+        - Sin saludo, sin despedida, sin frases de cierre. Sin notas, precios, montos, fechas, plazos, garantías ni emojis.
+        - 1 a 3 frases completas, como máximo "max_caracteres" caracteres.
 
-        Vocabulario:
-        - Sí, términos del oficio usados en Venezuela: cauchos, rolineras, tripa, guayas, piñones, cassette, platos,
-          bielas, mazas, pedalier, juego de dirección, horquilla.
-        - Prohibida la jerga: pana, chamo, vaina, burda, chévere, fino, épale, "full" como adjetivo ("quedó full").
-          Sin groserías, sin diminutivos excesivos, sin exclamaciones múltiples, sin emojis.
-        - Prohibido el tono de formulario: "Se realizó…", "Se procedió a…", "Componente intervenido:", "Revisado sin novedad".
+        Ejemplos de tono de mensajes completos (referencia de voz, no copies sus datos; recuerda que tú NO escribes
+        las recomendaciones ni los hallazgos):
+        - Tu Trek quedó lista para rodar. Le hicimos el servicio Full: lubricamos y ajustamos la cadena, y revisamos el resto de los componentes, que están en buen estado. Te recomendamos cambiar el cassette en el próximo servicio, porque ya muestra desgaste y con el tiempo afecta los cambios.
+        - Recibimos tu bici para el servicio Básico y durante la revisión encontramos una fisura en el cuadro, cerca del pedalier. Por seguridad no hicimos ningún trabajo adicional sobre esa zona. Te recomendamos que la evalúe un especialista antes de volver a rodar; cualquier duda, con gusto te explicamos lo que vimos.
+        - Le hicimos el servicio Básico a tu Specialized: lubricamos la cadena, ajustamos frenos y cambios, y calibramos la presión de los cauchos. Revisamos todo lo demás y está en buen estado, así que puedes rodar tranquilo.
 
-        Reglas estrictas:
-        - Usa SOLO lo que está en el JSON. Si no está en la revisión, no existe: prohibido mencionar otros componentes,
-          trabajos o problemas.
-        - Prohibido hablar de precios, montos o costos, prometer fechas o plazos, ofrecer garantías o nombrar a otros clientes.
-
-        Ejemplos de tono (referencia, no copies datos que no estén en el JSON):
-        1. Tu Trek quedó lista para rodar. Le hicimos el servicio Full: lubricamos y ajustamos la cadena, y revisamos el resto de los componentes, que están en buen estado. Te recomendamos cambiar el cassette en el próximo servicio, porque ya muestra desgaste y con el tiempo afecta los cambios.
-        2. Recibimos tu bici para el servicio Básico y durante la revisión encontramos una fisura en el cuadro, cerca del pedalier. Por seguridad no hicimos ningún trabajo adicional sobre esa zona. Te recomendamos que la evalúe un especialista antes de volver a rodar; cualquier duda, con gusto te explicamos lo que vimos.
-        3. Le hicimos el servicio Básico a tu Specialized: lubricamos la cadena, ajustamos frenos y cambios, y calibramos la presión de los cauchos. Revisamos todo lo demás y está en buen estado, así que puedes rodar tranquilo.
-
-        Responde SOLO con JSON, sin markdown: {"texto":"..."}
+        Responde SOLO con JSON, sin markdown: {"texto":"<partes 2 y 3>"}
         PROMPT;
     }
 }
