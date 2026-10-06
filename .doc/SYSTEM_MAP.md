@@ -1,6 +1,6 @@
 # SYSTEM_MAP.md — Kredix
 # Arbitro unico de verdad sobre el estado real del sistema
-# Ultima actualizacion: 2026-10-06
+# Ultima actualizacion: 2026-10-06 (hotfix 5fd2f3e)
 
 ---
 
@@ -9,7 +9,12 @@
 - **Stack real:** Laravel 12.x + Inertia + Vue 3 + Tailwind v3 (bajado de v4 por
   incompatibilidad con Breeze) + Spatie MediaLibrary + Spatie ActivityLog + Breeze
   (self-signup deshabilitado)
-- **Repo:** github.com/syntidev/kredix, rama `main` en `849ff80`
+- **Repo:** github.com/syntidev/kredix, rama `main` en `7316a08`
+- **Produccion (VPS):** codigo en `5fd2f3e`
+- **REGLA — no confundir los dos hashes:** Produccion = ultimo hash de CODIGO
+  desplegado (hoy `5fd2f3e`). `main` puede llevar commits solo de documentacion por
+  delante. Si `main` y el VPS difieren, comparar primero *que* commits son: si todos
+  son de `.doc/`, no hay nada que desplegar.
 - **Local:** `C:\laragon\www\kredix`, MySQL real
 - **VPS:** `/var/www/kredix`, MySQL dedicado, Nginx con SSL (Cloudflare Origin
   Certificate, modo Full — NO strict, otros sitios del VPS no lo soportarian)
@@ -17,18 +22,27 @@
 - **Volumen desde la ultima actualizacion de este archivo:** 221 commits entre
   2026-09-09 y 2026-10-06. Este documento estuvo casi un mes desactualizado — lo que
   sigue es el resumen por modulo, no el detalle commit por commit.
-- **Worktrees activos (4):**
-  - `kredix` → `main` (849ff80)
-  - `kredix-ia` → `feat/ia-cliente` (Taller SMART Fase 0, en construccion)
-  - `kredix-taller` → `feat/taller-revision` (Taller SMART Fase 1, en construccion)
-  - `kredix-estetica` / `kredix-funcional` → ramas ya mergeadas, pendientes de borrar
-    (ver Housekeeping)
+- **Worktrees (verificado el 06/10 con `git worktree list` + `merge-base`):**
+  - `kredix` → `main` (`7316a08`), al dia
+  - `kredix-ia` → `feat/ia-cliente` (`5fd2f3e`). **Tiene todo el codigo de `main`**; lo
+    unico que le falta es `7316a08`, que es solo documentacion — o sea, sincronizada
+    por la regla de arriba
+  - `kredix-taller` → `feat/taller-entrega-a` (`d6a0309`), Entrega A: "que le llega al
+    cliente". **OJO: su base es `8d9e2ac` y NO contiene el hotfix `5fd2f3e`.** El merge
+    sale limpio (`git merge-tree` sin conflictos), pero la rama nunca se probo con el
+    codigo del hotfix. Conviene mergear `main` en ella antes de certificarla
+  - `kredix-estetica` (`7e74be0`) / `kredix-funcional` (`9db7dbf`) → ramas ya mergeadas,
+    pendientes de borrar (ver Housekeeping)
+- **Migraciones:** 61 aplicadas, 0 pendientes en local (`migrate:status`, 06/10)
 
 ## Regla del Policia — estado real
 
 ```
 Clientes            ✅ certificado y en produccion
-Cuenta corriente     ✅ certificado (reemplazo el modelo original de venta-por-venta)
+Creditos/Ventas      ❌ NO certificado (es la "Cuenta corriente", que reemplazo al
+                        modelo original de venta-por-venta). Se daba por cerrado,
+                        pero el hotfix 5fd2f3e del 06/10 demostro que no cumplia
+                        los 6 criterios del CLAUDE.md -- ver detalle abajo
 Abonos/Gestion       ✅ certificado, incluye tipo gestion (contacto sin pago)
 Cartera general      ✅ certificado, con semaforo de color, filtro por monto y export
 Taller               ✅ en produccion y en uso real (modulo nuevo, no estaba en el
@@ -75,6 +89,51 @@ Los 4 commits del cierre de jornada del 01-02/10:
 | `495320a` | 02/10 | Boton "Siguiente" en ficha de cliente y ticket de taller, estandar unico de visualizacion de imagenes (`ComprobanteLightbox` en todo el sistema), desglose del servicio en el PDF de taller, y fix de "Dinero en calle" en Home para que cuadre con KPI/Cartera |
 | `f6c882f` | 02/10 | Cargo a credito de taller se mostraba en $0.00 en la ficha del cliente (la fila de un cargo se pinta con `precio_unitario`, que el cargo automatico dejaba en null) + guard permanente: un ticket a credito ya no puede quedar "atendido" sin cargo real |
 | `849ff80` | 02/10 | Rotacion forzada a vertical y compresion de fotos client-side en los 6 puntos de subida + ajuste de tamano de fotos en el PDF de taller |
+
+## Hotfix 5fd2f3e — desplegado en produccion el 2026-10-06
+
+**Financiar el total del carrito, no el primer producto.** En "Nueva compra", al agregar
+un segundo producto desaparecia la opcion "Es una venta financiada?" y el backend
+rechazaba la compra con 422 ("Una venta financiada solo admite un producto"). Un carrito
+de varias lineas no se podia financiar.
+
+- **Migracion aplicada:** `movimientos_cuenta.compra_id` (uuid nullable con indice, sin
+  backfill). Une las lineas de un mismo envio del formulario. Las compras anteriores
+  quedan en NULL y se comportan exactamente igual que antes.
+- El plan sigue colgando del primer cargo, pero las cuotas, la mora y el total que ve el
+  cliente se calculan sobre `SUM(monto)` del grupo. Fuente unica:
+  `PlanFinanciamiento::montoTotalCompra()`.
+- `PlanFinanciamiento::cargo()` blindado con `withTrashed()`: arregla un bug previo por el
+  que anular el cargo que sostiene el plan dejaba la relacion en null, la mora daba 500 y
+  el plan desaparecia de la ficha con sus cuotas vivas.
+- **Decision de Carlos:** anular una linea NO cambia el contrato pactado (el total se lee
+  con `withTrashed`, las cuotas siguen sumando el total original); lo que baja es el saldo
+  del cliente. Renegociar sigue siendo un acto explicito.
+
+**Verificado en produccion el 06/10 (lectura directa del VPS):** HEAD en `5fd2f3e`,
+`compra_id` existe, **0 archivos a nombre de root** en `storage` y `bootstrap/cache`, y hay
+5 cargos en 2 grupos reales. El grupo `b10bebc9` (plan 7) confirma el arreglo con dinero
+real: 2 lineas de $1.250 + $730 = **$1.980 de total del grupo**, inicial $693 y **suma de
+cuotas $1.287**, que es exactamente 1.980 − 693. Antes del hotfix habria financiado solo
+$1.250. Flujo E2E probado por Carlos con una compra real.
+
+### Por que Creditos/Ventas queda NO certificado
+
+De los 6 criterios del CLAUDE.md, el hotfix demostro que al menos dos no se cumplian
+cuando el modulo se dio por cerrado:
+
+- **Criterio 2 (flujo E2E completo probado manualmente):** la ruta "compra de varios
+  productos + financiamiento" nunca se probo. Estaba bloqueada por codigo y nadie lo noto.
+- **Criterio 5 (auditoria de calculos monetarios sin inconsistencias):** la mora se
+  calculaba sobre `$plan->cargo->monto`, el primer producto, no sobre el total de la
+  compra. Con un carrito eso subfacturaba la mora en silencio.
+- **Efecto medido en produccion:** 19 carritos reales (ademas de los 165 grupos de la
+  importacion del lote 1) quedaron sin credito financiado, por $10.590,00. Y la compra de
+  la Alcaldia (ids 31/32) tiene **seis productos escritos dentro de una sola descripcion**
+  por $16.100 — alguien necesitaba financiar y asi esquivo el bloqueo.
+
+Pendiente para poder certificarlo: la verificacion visual a 390 px del formulario con
+2 productos y el checkbox marcado (criterios 4 y 6), que no se hizo antes del merge.
 
 ## Cambios hechos fuera de git (no aparecen en el log)
 
@@ -152,6 +211,47 @@ Ninguna de las dos ramas existe todavia en `origin` — ambas son locales.
 - **Formula de "buen/mal pagador" sin definir** — sigue siendo decision de Carlos y
   sigue bloqueando que el modulo KPI se considere completo. Es el mismo pendiente que
   ya figuraba en la version del 2026-09-09 de este documento.
+
+## Backlog — ideas y hallazgos fuera de alcance (detalle en `.doc/BACKLOG.md`)
+
+No son pendientes activos: nada de esto se implementa sin decision de Carlos.
+
+**Registrado por CLI Taller (06/10)**
+1. El autoguardado de la revision pierde el ultimo toque si el tecnico sale antes de los
+   600 ms del debounce.
+2. El aviso "La IA esta analizando el motivo de ingreso…" no se actualiza solo en la
+   pantalla de Revision (Show si recarga cada 15 s).
+3. Calidad de las sugerencias: Nemotron sugirio componentes no mencionados en el motivo;
+   revisar el prompt v1 de `SugerirRevision`.
+4. El redactor de IA invento recomendaciones en 2 de 3 corridas con el prompt v2; el
+   control `requiere_revision` lo detecto las dos veces. Volver a medir con v3.
+5. `ia:sugerir` / `ia:redactar` no cancelan el job que el Observer ya encolo; si el worker
+   corre despues, `SugerirRevision` reescribe `sugerencias_ia` y borra las descartadas.
+6. Peor caso del PDF de taller: 23 componentes con notas largas llevan el documento a
+   5 paginas (main: 3).
+7. Trato de usted: el tuteo esta fijo en el texto automatico y en el prompt; la guia de voz
+   pide que sea configurable.
+8. Hallazgo de seguridad con otro motivo: si una pieza tiene fisura o fuga y ademas
+   desgaste, el texto solo menciona el de seguridad; el secundario queda solo en el PDF.
+
+**Registrado por CLI IA (cierre R1, 06/10)**
+9. **Modelo de produccion sin definir:** `NVIDIA_MODELO_TEXTO` vacio en `.env`. DeepSeek
+   v4.1 flash dio timeout a 280 s; Nemotron 3.5 lightning responde en 4–30 s. Decide Carlos.
+10. Nemotron devuelve JSON invalido ~1 de 5 llamadas y hoy termina en `error` sin reintento.
+11. El detector no ve omisiones ni inventos sobre componentes que si estan en la revision;
+    la aprobacion humana es la red de seguridad.
+12. Gramatica menor: falta la coma antes de "y estan en buen estado" en enumeraciones largas.
+13. `SugerirRevision` sigue en prompt v1, probado con exito en un solo caso.
+14. Datos de prueba en la BD local compartida: tickets #59–#71 y el usuario
+    `e2e.tecnico@kredix.local`.
+
+**Registrado por CLI Principal (hotfix 5fd2f3e, 06/10)**
+15. **Agrupar el estado de cuenta por compra.** Con `compra_id` ya existe el dato, pero
+    quedo fuera de alcance: hoy una compra de 6 productos sale como 6 renglones sueltos en
+    el PDF del cliente. La pantalla tendria que tolerar las compras con `compra_id` NULL.
+16. **Guarda al borrar lineas de una compra financiada.** Anular una linea no avisa nada, y
+    por decision de Carlos el total pactado no se ajusta. Falta advertirlo en el modal de
+    eliminacion y ofrecer el camino de renegociacion.
 
 ## Riesgos aceptados (decision consciente, no son pendientes)
 

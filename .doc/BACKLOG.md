@@ -34,3 +34,16 @@ Ordenado por impacto.
    indexada). Los tests de IA crean su propia tabla mínima para esquivarlo.
 9. **Datos de prueba en la DB local compartida:** tickets #65–#69 (motivo "prueba R1" o bici "[DEMO] IA …").
    CLI Taller agregó #59–#64 y #70–#71 (bici "E2E …") y el usuario `e2e.tecnico@kredix.local`.
+
+## Registrado por CLI Principal (hotfix financiar-multiproducto, 2026-10-06)
+
+- **Agrupar el estado de cuenta por compra.** Con `compra_id` ya existe el dato para hacerlo, pero quedó fuera del
+  alcance del hotfix. Hoy una compra de 6 productos sale como 6 renglones sueltos en el PDF del cliente, sin una línea
+  que diga "compra del 11/09: $574,00". Las compras anteriores al hotfix tienen `compra_id` NULL y seguirían renglón
+  por renglón, así que la pantalla tendría que tolerar las dos formas.
+- **Guarda al borrar líneas de una compra financiada.** Hoy `MovimientoCuentaController::destroy()` permite anular
+  cualquier línea de un carrito financiado sin avisar nada. Por decisión de Carlos el total pactado del plan NO cambia
+  (se lee con `withTrashed()`), así que tras anular una línea las cuotas siguen sumando el total original mientras el
+  saldo del cliente baja. Es coherente con "renegociar es explícito", pero el operador no recibe ninguna advertencia.
+  Falta: avisar en el modal de eliminación que la línea pertenece a una compra financiada y que el plan no se ajusta
+  solo, y ofrecer el camino de renegociación.
