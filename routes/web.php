@@ -69,6 +69,8 @@ Route::middleware('auth')->group(function () {
     Route::put('/taller/{ticket}', [TallerController::class, 'update'])->name('taller.update');
     Route::delete('/taller/{ticket}', [TallerController::class, 'destroy'])->name('taller.destroy');
     Route::patch('/taller/{ticket}/marcar-atendido', [TallerController::class, 'marcarAtendido'])->name('taller.marcar-atendido');
+    Route::get('/taller/{ticket}/revision', [TallerController::class, 'revision'])->name('taller.revision');
+    Route::patch('/taller/{ticket}/revision', [TallerController::class, 'guardarRevision'])->name('taller.revision.update');
     Route::patch('/taller/{ticket}/trabajo-realizado', [TallerController::class, 'guardarTrabajoRealizado'])->name('taller.trabajo-realizado');
     Route::post('/taller/{ticket}/fotos/{coleccion}', [TallerController::class, 'subirFotos'])->name('taller.fotos.store');
     Route::post('/taller/{ticket}/repuestos', [TallerController::class, 'agregarRepuesto'])->name('taller.repuestos.store');

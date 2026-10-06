@@ -9,6 +9,7 @@ use App\Models\TicketRepuesto;
 use App\Models\TicketTaller;
 use App\Models\User;
 use App\Services\ImagenUploadService;
+use App\Services\Taller\InformeRevision;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class TallerController extends Controller
 {
-    public function __construct(private ImagenUploadService $imagenUploadService)
+    public function __construct(private ImagenUploadService $imagenUploadService, private InformeRevision $informeRevision)
     {
     }
 
@@ -50,6 +51,16 @@ class TallerController extends Controller
         ];
     }
 
+    // selector de mecanico: solo rol_taller, mas el mecanico actual del ticket
+    // aunque no lo sea (tickets viejos) para que no se pierda al editar
+    private function mecanicosOpciones(?int $mecanicoActualId = null)
+    {
+        return User::where(fn ($q) => $q->where('rol_taller', true)->where('es_oculto', false))
+            ->when($mecanicoActualId, fn ($q) => $q->orWhere('id', $mecanicoActualId))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
     public function index(Request $request)
     {
         $estado = $request->query('estado');
@@ -75,7 +86,17 @@ class TallerController extends Controller
 
         $tickets->getCollection()->transform(fn ($ticket) => $this->ticketResumen($ticket));
 
+        $misTickets = $request->user()->rol_taller
+            ? TicketTaller::with(['cliente:id,nombre', 'mecanico:id,name', 'registradoPor:id,name'])
+                ->where('mecanico_id', $request->user()->id)
+                ->where('estado', 'en_proceso')
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(fn ($ticket) => $this->ticketResumen($ticket))
+            : null;
+
         return Inertia::render('Taller/Index', [
+            'misTickets' => $misTickets,
             'tickets' => $tickets,
             'estado' => $estado,
             'rango' => $rango,
@@ -113,7 +134,7 @@ class TallerController extends Controller
     // ESTE ticket)
     public function pdfAtencion(Request $request, TicketTaller $ticket)
     {
-        $ticket->load(['cliente:id,nombre,telefono', 'mecanico:id,name', 'registradoPor:id,name', 'repuestos']);
+        $ticket->load(['cliente:id,nombre,telefono', 'mecanico:id,name', 'registradoPor:id,name', 'revisadoPor:id,name', 'repuestos']);
 
         // 'print' (1200px, sin recorte) en vez de 'thumb' (200x200 recortado a
         // cuadrado) -- 'thumb' se ve pixelado al estirarse en el reporte.
@@ -223,6 +244,7 @@ class TallerController extends Controller
 
         $pdf = Pdf::loadView('pdf.taller-atencion', [
             'ticket' => $ticket,
+            'revision' => InformeRevision::tieneContenido($ticket->revision_tecnica) ? InformeRevision::resumen($ticket->revision_tecnica) : null,
             'fotosEntrada' => $fotosEntrada,
             'fotosSalida' => $fotosSalida,
             'columnasEntrada' => $columnasEntrada,
@@ -286,7 +308,7 @@ class TallerController extends Controller
     public function create()
     {
         return Inertia::render('Taller/Nuevo', [
-            'mecanicos' => User::where('es_oculto', false)->orderBy('name')->get(['id', 'name']),
+            'mecanicos' => $this->mecanicosOpciones(),
         ]);
     }
 
@@ -350,7 +372,7 @@ class TallerController extends Controller
 
     public function show(TicketTaller $ticket)
     {
-        $ticket->load(['cliente:id,nombre,telefono', 'mecanico:id,name', 'registradoPor:id,name', 'repuestos']);
+        $ticket->load(['cliente:id,nombre,telefono', 'mecanico:id,name', 'registradoPor:id,name', 'revisadoPor:id,name', 'repuestos']);
 
         // mismo orden que el listado (TallerController::index(),
         // orderByDesc('created_at') + orderByDesc('id')) -- comparacion por
@@ -385,8 +407,14 @@ class TallerController extends Controller
                 'repuestos' => $ticket->repuestos,
                 'fotos_entrada' => $this->fotosUrls($ticket, 'entrada'),
                 'fotos_salida' => $this->fotosUrls($ticket, 'salida'),
+                'revision' => InformeRevision::tieneContenido($ticket->revision_tecnica) ? [
+                    ...InformeRevision::resumen($ticket->revision_tecnica),
+                    'revisado_por' => $ticket->revisadoPor?->name,
+                    'revisado_en' => $ticket->revisado_en?->format('d/m/Y H:i'),
+                    'texto' => $this->informeRevision->generarTexto($ticket),
+                ] : null,
             ],
-            'mecanicos' => User::where('es_oculto', false)->orderBy('name')->get(['id', 'name']),
+            'mecanicos' => $this->mecanicosOpciones($ticket->mecanico_id),
             // mismo valor ya usado como razon_social en el PDF de estado de
             // cuenta -- una sola fuente de verdad para el nombre del negocio,
             // editable desde Configuracion sin tocar codigo
@@ -437,7 +465,9 @@ class TallerController extends Controller
             'tipo_servicio' => $esServicioCliente ? $validated['tipo_servicio'] : null,
             'monto_servicio' => $esServicioCliente ? $validated['monto_servicio'] : null,
             'mecanico_id' => $validated['mecanico_id'],
-            'diagnostico' => $validated['diagnostico'] ?? [],
+            // solo si la clave viene -- Show.vue ya no envia el checklist y
+            // un ?? [] aqui borraria el diagnostico de los tickets viejos
+            ...($request->has('diagnostico') ? ['diagnostico' => $validated['diagnostico'] ?? []] : []),
         ]);
 
         return redirect()->route('taller.show', $ticket->id);
@@ -514,12 +544,101 @@ class TallerController extends Controller
         return redirect()->route('taller.show', $ticket->id);
     }
 
+    public function revision(TicketTaller $ticket)
+    {
+        $ticket->load(['cliente:id,nombre', 'mecanico:id,name']);
+        $catalogo = config('taller');
+
+        return Inertia::render('Taller/Revision', [
+            'ticket' => [
+                ...$ticket->only(['id', 'tipo', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica', 'tipo_servicio', 'estado']),
+                'cliente' => $ticket->cliente?->nombre,
+                'mecanico' => $ticket->mecanico?->name,
+                'revision_tecnica' => $ticket->revision_tecnica,
+                'fotos_salida' => count($ticket->getMedia('salida')),
+            ],
+            'catalogo' => [
+                'grupos' => collect($catalogo['grupos'])
+                    ->reject(fn ($g) => ($g['solo_electrica'] ?? false) && ! $ticket->es_electrica)
+                    ->all(),
+                'acciones' => $catalogo['acciones'],
+                'motivos' => $catalogo['motivos'],
+                'tareas' => collect($catalogo['paquetes'][$ticket->tipo_servicio] ?? [])
+                    ->mapWithKeys(fn ($clave) => [$clave => $catalogo['tareas'][$clave]])
+                    ->all(),
+            ],
+        ]);
+    }
+
+    // autoguardado de Revision.vue (axios, JSON) -- reemplaza el JSON completo
+    public function guardarRevision(Request $request, TicketTaller $ticket)
+    {
+        if ($ticket->estado === 'atendido') {
+            return response()->json(['message' => 'El ticket ya esta atendido, la revision no se puede modificar.'], 422);
+        }
+
+        // solo tareas del paquete del ticket y componentes de grupos que aplican
+        // (ebike solo si es_electrica) -- mismo filtro que revision()
+        $tareasPermitidas = config("taller.paquetes.{$ticket->tipo_servicio}", []);
+        $componentesPermitidos = collect(config('taller.grupos'))
+            ->reject(fn ($g) => ($g['solo_electrica'] ?? false) && ! $ticket->es_electrica)
+            ->flatMap(fn ($g) => array_keys($g['componentes']))
+            ->all();
+
+        $validated = $request->validate([
+            'tareas' => ['present', 'array:'.implode(',', $tareasPermitidas)],
+            'tareas.*' => ['boolean'],
+            'componentes' => ['present', 'array:'.implode(',', $componentesPermitidos)],
+            'componentes.*.acciones' => ['present', 'array'],
+            'componentes.*.acciones.*' => [Rule::in(array_keys(config('taller.acciones')))],
+            'componentes.*.motivos' => ['nullable', 'array'],
+            'componentes.*.motivos.*' => [Rule::in(array_keys(config('taller.motivos')))],
+            'componentes.*.nota' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        // texto generado de la revision ANTERIOR -- si trabajo_realizado sigue
+        // siendo ese texto (nadie lo edito a mano), se regenera con cada
+        // guardado; si recepcion ya escribio algo propio, no se pisa
+        $textoAnterior = $this->informeRevision->generarTexto($ticket);
+
+        $ticket->revision_tecnica = [
+            'version' => 1,
+            'tareas' => array_map('boolval', $validated['tareas']),
+            // sin acciones = no revisado = no aparece en el JSON
+            'componentes' => collect($validated['componentes'])
+                ->filter(fn ($c) => ! empty($c['acciones']))
+                ->map(fn ($c) => [
+                    'acciones' => array_values(array_unique($c['acciones'])),
+                    'motivos' => in_array('recomendar', $c['acciones'], true) ? array_values(array_unique($c['motivos'] ?? [])) : [],
+                    'nota' => in_array('recomendar', $c['acciones'], true) ? trim($c['nota'] ?? '') : '',
+                    'origen' => 'manual',
+                ])
+                ->all(),
+        ];
+        // el credito es del mecanico del ticket si el ya toco la revision,
+        // aunque otro guarde despues; si no, de quien guarda
+        if ((int) $ticket->revisado_por !== (int) $ticket->mecanico_id) {
+            $ticket->revisado_por = $request->user()->id;
+        }
+        $ticket->revisado_en = now();
+
+        if (blank($ticket->trabajo_realizado) || $ticket->trabajo_realizado === $textoAnterior) {
+            $ticket->trabajo_realizado = $this->informeRevision->generarTexto($ticket);
+        }
+
+        $ticket->save();
+
+        return response()->json(['ok' => true]);
+    }
+
     public function marcarAtendido(Request $request, TicketTaller $ticket)
     {
         $esServicioCliente = $ticket->tipo === 'servicio_cliente';
 
-        if (blank($ticket->trabajo_realizado)) {
-            return back()->withErrors(['trabajo_realizado' => 'Debes registrar el trabajo realizado antes de marcar el ticket como atendido.']);
+        $tieneRevision = InformeRevision::tieneContenido($ticket->revision_tecnica);
+
+        if (blank($ticket->trabajo_realizado) && ! $tieneRevision) {
+            return back()->withErrors(['trabajo_realizado' => 'Debes hacer la revision tecnica o escribir el trabajo realizado antes de marcar el ticket como atendido.']);
         }
 
         // VIP ya no exige foto de entrada al crear (se agenda antes de ver la
@@ -587,6 +706,9 @@ class TallerController extends Controller
             // en adelante
             abort_if($esServicioCliente && ! $pagadoEnTaller && ! $ticket->movimiento_cuenta_id, 500, 'No se pudo generar el cargo del servicio -- el ticket no se marco como atendido. Intenta de nuevo.');
 
+            if (blank($ticket->trabajo_realizado)) {
+                $ticket->trabajo_realizado = $this->informeRevision->generarTexto($ticket);
+            }
             $ticket->estado = 'atendido';
             $ticket->pagado_en_taller = $pagadoEnTaller;
             $ticket->save();
