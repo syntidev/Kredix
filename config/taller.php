@@ -68,33 +68,34 @@ return [
         'recomendar' => ['chip' => 'Recomendar cambio', 'texto' => 'se recomienda cambio'],
     ],
 
-    // texto para el cliente (GUIA_VOZ_ONBIKE): componente con su articulo y
-    // tarea en primera persona plural -- las etiquetas de arriba siguen siendo
-    // las de la pantalla y el PDF
+    // solo para el texto al cliente (GUIA_VOZ_ONBIKE): texto corto del
+    // componente con su articulo, sin "y" ni comas propias para que cada
+    // enumeracion lleve una sola "y"; y tarea en primera persona plural. Las
+    // etiquetas de arriba siguen siendo las de la pantalla y el PDF
     'componentes_cliente' => [
         'cadena' => 'la cadena',
         'pinones' => 'los piñones',
-        'platos_bielas' => 'los platos y las bielas',
+        'platos_bielas' => 'los platos',
         'cambio_trasero' => 'el cambio trasero',
         'cambio_delantero' => 'el cambio delantero',
-        'guayas_cambio' => 'las guayas y fundas de cambio',
+        'guayas_cambio' => 'las guayas de cambio',
         'pastillas' => 'las pastillas',
         'discos' => 'los discos',
         'mordazas' => 'las mordazas',
-        'sistema_freno' => 'las guayas o el sistema hidráulico de los frenos',
+        'sistema_freno' => 'el sistema de frenos',
         'cauchos' => 'los cauchos',
-        'tripa_tubeless' => 'la tripa o el tubeless',
-        'rayos_centrado' => 'los rayos y el centrado',
+        'tripa_tubeless' => 'la tripa',
+        'rayos_centrado' => 'los rayos',
         'mazas' => 'las mazas',
         'direccion' => 'el juego de dirección',
         'pedalier' => 'la caja de pedalier',
         'cuadro' => 'el cuadro',
         'horquilla' => 'la horquilla',
-        'cockpit' => 'el manubrio, la potencia y la tija',
+        'cockpit' => 'el manubrio',
         'pedales' => 'los pedales',
         'bateria' => 'la batería',
         'motor' => 'el motor',
-        'cableado' => 'los conectores y el cableado',
+        'cableado' => 'el cableado',
     ],
 
     'tareas_cliente' => [

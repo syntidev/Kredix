@@ -74,7 +74,7 @@ function labelEstado(estado) {
     return estado === 'atendido' ? 'Atendido' : 'En proceso';
 }
 
-const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 'Otro' };
+const TIPO_SERVICIO_LABEL = { basico: 'Básico', full: 'Full', vip: 'VIP', otro: 'Otro' };
 
 const CATEGORIA_ICONO = { ruta: Route, mtb: Mountain, otro: Bike };
 const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };

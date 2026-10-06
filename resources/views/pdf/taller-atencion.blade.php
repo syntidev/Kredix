@@ -50,7 +50,7 @@
             }
         }
         $categoriaLabel = ['ruta' => 'Ruta', 'mtb' => 'MTB', 'otro' => 'Otro'];
-        $tipoServicioLabel = ['basico' => 'Basico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro'];
+        $tipoServicioLabel = ['basico' => 'Básico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro'];
         $totalRepuestos = $ticket->totalRepuestos();
         $totalTicket = $ticket->totalTicket();
         // el salto forzado + mini-encabezado de continuidad solo tienen

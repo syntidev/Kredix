@@ -28,49 +28,71 @@ class InformeRevisionTest extends TestCase
             'discos' => $this->c(['ok']),
         ]]);
 
-        $this->assertSame('Le hicimos el servicio Básico a tu bici. Revisamos 2 componentes y están en buen estado.', $texto);
+        $this->assertSame('Le hicimos el servicio Básico a tu bici. Revisamos el resto y está en buen estado.', $texto);
     }
 
-    public function test_con_intervenciones_y_tareas(): void
+    public function test_paquete_completo_en_una_frase_y_cambiados_uno_por_uno(): void
     {
-        $texto = $this->texto('full', [
-            'tareas' => ['lubricar_cadena' => true, 'lavado' => true, 'ajustar_frenos' => false],
+        $texto = $this->texto('basico', [
+            'tareas' => array_fill_keys(config('taller.paquetes.basico'), true),
             'componentes' => [
-                'cadena' => $this->c(['lubricado', 'ajustado']),
-                'pastillas' => $this->c(['cambiado']),
+                'cadena' => $this->c(['cambiado']),
+                'pastillas' => $this->c(['cambiado', 'ajustado']),
                 'discos' => $this->c(['ok']),
             ],
         ]);
 
-        // la tarea "lubricamos la cadena" sobra: el componente ya lo dice
         $this->assertSame(
-            'Le hicimos el servicio Full a tu bici: lavamos la bici, lubricamos y ajustamos la cadena y cambiamos las pastillas. '
-            .'Revisamos 1 componente más y está en buen estado.',
+            'Le hicimos el servicio Básico completo a tu bici. Cambiamos la cadena y las pastillas. Revisamos el resto y está en buen estado.',
             $texto,
         );
     }
 
-    public function test_mismo_verbo_se_agrupa(): void
+    public function test_tareas_parciales_sin_repetir_al_componente(): void
     {
-        $texto = $this->texto('basico', [
-            'tareas' => ['ajustar_frenos' => true, 'ajustar_cambios' => true],
-            'componentes' => ['discos' => $this->c(['ajustado'])],
+        $texto = $this->texto('full', [
+            'tareas' => ['lubricar_cadena' => true, 'lavado' => true, 'ajustar_frenos' => false],
+            'componentes' => ['cadena' => $this->c(['lubricado', 'ajustado'])],
         ]);
 
-        $this->assertSame('Le hicimos el servicio Básico a tu bici: ajustamos los frenos, los cambios y los discos.', $texto);
+        // "lubricamos la cadena" sobra: la frase del componente ya lo dice
+        $this->assertSame('Le hicimos el servicio Full a tu bici: lavamos la bici. Ajustamos y lubricamos la cadena.', $texto);
     }
 
-    public function test_con_recomendaciones_y_sin_paquete(): void
+    public function test_tareas_con_el_mismo_verbo_sin_cadena_de_y(): void
+    {
+        $uno = $this->texto('basico', ['tareas' => ['ajustar_frenos' => true, 'ajustar_cambios' => true], 'componentes' => []]);
+        $dos = $this->texto('full', ['tareas' => ['ajustar_frenos' => true, 'ajustar_cambios' => true, 'lavado' => true], 'componentes' => []]);
+
+        $this->assertSame('Le hicimos el servicio Básico a tu bici: ajustamos los frenos y los cambios.', $uno);
+        $this->assertSame('Le hicimos el servicio Full a tu bici: ajustamos los frenos, los cambios y lavamos la bici.', $dos);
+    }
+
+    public function test_mas_de_tres_ajustes_se_resumen(): void
+    {
+        $texto = $this->texto('full', ['tareas' => [], 'componentes' => [
+            'pinones' => $this->c(['ajustado', 'lubricado']),
+            'cambio_trasero' => $this->c(['ajustado']),
+            'discos' => $this->c(['ajustado']),
+            'pedales' => $this->c(['lubricado']),
+        ]]);
+
+        $this->assertSame('Le hicimos el servicio Full a tu bici. Ajustamos y lubricamos 4 componentes más.', $texto);
+    }
+
+    public function test_seguridad_primero_y_texto_corto_sin_y(): void
     {
         $texto = $this->texto(null, ['tareas' => [], 'componentes' => [
             'pinones' => $this->c(['recomendar'], ['desgaste']),
+            'platos_bielas' => $this->c(['recomendar'], ['holgura']),
             'cauchos' => $this->c(['ajustado', 'recomendar'], ['fisura', 'desgaste'], 'trasero'),
         ]]);
 
         $this->assertSame(
-            'Trabajamos en tu bici: ajustamos los cauchos. '
+            'Trabajamos en tu bici. Ajustamos los cauchos. '
+            .'Por seguridad, te recomendamos no volver a rodar hasta cambiar los cauchos: encontramos fisura o daño. '
             .'Te recomendamos cambiar los piñones en el próximo servicio por desgaste. '
-            .'También te recomendamos cambiar los cauchos por fisura o daño y desgaste.',
+            .'También te recomendamos cambiar los platos por holgura.',
             $texto,
         );
     }
@@ -90,9 +112,9 @@ class InformeRevisionTest extends TestCase
         $this->assertStringNotContainsString('NOTA-LARGA', $texto);
         $this->assertStringNotContainsString('Intervenido', $texto);
         $this->assertStringNotContainsString('sin novedad', $texto);
-        // corta en componente completo: la ultima recomendacion termina entera
-        // justo antes de la linea de omitidos
-        $this->assertStringContainsString('cambiamos, ajustamos, limpiamos y lubricamos la cadena', $texto);
+        // lo de seguridad es lo ultimo que se recorta
+        $this->assertStringContainsString('Por seguridad, te recomendamos no volver a rodar hasta cambiar la cadena', $texto);
+        // corta en componente completo: la ultima frase termina entera antes de los omitidos
         $this->assertMatchesRegularExpression('/fisura o daño y fuga\. …y \d+ componentes más; ver detalle en la revisión técnica\.$/u', $texto);
     }
 
