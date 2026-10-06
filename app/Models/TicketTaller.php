@@ -26,6 +26,9 @@ class TicketTaller extends Model implements HasMedia
         'es_electrica',
         'motivo_ingreso',
         'trabajo_realizado',
+        'revision_tecnica',
+        'revisado_por',
+        'revisado_en',
         'tipo_servicio',
         'domicilio_direccion',
         'monto_servicio',
@@ -42,6 +45,8 @@ class TicketTaller extends Model implements HasMedia
     protected $casts = [
         'monto_servicio' => 'decimal:2',
         'diagnostico' => 'array',
+        'revision_tecnica' => 'array',
+        'revisado_en' => 'datetime',
         'es_electrica' => 'boolean',
         'pagado_en_taller' => 'boolean',
     ];
@@ -59,6 +64,11 @@ class TicketTaller extends Model implements HasMedia
     public function registradoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'registrado_por');
+    }
+
+    public function revisadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'revisado_por');
     }
 
     public function repuestos(): HasMany

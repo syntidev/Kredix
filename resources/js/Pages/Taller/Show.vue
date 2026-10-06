@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
-import { AlertTriangle, Check, Crown, Download, FileText, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
+import { ClipboardCheck, Crown, Download, FileText, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
@@ -97,7 +97,6 @@ const editForm = useForm({
     tipo_servicio: props.ticket.tipo_servicio ?? 'basico',
     monto_servicio: props.ticket.monto_servicio,
     mecanico_id: props.ticket.mecanico_id,
-    diagnostico: props.ticket.diagnostico?.length ? props.ticket.diagnostico.map((d) => ({ ...d })) : [],
 });
 
 // --- reasignar cliente (mismo patron de buscador que Taller/Nuevo.vue),
@@ -201,13 +200,6 @@ function doEliminarTicket() {
     });
 }
 
-function toggleItem(i, estado) {
-    editForm.diagnostico[i].estado = estado;
-    if (estado === 'bien') {
-        editForm.diagnostico[i].nota = '';
-    }
-}
-
 // feedback visual de exito, generico y transitorio -- mismo texto breve que
 // desaparece solo, usado por todas las acciones de guardar de esta pantalla
 // (no existe un componente de toast en el resto del sistema; el patron ya
@@ -300,6 +292,12 @@ function guardarTrabajoRealizado() {
     });
 }
 
+// reemplaza el texto del cuadro con el informe de la revision -- queda
+// editable, no se guarda hasta tocar Guardar
+function generarDesdeRevision() {
+    trabajoRealizadoForm.trabajo_realizado = props.ticket.revision.texto;
+}
+
 // --- fotos: mismo endpoint generico sirve para ambas colecciones
 // (entrada/salida), sin limite de MediaLibrary -- se puede agregar en
 // cualquier momento, no solo al crear el ticket ---
@@ -374,6 +372,8 @@ function marcarAtendido() {
     errorAtendido.value = '';
     router.patch(`/taller/${props.ticket.id}/marcar-atendido`, esServicioCliente.value ? { pagado_en_taller: pagadoEnTaller.value } : {}, {
         preserveScroll: true,
+        // el cierre puede generar el texto desde la revision -- reflejarlo en el cuadro
+        onSuccess: () => (trabajoRealizadoForm.trabajo_realizado = props.ticket.trabajo_realizado ?? ''),
         onError: (errors) => {
             errorAtendido.value = errors.trabajo_realizado ?? errors.fotos_entrada ?? errors.fotos_salida ?? errors.pagado_en_taller ?? 'No se pudo marcar como atendido.';
         },
@@ -382,7 +382,8 @@ function marcarAtendido() {
 
 const faltaFotoEntrada = computed(() => props.ticket.fotos_entrada.length === 0);
 const faltaFotoSalida = computed(() => props.ticket.fotos_salida.length === 0);
-const faltaTrabajoRealizado = computed(() => !props.ticket.trabajo_realizado?.trim());
+// revision con al menos 1 accion basta: el backend genera el texto al cerrar
+const faltaTrabajoRealizado = computed(() => !props.ticket.trabajo_realizado?.trim() && !props.ticket.revision);
 const faltaPagoElegido = computed(() => esServicioCliente.value && pagadoEnTaller.value === null);
 const puedeMarcarAtendido = computed(() => !faltaFotoEntrada.value && !faltaFotoSalida.value && !faltaTrabajoRealizado.value && !faltaPagoElegido.value);
 
@@ -392,7 +393,7 @@ const puedeMarcarAtendido = computed(() => !faltaFotoEntrada.value && !faltaFoto
 // frontend no la mostraba como razon de bloqueo)
 const itemsFaltantesParaCerrar = computed(() => {
     const items = [];
-    if (faltaTrabajoRealizado.value) items.push('registrar el trabajo realizado');
+    if (faltaTrabajoRealizado.value) items.push('hacer la revision tecnica o registrar el trabajo realizado');
     if (faltaFotoEntrada.value) items.push('subir al menos 1 foto de entrada');
     if (faltaFotoSalida.value) items.push('subir al menos 1 foto de salida');
     if (faltaPagoElegido.value) items.push('indicar si se pago en el momento');
@@ -464,6 +465,14 @@ const itemsFaltantesParaCerrar = computed(() => {
         </div>
         <p v-if="errorAtendido" class="text-sm text-kredix-rojo">{{ errorAtendido }}</p>
 
+        <Link
+            :href="`/taller/${ticket.id}/revision`"
+            class="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-base font-semibold text-white shadow-card active:opacity-80"
+        >
+            <ClipboardCheck :size="20" />
+            Revision tecnica
+        </Link>
+
         <div v-if="!atendido && esServicioCliente" class="flex flex-col gap-1 rounded-xl border border-gray-200 bg-white p-3">
             <label class="text-sm font-medium text-kredix-negro">¿Se pago en el momento?</label>
             <div class="flex gap-2">
@@ -512,9 +521,20 @@ const itemsFaltantesParaCerrar = computed(() => {
                 </p>
                 <p class="text-sm text-kredix-gris">Mecanico: {{ ticket.mecanico?.name }} · Registrado por: {{ ticket.registrado_por?.name }}</p>
 
-                <div class="flex flex-col gap-2">
-                    <p class="text-sm font-medium text-kredix-negro">Diagnostico</p>
-                    <p v-if="!ticket.diagnostico?.length" class="text-sm text-kredix-gris">Sin items marcados.</p>
+                <div v-if="ticket.revision" class="flex flex-col gap-2">
+                    <p class="text-sm font-medium text-kredix-negro">Revision tecnica</p>
+                    <div v-for="i in ticket.revision.intervenidos" :key="'i' + i.componente" class="rounded-lg bg-blue-50 p-2 text-sm text-blue-800">
+                        <span class="font-medium">{{ i.componente }}:</span> {{ i.acciones.join(', ') }}
+                    </div>
+                    <div v-for="r in ticket.revision.recomendados" :key="'r' + r.componente" class="rounded-lg bg-amber-50 p-2 text-sm text-amber-800">
+                        <span class="font-medium">{{ r.componente }}:</span> se recomienda cambio<span v-if="r.motivos.length"> ({{ r.motivos.join(', ') }})</span><span v-if="r.nota"> — {{ r.nota }}</span>
+                    </div>
+                    <p v-if="ticket.revision.ok" class="text-sm text-green-700">{{ ticket.revision.ok }} {{ ticket.revision.ok === 1 ? 'componente quedo OK' : 'componentes quedaron OK' }}</p>
+                    <p class="text-xs text-kredix-gris">Revisado por {{ ticket.revision.revisado_por ?? '-' }} el {{ ticket.revision.revisado_en }}</p>
+                </div>
+
+                <div v-if="ticket.diagnostico?.length" class="flex flex-col gap-2">
+                    <p class="text-sm font-medium text-kredix-negro">Observaciones al recibir (formato anterior)</p>
                     <div v-for="d in ticket.diagnostico" :key="d.item" class="rounded-lg bg-gray-50 p-2 text-sm">
                         <span class="font-medium text-kredix-negro">{{ d.item }}:</span>
                         <span :class="d.estado === 'atencion' ? 'text-amber-700' : 'text-green-700'">{{ d.estado === 'atencion' ? 'Requiere atencion' : 'Bien' }}</span>
@@ -634,45 +654,6 @@ const itemsFaltantesParaCerrar = computed(() => {
                     </select>
                 </div>
 
-                <div class="flex flex-col gap-2">
-                    <label class="text-sm font-medium text-kredix-negro">Diagnostico</label>
-                    <div v-for="(d, i) in editForm.diagnostico" :key="d.item" class="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
-                        <div class="flex items-center justify-between gap-2">
-                            <span class="text-sm font-medium text-kredix-negro">{{ d.item }}</span>
-                            <div class="inline-flex shrink-0 rounded-lg border border-gray-300 p-0.5">
-                                <button
-                                    type="button"
-                                    class="flex min-h-9 items-center gap-1 rounded-md px-2.5 text-xs font-semibold transition-colors"
-                                    :class="d.estado === 'bien' ? 'bg-green-600 text-white' : 'text-kredix-gris'"
-                                    @click="toggleItem(i, 'bien')"
-                                >
-                                    <Check :size="14" />
-                                    Bien
-                                </button>
-                                <button
-                                    type="button"
-                                    class="flex min-h-9 items-center gap-1 rounded-md px-2.5 text-xs font-semibold transition-colors"
-                                    :class="d.estado === 'atencion' ? 'bg-amber-500 text-white' : 'text-kredix-gris'"
-                                    @click="toggleItem(i, 'atencion')"
-                                >
-                                    <AlertTriangle :size="14" />
-                                    Requiere atencion
-                                </button>
-                            </div>
-                        </div>
-                        <Transition
-                            enter-active-class="transition duration-150 ease-out"
-                            enter-from-class="opacity-0 -translate-y-1"
-                            enter-to-class="opacity-100 translate-y-0"
-                            leave-active-class="transition duration-100 ease-in"
-                            leave-from-class="opacity-100 translate-y-0"
-                            leave-to-class="opacity-0 -translate-y-1"
-                        >
-                            <textarea v-if="d.estado === 'atencion'" v-model="d.nota" rows="2" class="rounded-lg border border-gray-300 px-3 py-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
-                        </Transition>
-                    </div>
-                </div>
-
                 <div class="flex gap-2">
                     <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="editando = false">Cancelar</button>
                     <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="editForm.processing">Guardar</button>
@@ -733,7 +714,17 @@ const itemsFaltantesParaCerrar = computed(() => {
         </div>
 
         <div class="flex flex-col gap-2 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
-            <h2 class="font-medium text-kredix-negro">Trabajo realizado</h2>
+            <div class="flex items-center justify-between gap-2">
+                <h2 class="font-medium text-kredix-negro">Trabajo realizado</h2>
+                <button
+                    v-if="ticket.revision"
+                    type="button"
+                    class="min-h-11 rounded-lg border border-blue-600 px-3 text-sm font-medium text-blue-700 active:bg-blue-50"
+                    @click="generarDesdeRevision"
+                >
+                    Generar desde la revision
+                </button>
+            </div>
             <form class="flex flex-col gap-2" @submit.prevent="guardarTrabajoRealizado">
                 <textarea
                     v-model="trabajoRealizadoForm.trabajo_realizado"

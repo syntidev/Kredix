@@ -131,6 +131,47 @@
         </table>
     </div>
 
+    @if ($revision)
+        <h2>Revisión técnica</h2>
+        <table class="repuestos">
+            <thead>
+                <tr>
+                    <th>Componente</th>
+                    <th>Acciones</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($revision['intervenidos'] as $fila)
+                    <tr>
+                        <td>{{ $fila['componente'] }}</td>
+                        <td>{{ implode(', ', $fila['acciones']) }}</td>
+                        <td>Intervenido</td>
+                    </tr>
+                @endforeach
+                @foreach ($revision['recomendados'] as $fila)
+                    <tr>
+                        <td>{{ $fila['componente'] }}</td>
+                        <td>se recomienda cambio{{ $fila['motivos'] ? ' ('.implode(', ', $fila['motivos']).')' : '' }}</td>
+                        <td>Recomendado</td>
+                    </tr>
+                @endforeach
+                @if ($revision['ok'])
+                    <tr>
+                        <td colspan="3">{{ $revision['ok'] }} {{ $revision['ok'] === 1 ? 'componente revisado' : 'componentes revisados' }} sin novedad</td>
+                    </tr>
+                @endif
+            </tbody>
+        </table>
+        @if ($revision['recomendados'])
+            <h2>Recomendaciones</h2>
+            @foreach ($revision['recomendados'] as $fila)
+                <p class="nota">{{ $fila['componente'] }}{{ $fila['motivos'] ? ' — '.implode(', ', $fila['motivos']) : '' }}: se recomienda cambio en el próximo servicio{{ $fila['nota'] !== '' ? ' ('.$fila['nota'].')' : '' }}.</p>
+            @endforeach
+        @endif
+        <p class="nota">Revisado por: {{ $ticket->revisadoPor->name ?? '-' }}{{ $ticket->revisado_en ? ' el '.$ticket->revisado_en->format('d/m/Y H:i') : '' }}</p>
+    @endif
+
     <table class="resumen-arriba">
         <tr>
             <td>
