@@ -9,7 +9,12 @@
 - **Stack real:** Laravel 12.x + Inertia + Vue 3 + Tailwind v3 (bajado de v4 por
   incompatibilidad con Breeze) + Spatie MediaLibrary + Spatie ActivityLog + Breeze
   (self-signup deshabilitado)
-- **Repo:** github.com/syntidev/kredix, rama `main` en `849ff80`
+- **Repo:** github.com/syntidev/kredix, rama `main` en `7316a08`
+- **Produccion (VPS):** codigo en `5fd2f3e`
+- **REGLA — no confundir los dos hashes:** Produccion = ultimo hash de CODIGO
+  desplegado (hoy `5fd2f3e`). `main` puede llevar commits solo de documentacion por
+  delante. Si `main` y el VPS difieren, comparar primero *que* commits son: si todos
+  son de `.doc/`, no hay nada que desplegar.
 - **Local:** `C:\laragon\www\kredix`, MySQL real
 - **VPS:** `/var/www/kredix`, MySQL dedicado, Nginx con SSL (Cloudflare Origin
   Certificate, modo Full — NO strict, otros sitios del VPS no lo soportarian)
@@ -17,12 +22,18 @@
 - **Volumen desde la ultima actualizacion de este archivo:** 221 commits entre
   2026-09-09 y 2026-10-06. Este documento estuvo casi un mes desactualizado — lo que
   sigue es el resumen por modulo, no el detalle commit por commit.
-- **Worktrees activos (4):**
-  - `kredix` → `main` (849ff80)
-  - `kredix-ia` → `feat/ia-cliente` (Taller SMART Fase 0, en construccion)
-  - `kredix-taller` → `feat/taller-revision` (Taller SMART Fase 1, en construccion)
-  - `kredix-estetica` / `kredix-funcional` → ramas ya mergeadas, pendientes de borrar
-    (ver Housekeeping)
+- **Worktrees (verificado el 06/10 con `git worktree list` + `merge-base`):**
+  - `kredix` → `main` (`7316a08`), al dia
+  - `kredix-ia` → `feat/ia-cliente` (`5fd2f3e`). **Tiene todo el codigo de `main`**; lo
+    unico que le falta es `7316a08`, que es solo documentacion — o sea, sincronizada
+    por la regla de arriba
+  - `kredix-taller` → `feat/taller-entrega-a` (`d6a0309`), Entrega A: "que le llega al
+    cliente". **OJO: su base es `8d9e2ac` y NO contiene el hotfix `5fd2f3e`.** El merge
+    sale limpio (`git merge-tree` sin conflictos), pero la rama nunca se probo con el
+    codigo del hotfix. Conviene mergear `main` en ella antes de certificarla
+  - `kredix-estetica` (`7e74be0`) / `kredix-funcional` (`9db7dbf`) → ramas ya mergeadas,
+    pendientes de borrar (ver Housekeeping)
+- **Migraciones:** 61 aplicadas, 0 pendientes en local (`migrate:status`, 06/10)
 
 ## Regla del Policia — estado real
 
