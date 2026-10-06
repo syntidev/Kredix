@@ -2,7 +2,7 @@
 
 **Estado:** APROBADO por Carlos el 2026-10-06 ("adelante con todo desde ya").
 **Reemplaza** la sección de fases de `DISENO_TALLER_REVISION_TECNICA.md`. El diagnóstico de ese documento sigue vigente.
-**Arquitecto:** Claude Web · **Ejecución:** CLI-A · **Deploy:** Carlos (manual)
+**Arquitecto:** Claude Web · **Ejecución:** CLI-A (Taller), CLI-C (IA), CLI principal (revisión y documentación) · **Deploy:** Carlos (manual)
 
 ---
 
@@ -22,24 +22,39 @@ Cinco momentos SMART:
 
 ---
 
+## Organización del trabajo
+
+| Carpeta | Rama | Agente | Rol |
+|---|---|---|---|
+| `C:\laragon\www\kredix` | `main` | CLI principal | Arreglos urgentes de producción, documentación y revisión de código antes de cada merge |
+| `C:\laragon\www\kredix-taller` | `feat/taller-revision` | CLI-A | Fase 1: revisión técnica |
+| `C:\laragon\www\kredix-ia` | `feat/ia-cliente` | CLI-C | Fase 0: cliente de IA y elección de modelos |
+
+**Orden de merge:** primero `feat/ia-cliente`, después `feat/taller-revision`. Antes de cada merge, revisión independiente del CLI principal.
+
+---
+
 ## Fases
 
 ### Fase 0 — Cimientos (en paralelo con la Fase 1)
 
-| # | Tarea | Responsable | Criterio de cierre |
-|---|---|---|---|
-| 0.1 | Enviar la lista de modelos disponibles en la cuenta NVIDIA | Carlos | Lista pegada en el chat |
-| 0.2 | Elegir los modelos: texto (estructurar y redactar en español), voz a texto en español y, más adelante, visión | Claude Web | Decisión documentada con justificación |
-| 0.3 | Cliente de IA en Laravel + comando `ia:probar` | CLI-A | `php artisan ia:probar` responde desde local y desde el VPS, con latencia medida |
-| 0.4 | Grabar 5 dictados reales de 30 a 60 segundos en el taller, con el ruido real | Carlos / técnicos | 5 audios disponibles |
-| 0.5 | Validar en 15 minutos con Carlos Rojas y Kleiver la lista de componentes y el contenido de cada paquete (`config/taller.php`) | Carlos | Lista corregida devuelta |
-| 0.6 | Teléfono o tablet fijo en el puesto de trabajo | Carlos | Dispositivo instalado con sesión del técnico |
-| 0.7 | Prueba de voz: audios → transcripción → JSON de revisión | CLI-A + Claude Web | Al menos 4 de 5 dictados bien estructurados, o la voz se descarta como captura principal |
+| # | Tarea | Responsable | Criterio de cierre | Estado |
+|---|---|---|---|---|
+| 0.1 | Lista de modelos de la cuenta NVIDIA | Carlos | Lista pegada en el chat | ✅ Hecho |
+| 0.2 | Candidatos de texto: deepseek-v4.1-flash, glm-5-3-flash y nemotron-3.5-lightning (respaldo); decide la prueba comparativa | Claude Web + CLI-C | Tabla comparativa con datos | En curso |
+| 0.3 | Cliente de IA en Laravel + `ia:modelos` / `ia:probar` / `ia:estructurar` | CLI-C | Responde desde local, con latencia medida | En curso |
+| 0.4a | Dictados **simulados** por Carlos (las 6 frases, con ruido de fondo) | Carlos | Señal preliminar de la voz | Pendiente |
+| 0.4b | Dictados **reales** en el taller | Técnicos | 5 audios | **Requisito antes del entrenamiento** |
+| 0.5 | Validar la lista de componentes y paquetes con Carlos Rojas y Kleiver | Carlos | Lista corregida | **Requisito antes del entrenamiento** |
+| 0.6 | Teléfono o tablet fijo en el puesto de trabajo | Carlos | Dispositivo instalado | **Requisito antes del entrenamiento** |
+| 0.7 | Prueba de voz: audios → transcripción → JSON | CLI-C + Claude Web | Al menos 4 de 5 bien estructurados (con los dictados reales) | Pendiente |
+
+**Requisito antes del entrenamiento:** la Fase 1 se puede construir, unir y probar Carlos solo. Lo que no se hace es entrenar a los técnicos ni declarar la fase en uso real sin cerrar 0.4b, 0.5 y 0.6. Un catálogo que no habla el idioma del taller se ignora.
 
 ### Fase 1 — Revisión técnica estructurada (la base de todo)
 
 - Nueva columna `revision_tecnica` (JSON) + `revisado_por` + `revisado_en`.
-- Catálogo de componentes, acciones, motivos y paquetes en `config/taller.php` (borrador hasta que se cierre la tarea 0.5).
+- Catálogo de componentes, acciones, motivos y paquetes en `config/taller.php` (borrador hasta que se cierre la tarea 0.5). Las claves son las mismas que usa CLI-C para la IA.
 - Pantalla `Taller/Revision.vue` para el celular:
   - botones grandes, guardado automático, botón "Todo OK" por grupo;
   - cámara directa para la foto de salida.
@@ -48,7 +63,7 @@ Cinco momentos SMART:
 - Requisito de cierre: una revisión con al menos 1 acción **o** texto manual.
 - PDF: tabla "Revisión técnica", "Recomendaciones" y "Revisado por".
 - Se quita el checklist del alta de recepción. Los tickets viejos siguen viéndose igual.
-- **Métrica:** al menos 50% de tickets nuevos con `revisado_por = mecanico_id` en 2 semanas. Hoy es 0%.
+- **Métrica:** al menos 50% de tickets nuevos con `revisado_por = mecanico_id`, medido 2 semanas **después del entrenamiento** (no del deploy). Hoy es 0%.
 
 ### Fase 2 — IA en la captura y en el informe
 
@@ -62,7 +77,8 @@ Cinco momentos SMART:
 - **Pendientes de la visita anterior:** al crear un ticket y al abrir la revisión aparece, por ejemplo, "Recomendado el 12/09: cambio de piñones (desgaste)".
 - **Próximo servicio sugerido:** reglas basadas en el historial (recomendaciones pendientes + tiempo desde el último servicio). La IA redacta el mensaje.
 - **Recordatorio por WhatsApp:** reutiliza el deep link y las plantillas que ya existen.
-- [Seguro] Con unos 20 tickets históricos no hay datos para un modelo estadístico real. La predicción empieza basada en reglas y en el historial, y se vuelve estadística cuando haya cientos de servicios. No se promete más que eso.
+- **Evaluar Kumo Tabular / Kumo Relational (NVIDIA)** para predicción en **cobranza**: 428 clientes y miles de movimientos. Podría ayudar con la fórmula de "buen/mal pagador" que hoy bloquea el KPI. [Suposición] No conocemos todavía su API ni su precisión.
+- [Seguro] Con unos 20 tickets históricos no hay datos para un modelo estadístico real en Taller. La predicción empieza basada en reglas y en el historial, y se vuelve estadística cuando haya cientos de servicios. No se promete más que eso.
 
 ### Fase 4 — Seguimiento en vivo y etapas
 
@@ -73,7 +89,7 @@ Cinco momentos SMART:
 
 ### Fase 5 — Exploratoria
 
-- Visión por IA sobre las fotos (describir daños visibles). Solo si las fases anteriores funcionan y el modelo demuestra precisión real.
+- Visión por IA sobre las fotos (describir daños visibles). Solo si las fases anteriores funcionan y el modelo demuestra precisión real. deepseek-v4.1-flash acepta imágenes, así que no habría que cambiar de proveedor.
 
 ---
 
@@ -82,14 +98,18 @@ Cinco momentos SMART:
 | Riesgo | Mitigación |
 |---|---|
 | Ruido del taller degrada la voz | La prueba 0.7 decide antes de construir; los botones de la Fase 1 siempre quedan como respaldo |
-| [Suposición] Los modelos de voz de NVIDIA podrían requerir gRPC (Riva) y no REST simple | Se verifica en 0.3/0.7. Alternativa: dictado nativo del navegador en Chrome Android + modelo de texto en NVIDIA |
-| La IA inventa trabajos no realizados | Prompt restringido al JSON de la revisión + aprobación humana obligatoria |
+| [Suposición] Los modelos de voz de NVIDIA podrían requerir gRPC (Riva) y no REST simple. parakeet-tdt-0.6b aparece como "Downloadable", sin "Free Endpoint" | CLI-C lo investiga (Tarea 3). Alternativa: dictado nativo del navegador en Chrome Android + modelo de texto en NVIDIA |
+| Endpoints gratis de NVIDIA con límites de uso o condiciones solo para desarrollo | Revisar las condiciones de la cuenta antes de la Fase 2 en producción |
+| La IA inventa trabajos no realizados | Prompt restringido al JSON de la revisión + validación de claves en PHP + aprobación humana obligatoria |
 | El técnico igual no lo usa | La misma pantalla sirve a recepción, así que el peor caso no es peor que hoy. Si la métrica de la Fase 1 no se mueve, el problema es operativo |
 | Romper la paginación del PDF, ya estabilizada | Verificación visual obligatoria contra los tickets reales #7, #13 y #24 |
+| La API key de NVIDIA quedó escrita en el chat | Generar una nueva cuando todo funcione y actualizar el `.env` |
 
 ---
 
 ## Bitácora de decisiones
 
 - 2026-10-06 — Fase 1 aprobada con sus 5 decisiones: columna nueva `revision_tecnica`, checklist fuera del alta, nuevo requisito de cierre, catálogo como config y revisión en el PDF.
-- 2026-10-06 — Proveedor de IA: NVIDIA (cuenta de Carlos). El modelo se elige en 0.2.
+- 2026-10-06 — Proveedor de IA: NVIDIA (cuenta de Carlos). El modelo de texto se decide con prueba comparativa entre 3 candidatos.
+- 2026-10-06 — Trabajo en paralelo con git worktrees: `kredix-taller` (CLI-A), `kredix-ia` (CLI-C); `main` queda limpia para producción.
+- 2026-10-06 — Carlos no tiene acceso al taller por ahora: él prueba solo; la validación con técnicos, los dictados reales y el dispositivo pasan a ser requisito antes del entrenamiento.
