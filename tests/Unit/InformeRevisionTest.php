@@ -28,7 +28,7 @@ class InformeRevisionTest extends TestCase
             'discos' => $this->c(['ok']),
         ]]);
 
-        $this->assertSame("Servicio Basico.\nRevisado sin novedad: 2 componentes.", $texto);
+        $this->assertSame('Le hicimos el servicio Básico a tu bici. Revisamos 2 componentes y están en buen estado.', $texto);
     }
 
     public function test_con_intervenciones_y_tareas(): void
@@ -42,12 +42,22 @@ class InformeRevisionTest extends TestCase
             ],
         ]);
 
+        // la tarea "lubricamos la cadena" sobra: el componente ya lo dice
         $this->assertSame(
-            "Servicio Full.\nTareas realizadas: Lubricar cadena; Lavado.\n"
-            ."Intervenido: Cadena (lubricación y ajuste); Pastillas/Zapatas (cambio).\n"
-            .'Revisado sin novedad: 1 componente.',
+            'Le hicimos el servicio Full a tu bici: lavamos la bici, lubricamos y ajustamos la cadena y cambiamos las pastillas. '
+            .'Revisamos 1 componente más y está en buen estado.',
             $texto,
         );
+    }
+
+    public function test_mismo_verbo_se_agrupa(): void
+    {
+        $texto = $this->texto('basico', [
+            'tareas' => ['ajustar_frenos' => true, 'ajustar_cambios' => true],
+            'componentes' => ['discos' => $this->c(['ajustado'])],
+        ]);
+
+        $this->assertSame('Le hicimos el servicio Básico a tu bici: ajustamos los frenos, los cambios y los discos.', $texto);
     }
 
     public function test_con_recomendaciones_y_sin_paquete(): void
@@ -58,9 +68,9 @@ class InformeRevisionTest extends TestCase
         ]]);
 
         $this->assertSame(
-            "Intervenido: Cauchos (ajuste).\n"
-            .'Recomendaciones: Piñones/Cassette — desgaste: se recomienda cambio en el próximo servicio; '
-            .'Cauchos — fisura/daño, desgaste: se recomienda cambio en el próximo servicio.',
+            'Trabajamos en tu bici: ajustamos los cauchos. '
+            .'Te recomendamos cambiar los piñones en el próximo servicio por desgaste. '
+            .'También te recomendamos cambiar los cauchos por fisura o daño y desgaste.',
             $texto,
         );
     }
@@ -78,9 +88,12 @@ class InformeRevisionTest extends TestCase
         $this->assertCount(23, $componentes);
         $this->assertLessThanOrEqual(InformeRevision::TOPE_TEXTO, mb_strlen($texto));
         $this->assertStringNotContainsString('NOTA-LARGA', $texto);
-        $this->assertMatchesRegularExpression('/…y \d+ componentes más; ver detalle en la revisión técnica\.$/u', $texto);
-        // corta en componente completo: ninguna entrada queda a medias
-        $this->assertStringContainsString('Intervenido: Cadena (cambio, ajuste, limpieza y lubricación)', $texto);
+        $this->assertStringNotContainsString('Intervenido', $texto);
+        $this->assertStringNotContainsString('sin novedad', $texto);
+        // corta en componente completo: la ultima recomendacion termina entera
+        // justo antes de la linea de omitidos
+        $this->assertStringContainsString('cambiamos, ajustamos, limpiamos y lubricamos la cadena', $texto);
+        $this->assertMatchesRegularExpression('/fisura o daño y fuga\. …y \d+ componentes más; ver detalle en la revisión técnica\.$/u', $texto);
     }
 
     public function test_componente_sin_acciones_no_cuenta_como_contenido(): void

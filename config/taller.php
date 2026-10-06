@@ -61,11 +61,51 @@ return [
     // chip = boton en pantalla, texto = sustantivo para el informe
     'acciones' => [
         'ok' => ['chip' => 'OK', 'texto' => 'revisado sin novedad'],
-        'ajustado' => ['chip' => 'Ajustado', 'texto' => 'ajuste'],
-        'lubricado' => ['chip' => 'Lubricado', 'texto' => 'lubricación'],
-        'limpiado' => ['chip' => 'Limpiado', 'texto' => 'limpieza'],
-        'cambiado' => ['chip' => 'Cambiado', 'texto' => 'cambio'],
+        'ajustado' => ['chip' => 'Ajustado', 'texto' => 'ajuste', 'verbo' => 'ajustamos'],
+        'lubricado' => ['chip' => 'Lubricado', 'texto' => 'lubricación', 'verbo' => 'lubricamos'],
+        'limpiado' => ['chip' => 'Limpiado', 'texto' => 'limpieza', 'verbo' => 'limpiamos'],
+        'cambiado' => ['chip' => 'Cambiado', 'texto' => 'cambio', 'verbo' => 'cambiamos'],
         'recomendar' => ['chip' => 'Recomendar cambio', 'texto' => 'se recomienda cambio'],
+    ],
+
+    // texto para el cliente (GUIA_VOZ_ONBIKE): componente con su articulo y
+    // tarea en primera persona plural -- las etiquetas de arriba siguen siendo
+    // las de la pantalla y el PDF
+    'componentes_cliente' => [
+        'cadena' => 'la cadena',
+        'pinones' => 'los piñones',
+        'platos_bielas' => 'los platos y las bielas',
+        'cambio_trasero' => 'el cambio trasero',
+        'cambio_delantero' => 'el cambio delantero',
+        'guayas_cambio' => 'las guayas y fundas de cambio',
+        'pastillas' => 'las pastillas',
+        'discos' => 'los discos',
+        'mordazas' => 'las mordazas',
+        'sistema_freno' => 'las guayas o el sistema hidráulico de los frenos',
+        'cauchos' => 'los cauchos',
+        'tripa_tubeless' => 'la tripa o el tubeless',
+        'rayos_centrado' => 'los rayos y el centrado',
+        'mazas' => 'las mazas',
+        'direccion' => 'el juego de dirección',
+        'pedalier' => 'la caja de pedalier',
+        'cuadro' => 'el cuadro',
+        'horquilla' => 'la horquilla',
+        'cockpit' => 'el manubrio, la potencia y la tija',
+        'pedales' => 'los pedales',
+        'bateria' => 'la batería',
+        'motor' => 'el motor',
+        'cableado' => 'los conectores y el cableado',
+    ],
+
+    'tareas_cliente' => [
+        'lubricar_cadena' => 'lubricamos la cadena',
+        'ajustar_frenos' => 'ajustamos los frenos',
+        'ajustar_cambios' => 'ajustamos los cambios',
+        'presion_cauchos' => 'calibramos la presión de los cauchos',
+        'limpieza_transmision' => 'limpiamos la transmisión',
+        'centrado_ruedas' => 'centramos las ruedas',
+        'revision_rolineras' => 'revisamos las rolineras',
+        'lavado' => 'lavamos la bici',
     ],
 
     'motivos' => [

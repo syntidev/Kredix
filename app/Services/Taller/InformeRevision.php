@@ -9,7 +9,7 @@ use App\Models\TicketTaller;
 // el resumen de Show.vue y la tabla del PDF.
 class InformeRevision
 {
-    private const PAQUETE_LABEL = ['basico' => 'Basico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro'];
+    private const PAQUETE_LABEL = ['basico' => 'Básico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro'];
 
     // clave => etiqueta de todos los grupos, plano
     public static function componentes(): array
@@ -32,7 +32,7 @@ class InformeRevision
 
         foreach (config('taller.tareas') as $clave => $etiqueta) {
             if ($revision['tareas'][$clave] ?? false) {
-                $resumen['tareas'][] = $etiqueta;
+                $resumen['tareas'][$clave] = $etiqueta;
             }
         }
 
@@ -47,12 +47,15 @@ class InformeRevision
 
             if ($hechas) {
                 $resumen['intervenidos'][] = [
+                    'clave' => $clave,
+                    'hechas' => $hechas,
                     'componente' => $etiqueta,
                     'acciones' => array_map(fn ($a) => $acciones[$a]['texto'] ?? $a, $hechas),
                 ];
             }
             if (in_array('recomendar', $c['acciones'] ?? [], true)) {
                 $resumen['recomendados'][] = [
+                    'clave' => $clave,
                     'componente' => $etiqueta,
                     'motivos' => array_map(fn ($m) => mb_strtolower($motivos[$m] ?? $m), $c['motivos'] ?? []),
                     'nota' => trim($c['nota'] ?? ''),
@@ -85,38 +88,60 @@ class InformeRevision
         return $texto;
     }
 
+    // tono de .doc/GUIA_VOZ_ONBIKE.md: primera persona plural, tuteo, sin
+    // "Intervenido" ni "Revisado sin novedad"
     private function armarTexto(TicketTaller $t, array $r, int $omitidos): string
     {
-        $lineas = [];
+        $nombres = config('taller.componentes_cliente');
+        $acciones = config('taller.acciones');
+        $bici = trim((string) $t->bici_marca_modelo) ?: 'bici';
+        $frases = [];
 
-        if ($t->tipo_servicio) {
-            $lineas[] = 'Servicio '.(self::PAQUETE_LABEL[$t->tipo_servicio] ?? $t->tipo_servicio).'.';
+        // [verbos, objeto] -- tareas ("lubricamos" + "la cadena") y componentes
+        // ("lubricamos y ajustamos" + "la cadena")
+        $pares = [];
+        foreach (array_keys($r['tareas']) as $clave) {
+            $pares[] = explode(' ', config("taller.tareas_cliente.$clave"), 2);
         }
-        if ($r['tareas']) {
-            $lineas[] = 'Tareas realizadas: '.implode('; ', $r['tareas']).'.';
+        foreach ($r['intervenidos'] as $i) {
+            $verbos = array_map(fn ($a) => $acciones[$a]['verbo'] ?? $a, $i['hechas']);
+            $objeto = $nombres[$i['clave']] ?? $i['componente'];
+            // la tarea que ya dice lo mismo que el componente sobra
+            $pares = array_values(array_filter($pares, fn ($p) => ! ($p[1] === $objeto && in_array($p[0], $verbos, true))));
+            $pares[] = [self::unirConY($verbos), $objeto];
         }
-        if ($r['intervenidos']) {
-            $lineas[] = 'Intervenido: '.implode('; ', array_map(
-                fn ($i) => "{$i['componente']} (".self::unirConY($i['acciones']).')',
-                $r['intervenidos'],
-            )).'.';
+        // mismo verbo junto: "ajustamos los frenos y los cambios"
+        $porVerbo = [];
+        foreach ($pares as [$verbos, $objeto]) {
+            $porVerbo[$verbos][] = $objeto;
         }
+        $hecho = array_map(fn ($verbos, $objetos) => $verbos.' '.self::unirConY($objetos), array_keys($porVerbo), $porVerbo);
+        $inicio = $t->tipo_servicio
+            ? 'Le hicimos el servicio '.(self::PAQUETE_LABEL[$t->tipo_servicio] ?? $t->tipo_servicio)." a tu $bici"
+            : "Trabajamos en tu $bici";
+        if ($hecho || $t->tipo_servicio) {
+            $frases[] = $inicio.($hecho ? ': '.self::unirConY($hecho) : '').'.';
+        }
+
         if ($r['ok']) {
-            $lineas[] = "Revisado sin novedad: {$r['ok']} ".($r['ok'] === 1 ? 'componente' : 'componentes').'.';
-        }
-        if ($r['recomendados']) {
-            $lineas[] = 'Recomendaciones: '.implode('; ', array_map(
-                fn ($rec) => $rec['componente']
-                    .($rec['motivos'] ? ' — '.implode(', ', $rec['motivos']) : '')
-                    .': se recomienda cambio en el próximo servicio',
-                $r['recomendados'],
-            )).'.';
-        }
-        if ($omitidos) {
-            $lineas[] = "…y {$omitidos} componentes más; ver detalle en la revisión técnica.";
+            $mas = $hecho ? ' más' : '';
+            $frases[] = $r['ok'] === 1
+                ? "Revisamos 1 componente$mas y está en buen estado."
+                : "Revisamos {$r['ok']} componentes$mas y están en buen estado.";
         }
 
-        return implode("\n", $lineas);
+        foreach (array_values($r['recomendados']) as $n => $rec) {
+            $motivo = $rec['motivos'] ? ' por '.self::unirConY(array_map(fn ($m) => str_replace('/', ' o ', $m), $rec['motivos'])) : '';
+            $frases[] = ($n === 0 ? 'Te recomendamos' : 'También te recomendamos')
+                .' cambiar '.($nombres[$rec['clave']] ?? $rec['componente'])
+                .($n === 0 ? ' en el próximo servicio' : '').$motivo.'.';
+        }
+
+        if ($omitidos) {
+            $frases[] = "…y {$omitidos} componentes más; ver detalle en la revisión técnica.";
+        }
+
+        return implode(' ', $frases);
     }
 
     private static function unirConY(array $items): string
