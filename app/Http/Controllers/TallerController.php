@@ -200,19 +200,6 @@ class TallerController extends Controller
             default => 340,
         };
         $alturaEntrada = $alturaMaxima($fotosEntrada->count());
-
-        // el bloque "Revision tecnica" va en la pagina 1, encima de las fotos de
-        // entrada -- sin compensar, empuja la entrada a otra pagina y rompe la
-        // paginacion de 2 paginas (confirmado con ticket de prueba: 2 -> 3).
-        // ponytail: alto estimado por fila (~19px) y titulo (~38px), DomPDF no
-        // permite medir; si una revision muy larga vuelve a romper, ajustar aqui
-        $revision = InformeRevision::tieneContenido($ticket->revision_tecnica) ? InformeRevision::resumen($ticket->revision_tecnica) : null;
-        if ($revision) {
-            $filas = count($revision['intervenidos']) + count($revision['recomendados']) + ($revision['ok'] ? 1 : 0);
-            $altoRevision = 38 + 20 + 19 * $filas + 19
-                + ($revision['recomendados'] ? 38 + 19 * count($revision['recomendados']) : 0);
-            $alturaEntrada = max(220, $alturaEntrada - $altoRevision);
-        }
         $alturaSalida = $alturaMaxima($fotosSalida->count());
         // gap entre columnas reducido al minimo visualmente aceptable (antes
         // 12px/10px) -- 4px real entre columnas en los dos casos (2px de
@@ -257,7 +244,7 @@ class TallerController extends Controller
 
         $pdf = Pdf::loadView('pdf.taller-atencion', [
             'ticket' => $ticket,
-            'revision' => $revision,
+            'revision' => InformeRevision::tieneContenido($ticket->revision_tecnica) ? InformeRevision::resumen($ticket->revision_tecnica) : null,
             'fotosEntrada' => $fotosEntrada,
             'fotosSalida' => $fotosSalida,
             'columnasEntrada' => $columnasEntrada,
