@@ -66,9 +66,27 @@ class InformeRevision
         return $resumen;
     }
 
+    // tope por debajo del max:2000 del guardado manual de trabajo_realizado
+    public const TOPE_TEXTO = 1500;
+
+    // sin notas (viven en la revision y en el PDF). Si se pasa del tope, quita
+    // componentes completos desde el final y lo dice en la ultima linea
     public function generarTexto(TicketTaller $t): string
     {
         $r = self::resumen($t->revision_tecnica);
+        $omitidos = 0;
+
+        while (mb_strlen($texto = $this->armarTexto($t, $r, $omitidos)) > self::TOPE_TEXTO
+            && ($r['recomendados'] || $r['intervenidos'])) {
+            $r['recomendados'] ? array_pop($r['recomendados']) : array_pop($r['intervenidos']);
+            $omitidos++;
+        }
+
+        return $texto;
+    }
+
+    private function armarTexto(TicketTaller $t, array $r, int $omitidos): string
+    {
         $lineas = [];
 
         if ($t->tipo_servicio) {
@@ -90,10 +108,12 @@ class InformeRevision
             $lineas[] = 'Recomendaciones: '.implode('; ', array_map(
                 fn ($rec) => $rec['componente']
                     .($rec['motivos'] ? ' — '.implode(', ', $rec['motivos']) : '')
-                    .': se recomienda cambio en el próximo servicio'
-                    .($rec['nota'] !== '' ? " ({$rec['nota']})" : ''),
+                    .': se recomienda cambio en el próximo servicio',
                 $r['recomendados'],
             )).'.';
+        }
+        if ($omitidos) {
+            $lineas[] = "…y {$omitidos} componentes más; ver detalle en la revisión técnica.";
         }
 
         return implode("\n", $lineas);
