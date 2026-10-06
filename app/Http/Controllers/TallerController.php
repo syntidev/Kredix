@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -62,6 +63,12 @@ class TallerController extends Controller
             ->get(['id', 'name']);
     }
 
+    // fuente unica de etiquetas para las pantallas (A4): las .vue no las repiten
+    private function etiquetas(): array
+    {
+        return ['paquetes' => config('taller.paquetes_etiqueta'), 'categorias' => config('taller.categorias')];
+    }
+
     public function index(Request $request)
     {
         $estado = $request->query('estado');
@@ -97,6 +104,7 @@ class TallerController extends Controller
             : null;
 
         return Inertia::render('Taller/Index', [
+            'etiquetas' => $this->etiquetas(),
             'misTickets' => $misTickets,
             'tickets' => $tickets,
             'estado' => $estado,
@@ -243,8 +251,19 @@ class TallerController extends Controller
         // -- @page margin SI es en px de CSS, por eso aqui se queda en px
         $margenPiePx = 80 + ($bannerInferiorRuta ? $bannerInferiorAltoPx + 20 : 0);
 
+        // vista previa: el PDF real con el texto en borrador, marcado BORRADOR
+        $vistaPrevia = $request->boolean('vista_previa');
+
         $pdf = Pdf::loadView('pdf.taller-atencion', [
             'ticket' => $ticket,
+            // compuerta: solo texto aprobado y al dia con la revision (salvo vista previa)
+            // la vista previa muestra lo que hay en el cuadro, aunque aun no se haya guardado
+            'textoCliente' => $vistaPrevia
+                ? Str::limit((string) ($request->input('texto') ?: $ticket->trabajo_realizado), 2000, '')
+                : $ticket->textoClienteImprimible(),
+            'vistaPrevia' => $vistaPrevia,
+            'paquetesEtiqueta' => config('taller.paquetes_etiqueta'),
+            'categorias' => config('taller.categorias'),
             'revision' => InformeRevision::tieneContenido($ticket->revision_tecnica) ? InformeRevision::resumen($ticket->revision_tecnica) : null,
             'fotosEntrada' => $fotosEntrada,
             'fotosSalida' => $fotosSalida,
@@ -282,6 +301,10 @@ class TallerController extends Controller
         $yFooter = $canvas->get_height() - 40;
         $canvas->page_text(36, $yFooter, "{$folio} · Generado el {$fechaGeneracion} por Kredix", $font, 8, $colorGris);
         $canvas->page_text($canvas->get_width() - 130, $yFooter, 'Pagina {PAGE_NUM} de {PAGE_COUNT}', $font, 8, $colorGris);
+        if ($vistaPrevia) {
+            $fontNegrita = $pdf->getDomPDF()->getFontMetrics()->getFont('helvetica', 'bold');
+            $canvas->page_text(36, 16, 'BORRADOR — vista previa, no enviar al cliente', $fontNegrita, 11, [0.8, 0, 0]);
+        }
 
         // banner_inferior en cada pagina -- todo en pt (*0.75 desde px, ver
         // comentario mas arriba): x=36px->27pt, ancho=722px->541.5pt (la
@@ -309,6 +332,8 @@ class TallerController extends Controller
     public function create()
     {
         return Inertia::render('Taller/Nuevo', [
+            'etiquetas' => $this->etiquetas(),
+            'maxFotos' => config('taller.max_fotos'),
             'mecanicos' => $this->mecanicosOpciones(),
         ]);
     }
@@ -338,7 +363,7 @@ class TallerController extends Controller
             // VIP se agenda por telefono antes de que el mecanico vea la bici
             // -- exigir foto en ese momento hace imposible registrar la cita.
             // Para el resto de tipos se mantiene obligatoria al crear.
-            'fotos_entrada' => [Rule::requiredIf(! $esVip), 'array'],
+            'fotos_entrada' => [Rule::requiredIf(! $esVip), 'array', 'max:'.config('taller.max_fotos')],
             'fotos_entrada.*' => ['image', 'max:5120'],
         ], [
             'motivo_ingreso.required' => 'motivo de ingreso requerido',
@@ -373,7 +398,7 @@ class TallerController extends Controller
 
     public function show(TicketTaller $ticket)
     {
-        $ticket->load(['cliente:id,nombre,telefono', 'mecanico:id,name', 'registradoPor:id,name', 'revisadoPor:id,name', 'repuestos']);
+        $ticket->load(['cliente:id,nombre,telefono', 'mecanico:id,name', 'registradoPor:id,name', 'revisadoPor:id,name', 'textoClienteAprobadoPor:id,name', 'repuestos']);
 
         // mismo orden que el listado (TallerController::index(),
         // orderByDesc('created_at') + orderByDesc('id')) -- comparacion por
@@ -414,13 +439,26 @@ class TallerController extends Controller
                     'revisado_en' => $ticket->revisado_en?->format('d/m/Y H:i'),
                     'texto' => $this->informeRevision->generarTexto($ticket),
                 ] : null,
-                // IA apagada: nada de IA en pantalla (el PDF sigue usando un texto ya aprobado)
-                'informe' => config('ia.activa') && $ticket->informe_ia_estado ? [
-                    'estado' => $ticket->informe_ia_estado === 'aprobado' && $ticket->informe_ia_desactualizado ? 'desactualizado' : $ticket->informe_ia_estado,
-                    'texto' => $ticket->informe_ia,
-                    'aprobado_por' => $ticket->informe_ia_aprobado_por ? User::whereKey($ticket->informe_ia_aprobado_por)->value('name') : null,
-                ] : null,
+                'texto_cliente' => [
+                    'estado' => match (true) {
+                        blank($ticket->trabajo_realizado) => null,
+                        $ticket->textoClienteDesactualizado() => 'desactualizado',
+                        $ticket->textoClienteAprobado() => 'aprobado',
+                        default => 'borrador',
+                    },
+                    // sin origen registrado = texto anterior a la compuerta, escrito a mano
+                    'origen' => $ticket->texto_cliente_origen ?? (filled($ticket->trabajo_realizado) ? 'manual' : null),
+                    'aprobado_por' => $ticket->textoClienteAprobadoPor?->name,
+                    'aprobado_en' => $ticket->texto_cliente_aprobado_en?->format('d/m/Y H:i'),
+                    // IA apagada: nada de IA en pantalla
+                    'ia' => config('ia.activa') && InformeRevision::tieneContenido($ticket->revision_tecnica) ? [
+                        'estado' => $ticket->informe_ia_estado,
+                        'texto' => in_array($ticket->informe_ia_estado, ['listo', 'requiere_revision'], true) ? $ticket->informe_ia : null,
+                    ] : null,
+                ],
             ],
+            'etiquetas' => $this->etiquetas(),
+            'maxFotos' => config('taller.max_fotos'),
             'mecanicos' => $this->mecanicosOpciones($ticket->mecanico_id),
             // mismo valor ya usado como razon_social en el PDF de estado de
             // cuenta -- una sola fuente de verdad para el nombre del negocio,
@@ -505,12 +543,53 @@ class TallerController extends Controller
         $validated = $request->validate([
             'trabajo_realizado' => ['required', 'string', 'max:2000'],
         ], [
-            'trabajo_realizado.required' => 'trabajo realizado requerido',
+            'trabajo_realizado.required' => 'Escribe el texto para el cliente.',
+        ]);
+        $texto = trim($validated['trabajo_realizado']);
+
+        // una persona lo vio y lo guardo: queda aprobado, con su nombre y hora.
+        // Si lo cambio, el texto ya es suyo (manual); si no, conserva su origen
+        $ticket->update([
+            'trabajo_realizado' => $texto,
+            'texto_cliente_estado' => 'aprobado',
+            'texto_cliente_origen' => $texto === trim((string) $ticket->trabajo_realizado) ? ($ticket->texto_cliente_origen ?? 'manual') : 'manual',
+            'texto_cliente_aprobado_por' => $request->user()->id,
+            'texto_cliente_aprobado_en' => now(),
+            'texto_cliente_hash' => RedactarInforme::hash($ticket->revision_tecnica),
         ]);
 
-        $ticket->update($validated);
+        return redirect()->route('taller.show', $ticket->id);
+    }
+
+    // texto generado por maquina: entra como borrador, no se imprime hasta que
+    // alguien lo apruebe o lo edite y lo guarde
+    public function generarTextoCliente(Request $request, TicketTaller $ticket)
+    {
+        $fuente = $request->validate(['fuente' => ['required', Rule::in(['automatico', 'ia'])]])['fuente'];
+
+        if ($fuente === 'ia') {
+            abort_unless(config('ia.activa') && in_array($ticket->informe_ia_estado, ['listo', 'requiere_revision'], true), 422, 'No hay un texto de la IA para usar.');
+            $texto = $ticket->informe_ia;
+        } else {
+            abort_unless(InformeRevision::tieneContenido($ticket->revision_tecnica), 422, 'El ticket no tiene revisión técnica.');
+            $texto = $this->informeRevision->generarTexto($ticket);
+        }
+
+        $ticket->update(self::borradorDe($texto, $fuente));
 
         return redirect()->route('taller.show', $ticket->id);
+    }
+
+    private static function borradorDe(?string $texto, string $origen): array
+    {
+        return [
+            'trabajo_realizado' => $texto,
+            'texto_cliente_estado' => $texto === null ? null : 'borrador',
+            'texto_cliente_origen' => $texto === null ? null : $origen,
+            'texto_cliente_aprobado_por' => null,
+            'texto_cliente_aprobado_en' => null,
+            'texto_cliente_hash' => null,
+        ];
     }
 
     public function subirFotos(Request $request, TicketTaller $ticket, string $coleccion)
@@ -518,13 +597,60 @@ class TallerController extends Controller
         abort_unless(in_array($coleccion, ['entrada', 'salida'], true), 404);
 
         $request->validate([
+            'fotos' => ['required', 'array'],
             'fotos.*' => ['required', 'image', 'max:5120'],
         ]);
+        // tope por coleccion; tickets viejos con mas fotos las conservan, pero no suman
+        $max = config('taller.max_fotos');
+        if ($ticket->getMedia($coleccion)->count() + count($request->file('fotos', [])) > $max) {
+            throw ValidationException::withMessages(['fotos' => "Máximo {$max} fotos de {$coleccion}. Borra o reemplaza una para subir otra."]);
+        }
 
         foreach ($request->file('fotos', []) as $foto) {
             $rutaComprimida = $this->imagenUploadService->comprimir($foto);
             $ticket->addMedia($rutaComprimida)->usingFileName($foto->getClientOriginalName())->toMediaCollection($coleccion);
         }
+
+        return redirect()->route('taller.show', $ticket->id);
+    }
+
+    private function fotoDelTicket(TicketTaller $ticket, string $coleccion, Media $media): Media
+    {
+        abort_unless(
+            $media->model_type === $ticket->getMorphClass() && (int) $media->model_id === $ticket->id && $media->collection_name === $coleccion,
+            404,
+        );
+
+        return $media;
+    }
+
+    public function eliminarFoto(Request $request, TicketTaller $ticket, string $coleccion, Media $media)
+    {
+        $media = $this->fotoDelTicket($ticket, $coleccion, $media);
+        $archivo = $media->file_name;
+        $media->delete();
+
+        activity('taller')->performedOn($ticket)->causedBy($request->user())
+            ->withProperties(['coleccion' => $coleccion, 'media_id' => $media->id, 'archivo' => $archivo])
+            ->log('foto eliminada');
+
+        return redirect()->route('taller.show', $ticket->id);
+    }
+
+    public function reemplazarFoto(Request $request, TicketTaller $ticket, string $coleccion, Media $media)
+    {
+        $media = $this->fotoDelTicket($ticket, $coleccion, $media);
+        $request->validate(['foto' => ['required', 'image', 'max:5120']]);
+
+        $foto = $request->file('foto');
+        $nueva = $ticket->addMedia($this->imagenUploadService->comprimir($foto))
+            ->usingFileName($foto->getClientOriginalName())->toMediaCollection($coleccion);
+        $archivo = $media->file_name;
+        $media->delete();
+
+        activity('taller')->performedOn($ticket)->causedBy($request->user())
+            ->withProperties(['coleccion' => $coleccion, 'media_id' => $media->id, 'archivo' => $archivo, 'reemplazada_por' => $nueva->id])
+            ->log('foto reemplazada');
 
         return redirect()->route('taller.show', $ticket->id);
     }
@@ -565,7 +691,10 @@ class TallerController extends Controller
                 'fotos_salida' => count($ticket->getMedia('salida')),
             ],
             'sugerencias' => $this->sugerenciasPendientes($ticket),
+            'etiquetas' => $this->etiquetas(),
+            'maxFotos' => config('taller.max_fotos'),
             'catalogo' => [
+                'acciones_excluidas' => $catalogo['acciones_excluidas'],
                 'grupos' => collect($catalogo['grupos'])
                     ->reject(fn ($g) => ($g['solo_electrica'] ?? false) && ! $ticket->es_electrica)
                     ->all(),
@@ -605,10 +734,11 @@ class TallerController extends Controller
             'componentes.*.origen' => ['nullable', Rule::in(['manual', 'ia'])],
         ]);
 
-        // texto generado de la revision ANTERIOR -- si trabajo_realizado sigue
-        // siendo ese texto (nadie lo edito a mano), se regenera con cada
-        // guardado; si recepcion ya escribio algo propio, no se pisa
-        $textoAnterior = $this->informeRevision->generarTexto($ticket);
+        foreach ($validated['componentes'] as $clave => $c) {
+            if (array_intersect($c['acciones'] ?? [], config("taller.acciones_excluidas.$clave", []))) {
+                throw ValidationException::withMessages(["componentes.$clave.acciones" => 'Esa acción no aplica a este componente.']);
+            }
+        }
 
         $ticket->revision_tecnica = [
             'version' => 1,
@@ -632,8 +762,13 @@ class TallerController extends Controller
         }
         $ticket->revisado_en = now();
 
-        if (blank($ticket->trabajo_realizado) || $ticket->trabajo_realizado === $textoAnterior) {
-            $ticket->trabajo_realizado = $this->informeRevision->generarTexto($ticket);
+        // el texto automatico es solo un borrador: se mantiene al dia con la
+        // revision mientras nadie lo apruebe; un texto aprobado nunca se pisa
+        if (blank($ticket->trabajo_realizado) || ($ticket->texto_cliente_estado === 'borrador' && $ticket->texto_cliente_origen === 'automatico')) {
+            $ticket->fill(self::borradorDe(
+                InformeRevision::tieneContenido($ticket->revision_tecnica) ? $this->informeRevision->generarTexto($ticket) : null,
+                'automatico',
+            ));
         }
 
         $ticket->save();
@@ -654,7 +789,12 @@ class TallerController extends Controller
         }
         $fuera = [...array_keys($ticket->revision_tecnica['componentes'] ?? []), ...($s['descartadas'] ?? [])];
 
-        return ['analizando' => false, 'componentes' => array_diff_key($s['componentes'] ?? [], array_flip($fuera))];
+        $componentes = collect(array_diff_key($s['componentes'] ?? [], array_flip($fuera)))
+            ->map(fn ($c, $clave) => [...$c, 'acciones' => array_values(array_diff($c['acciones'] ?? [], config("taller.acciones_excluidas.$clave", [])))])
+            ->filter(fn ($c) => $c['acciones'])
+            ->all();
+
+        return ['analizando' => false, 'componentes' => $componentes];
     }
 
     public function descartarSugerencia(TicketTaller $ticket, string $clave)
@@ -667,31 +807,6 @@ class TallerController extends Controller
         $ticket->updateQuietly(['sugerencias_ia' => $s]);
 
         return response()->json(['ok' => true]);
-    }
-
-    // aprobar el borrador o editar uno ya aprobado: quien guarda queda como aprobador
-    public function aprobarInforme(Request $request, TicketTaller $ticket)
-    {
-        $yaAprobado = $ticket->informe_ia_estado === 'aprobado';
-        abort_unless(config('ia.activa') || $yaAprobado, 422, 'La IA está desactivada.');
-        abort_unless($yaAprobado || in_array($ticket->informe_ia_estado, ['listo', 'requiere_revision'], true), 422, 'No hay un borrador para aprobar.');
-
-        $validated = $request->validate([
-            'texto' => ['required', 'string', 'min:80', 'max:1500'],
-        ], [
-            'texto.min' => 'El informe debe tener al menos 80 caracteres.',
-            'texto.max' => 'El informe no puede pasar de 1.500 caracteres.',
-        ]);
-
-        $ticket->update([
-            'informe_ia' => trim($validated['texto']),
-            'informe_ia_estado' => 'aprobado',
-            'informe_ia_aprobado_por' => $request->user()->id,
-            'informe_ia_hash' => RedactarInforme::hash($ticket->revision_tecnica),
-            'informe_ia_desactualizado' => false,
-        ]);
-
-        return redirect()->route('taller.show', $ticket->id);
     }
 
     // error -> reintentar; desactualizado -> regenerar (deja de estar aprobado)
@@ -781,8 +896,9 @@ class TallerController extends Controller
             // en adelante
             abort_if($esServicioCliente && ! $pagadoEnTaller && ! $ticket->movimiento_cuenta_id, 500, 'No se pudo generar el cargo del servicio -- el ticket no se marco como atendido. Intenta de nuevo.');
 
+            // nunca escribe texto que se imprima sin que nadie lo vea: solo un borrador
             if (blank($ticket->trabajo_realizado)) {
-                $ticket->trabajo_realizado = $this->informeRevision->generarTexto($ticket);
+                $ticket->fill(self::borradorDe($this->informeRevision->generarTexto($ticket), 'automatico'));
             }
             $ticket->estado = 'atendido';
             $ticket->pagado_en_taller = $pagadoEnTaller;

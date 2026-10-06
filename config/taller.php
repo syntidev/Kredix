@@ -24,7 +24,7 @@ return [
                 'pastillas' => 'Pastillas/Zapatas',
                 'discos' => 'Discos',
                 'mordazas' => 'Mordazas/Calipers',
-                'sistema_freno' => 'Guayas o sistema hidráulico',
+                'sistema_freno' => 'Sistema de frenos (guayas o hidráulico)',
             ],
         ],
         'ruedas' => [
@@ -116,8 +116,8 @@ return [
         'desgaste' => ['muestra desgaste', 'muestran desgaste'],
         'holgura' => ['tiene juego', 'tienen juego'],
         'ruido' => ['presenta ruido', 'presentan ruido'],
-        'fisura' => ['una fisura', 'una fisura'],
-        'fuga' => ['una fuga', 'una fuga'],
+        'fisura' => ['una fisura', 'fisuras'],
+        'fuga' => ['una fuga', 'fugas'],
     ],
 
     'motivos' => [
@@ -145,5 +145,21 @@ return [
         'vip' => ['lubricar_cadena', 'ajustar_frenos', 'ajustar_cambios', 'presion_cauchos', 'limpieza_transmision', 'centrado_ruedas', 'revision_rolineras', 'lavado'],
         'otro' => [],
     ],
+
+    // fuente unica de etiquetas: pantallas (via payload), PDF, texto automatico e IA
+    'paquetes_etiqueta' => ['basico' => 'Básico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro'],
+    'categorias' => ['ruta' => 'Ruta', 'mtb' => 'MTB', 'otro' => 'Otro'],
+
+    // hallazgos que no se recomiendan cambiar: los evalua un especialista
+    'motivos_seguridad' => ['fisura', 'fuga'],
+
+    // acciones que no aplican a un componente: el sistema de frenos se ajusta o
+    // se recomienda, "cambiado" no dice que pieza se cambio
+    'acciones_excluidas' => [
+        'sistema_freno' => ['cambiado'],
+    ],
+
+    // tope de fotos por coleccion (entrada / salida), pantalla y servidor
+    'max_fotos' => 3,
 
 ];

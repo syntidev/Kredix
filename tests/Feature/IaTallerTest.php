@@ -150,7 +150,7 @@ class IaTallerTest extends TestCase
         $fijas = RedactarInforme::frasesFijas($t);
 
         $this->assertSame('Por seguridad, te recomendamos no rodar hasta que un especialista evalúe el cuadro: encontramos una fisura.', $fijas['seguridad']);
-        $this->assertSame(['Te recomendamos cambiar los piñones en el próximo servicio porque ya muestran desgaste.'], $fijas['recomendaciones']);
+        $this->assertSame(['Te recomendamos cambiar los piñones en el próximo servicio porque muestran desgaste.'], $fijas['recomendaciones']);
         $this->assertSame(['cambiamos las pastillas', 'ajustamos las pastillas'], $e['hechos']);
         $this->assertSame('Básico', $e['paquete']);
         // el modelo no ve hallazgos, recomendaciones ni notas

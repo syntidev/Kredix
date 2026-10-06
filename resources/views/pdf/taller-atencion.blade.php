@@ -49,8 +49,9 @@
                 return '$' . number_format((float) $valor, 2);
             }
         }
-        $categoriaLabel = ['ruta' => 'Ruta', 'mtb' => 'MTB', 'otro' => 'Otro'];
-        $tipoServicioLabel = ['basico' => 'Básico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro'];
+        // etiquetas desde config('taller'), la misma fuente que las pantallas
+        $categoriaLabel = $categorias;
+        $tipoServicioLabel = $paquetesEtiqueta;
         $totalRepuestos = $ticket->totalRepuestos();
         $totalTicket = $ticket->totalTicket();
         // el salto forzado + mini-encabezado de continuidad solo tienen
@@ -118,16 +119,12 @@
                     <td colspan="3">{{ $ticket->motivo_ingreso }}</td>
                 </tr>
             @endif
-            {{-- informe aprobado por una persona reemplaza al texto automatico, nunca los dos --}}
-            @if ($ticket->informe_ia_estado === 'aprobado' && filled($ticket->informe_ia))
-                <tr>
-                    <td class="label">Resumen del servicio</td>
-                    <td colspan="3">{{ $ticket->informe_ia }}</td>
-                </tr>
-            @elseif ($ticket->trabajo_realizado)
+            {{-- compuerta: solo texto aprobado por una persona y al dia con la revision
+            (el controlador lo resuelve; en vista previa llega el borrador) --}}
+            @if (filled($textoCliente))
                 <tr>
                     <td class="label">Trabajo realizado</td>
-                    <td colspan="3">{{ $ticket->trabajo_realizado }}</td>
+                    <td colspan="3">{{ $textoCliente }}</td>
                 </tr>
             @endif
             <tr>
@@ -235,7 +232,7 @@
                 @foreach ($revision['recomendados'] as $fila)
                     <tr>
                         <td>{{ $fila['componente'] }}</td>
-                        <td>se recomienda cambio{{ $fila['motivos'] ? ' ('.implode(', ', $fila['motivos']).')' : '' }}{{ $fila['nota'] !== '' ? ' — '.\Illuminate\Support\Str::limit($fila['nota'], 140, '…') : '' }}</td>
+                        <td>se recomienda cambio{{ $fila['motivos'] ? ' ('.implode(', ', $fila['motivos']).')' : '' }}</td>
                         <td>Recomendado</td>
                     </tr>
                 @endforeach

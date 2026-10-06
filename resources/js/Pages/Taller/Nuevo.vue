@@ -1,25 +1,24 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import { UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
+import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
+import FotosCasillas from '../../Components/FotosCasillas.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
 import { forzarVerticalSiEsNecesario, comprimirImagenSiEsNecesario } from '../../lib/forzarVertical';
 
 defineOptions({ layout: AppLayout });
 
-defineProps({
+const props = defineProps({
     mecanicos: { type: Array, required: true },
+    // etiquetas de paquete y categoria desde config('taller') (fuente unica)
+    etiquetas: { type: Object, required: true },
+    maxFotos: { type: Number, required: true },
 });
-
-const CATEGORIAS_BICI = [
-    { valor: 'ruta', etiqueta: 'Ruta' },
-    { valor: 'mtb', etiqueta: 'MTB' },
-    { valor: 'otro', etiqueta: 'Otro' },
-];
 const TALLAS_RIN_CORTAS = ['16', '20', '24', '26', '29'];
 const MONTOS_SERVICIO = { basico: 15, full: 20, vip: 25 };
 
@@ -139,25 +138,68 @@ function onTipoServicioChange() {
     }
 }
 
-// --- fotos de entrada (multiples, con conversion HEIC igual que foto_producto en Show.vue) ---
+// --- fotos de entrada: casillas con tope, archivos locales hasta guardar.
+// Misma preparacion que en Show (HEIC -> vertical -> compresion); etapa no
+// vacia = bloqueado desde el primer toque ---
+const fotosLocales = ref([]); // [{ file, url, thumb_url }]
+const etapaFoto = ref('');
 const fotosEntradaError = ref('');
 
-async function onFotosEntradaChange(event) {
+watch(fotosLocales, (fotos) => (form.fotos_entrada = fotos.map((f) => f.file)), { deep: true });
+onUnmounted(() => fotosLocales.value.forEach((f) => URL.revokeObjectURL(f.url)));
+
+async function prepararFoto(raw) {
+    etapaFoto.value = 'Procesando foto…';
     fotosEntradaError.value = '';
-    const archivos = [];
-    for (const raw of event.target.files) {
+    try {
         const convertido = await convertirHeicSiEsNecesario(raw);
         if (convertido === null) {
             fotosEntradaError.value = MENSAJE_HEIC_FALLO;
-            event.target.value = '';
-            form.fotos_entrada = [];
-            return;
+            return null;
         }
-        const vertical = await forzarVerticalSiEsNecesario(convertido);
-        archivos.push(await comprimirImagenSiEsNecesario(vertical));
+        const file = await comprimirImagenSiEsNecesario(await forzarVerticalSiEsNecesario(convertido));
+        const url = URL.createObjectURL(file);
+        return { file, url, thumb_url: url };
+    } catch {
+        fotosEntradaError.value = 'No se pudo procesar la foto. Intenta con otra.';
+        return null;
+    } finally {
+        etapaFoto.value = '';
     }
-    form.fotos_entrada = archivos;
 }
+
+async function agregarFoto(raw) {
+    if (etapaFoto.value || fotosLocales.value.length >= props.maxFotos) return;
+    const foto = await prepararFoto(raw);
+    if (foto) fotosLocales.value.push(foto);
+}
+
+async function reemplazarFoto(_foto, indice, raw) {
+    if (etapaFoto.value) return;
+    const foto = await prepararFoto(raw);
+    if (!foto) return;
+    URL.revokeObjectURL(fotosLocales.value[indice].url);
+    fotosLocales.value.splice(indice, 1, foto);
+}
+
+function eliminarFoto(_foto, indice) {
+    URL.revokeObjectURL(fotosLocales.value[indice].url);
+    fotosLocales.value.splice(indice, 1);
+}
+
+const fotoModalIndice = ref(0);
+const fotoModalUrls = ref([]);
+function verFoto(indice) {
+    fotoModalUrls.value = fotosLocales.value.map((f) => f.url);
+    fotoModalIndice.value = indice;
+}
+
+// la razon del boton deshabilitado, como texto visible (no solo title)
+const razonNoGuardar = computed(() => {
+    if (etapaFoto.value) return 'Espera a que termine de procesarse la foto.';
+    if (!esVip.value && fotosLocales.value.length === 0) return 'Sube al menos 1 foto de entrada para guardar el ticket.';
+    return '';
+});
 
 function submit() {
     form.post('/taller');
@@ -275,7 +317,7 @@ function submit() {
                 <label class="text-sm font-medium text-kredix-negro">Categoria</label>
                 <select v-model="form.categoria_bici" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
                     <option value="" disabled>Selecciona...</option>
-                    <option v-for="c in CATEGORIAS_BICI" :key="c.valor" :value="c.valor">{{ c.etiqueta }}</option>
+                    <option v-for="(etiqueta, valor) in etiquetas.categorias" :key="valor" :value="valor">{{ etiqueta }}</option>
                 </select>
                 <p v-if="form.errors.categoria_bici" class="text-sm text-kredix-rojo">{{ form.errors.categoria_bici }}</p>
             </div>
@@ -307,10 +349,9 @@ function submit() {
             <div v-if="esServicioCliente" class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Tipo de servicio</label>
                 <select v-model="form.tipo_servicio" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @change="onTipoServicioChange">
-                    <option value="basico">Básico ($15)</option>
-                    <option value="full">Full ($20)</option>
-                    <option value="vip">VIP ($25)</option>
-                    <option value="otro">Otro</option>
+                    <option v-for="(etiqueta, valor) in etiquetas.paquetes" :key="valor" :value="valor">
+                        {{ etiqueta }}{{ MONTOS_SERVICIO[valor] ? ` ($${MONTOS_SERVICIO[valor]})` : '' }}
+                    </option>
                 </select>
                 <input
                     v-model="form.monto_servicio"
@@ -345,9 +386,19 @@ function submit() {
             </div>
 
             <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Fotos de entrada <span class="font-normal text-kredix-gris">{{ esVip ? '(opcional -- se sube en la visita al domicilio)' : '(obligatoria, al menos 1)' }}</span></label>
-                <input type="file" accept="image/*" multiple class="text-sm" @change="onFotosEntradaChange" />
-                <p v-if="fotosEntradaError" class="text-sm text-kredix-rojo">{{ fotosEntradaError }}</p>
+                <p v-if="esVip" class="text-sm text-kredix-gris">Opcional en VIP: se suben en la visita al domicilio.</p>
+                <FotosCasillas
+                    titulo="Fotos de entrada"
+                    :fotos="fotosLocales"
+                    :max="maxFotos"
+                    :obligatoria="!esVip"
+                    :procesando="etapaFoto"
+                    :error="fotosEntradaError"
+                    @agregar="agregarFoto"
+                    @reemplazar="reemplazarFoto"
+                    @eliminar="eliminarFoto"
+                    @ver="verFoto"
+                />
                 <p v-if="form.errors.fotos_entrada" class="text-sm text-kredix-rojo">{{ form.errors.fotos_entrada }}</p>
                 <p v-if="form.errors['fotos_entrada.0']" class="text-sm text-kredix-rojo">{{ form.errors['fotos_entrada.0'] }}</p>
             </div>
@@ -358,13 +409,15 @@ function submit() {
                 </Link>
                 <button
                     type="submit"
-                    class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60"
-                    :disabled="form.processing || (!esVip && form.fotos_entrada.length === 0)"
-                    :title="!esVip && form.fotos_entrada.length === 0 ? 'Sube al menos 1 foto de entrada primero' : ''"
+                    class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="form.processing || !!razonNoGuardar"
                 >
                     Guardar ticket
                 </button>
             </div>
+            <p v-if="razonNoGuardar" class="text-sm text-kredix-gris">{{ razonNoGuardar }}</p>
         </form>
+
+        <ComprobanteLightbox :fotos="fotoModalUrls" :indice-inicial="fotoModalIndice" @close="fotoModalUrls = []" />
     </div>
 </template>

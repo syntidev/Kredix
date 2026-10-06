@@ -25,12 +25,7 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
     // v3: reglas finales R1 -- orden fijo, fisura/fuga = especialista (nunca cambiar), nombres componentes_cliente
     public const PROMPT_VERSION = 'v3';
 
-    private const MOTIVOS_SEGURIDAD = ['fisura', 'fuga'];
-
     private const MAX_TEXTO = 700;
-
-    // mismo texto que InformeRevision::PAQUETE_LABEL (privado en ese archivo)
-    private const PAQUETES = ['basico' => 'Básico', 'full' => 'Full', 'vip' => 'VIP'];
 
     // jerga prohibida por la guia de voz; si aparece, el texto queda en requiere_revision
     public const JERGA = ['pana', 'chamo', 'vaina', 'burda', 'chevere', 'fino', 'epale', 'quedo full', 'quedaron full'];
@@ -147,9 +142,13 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
 
         // orden del catalogo, no del JSON -- MySQL reordena las claves de una columna JSON
         foreach (array_keys(InformeRevision::componentes()) as $clave) {
-            $acciones = $t->revision_tecnica['componentes'][$clave]['acciones'] ?? [];
+            // sin las acciones excluidas del componente (ej. "cambiado" en el sistema de frenos)
+            $acciones = array_values(array_diff(
+                $t->revision_tecnica['componentes'][$clave]['acciones'] ?? [],
+                config("taller.acciones_excluidas.{$clave}", []),
+            ));
             $motivos = $t->revision_tecnica['componentes'][$clave]['motivos'] ?? [];
-            $seguridad = array_values(array_intersect($motivos, self::MOTIVOS_SEGURIDAD));
+            $seguridad = array_values(array_intersect($motivos, config('taller.motivos_seguridad')));
 
             if (in_array('cambiado', $acciones, true)) {
                 $r['cambiados'][] = $nombre($clave);
@@ -194,7 +193,7 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
 
         return [
             'bici' => trim((string) $t->bici_marca_modelo) ?: null,
-            'paquete' => self::PAQUETES[$t->tipo_servicio] ?? null,
+            'paquete' => $t->tipo_servicio !== 'otro' ? config("taller.paquetes_etiqueta.{$t->tipo_servicio}") : null,
             'hechos' => $hechos,
             'max_caracteres' => self::MAX_TEXTO - mb_strlen(implode(' ', array_filter([$fijas['seguridad'], ...$fijas['recomendaciones']]))) - 1,
         ];
@@ -206,35 +205,10 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
     }
 
     // Plantillas obligatorias de la guia: fisura/fuga = especialista (nunca cambiar), resto = cambiar en el proximo servicio.
+    // Una sola fuente con el texto automatico (motivos de config('taller.motivos_cliente')).
     public static function frasesFijas(TicketTaller $t): array
     {
-        $r = self::clasificar($t);
-        $unir = self::unir(...);
-        $plural = fn (string $nombre) => (bool) preg_match('/^(los|las) /', $nombre);
-
-        $seguridad = null;
-        if ($r['seguridad']) {
-            $tipos = array_values(array_unique(array_merge(...array_column($r['seguridad'], 'hallazgos'))));
-            $hallazgos = count($tipos) === 1 && count($r['seguridad']) > 1
-                ? ($tipos[0] === 'fisura' ? 'fisuras' : 'fugas')
-                : $unir(array_map(fn ($m) => $m === 'fisura' ? 'una fisura' : 'una fuga', $tipos));
-            $seguridad = 'Por seguridad, te recomendamos no rodar hasta que un especialista evalúe '
-                .$unir(array_column($r['seguridad'], 'componente')).": encontramos {$hallazgos}.";
-        }
-
-        $recomendaciones = array_map(function ($rec) use ($unir, $plural) {
-            $n = $plural($rec['componente']) ? 'n' : '';
-            $porque = array_map(fn ($m) => match ($m) {
-                'desgaste' => "ya muestra{$n} desgaste",
-                'holgura' => "tiene{$n} holgura",
-                'ruido' => "hace{$n} ruido",
-                default => mb_strtolower(config("taller.motivos.{$m}", $m)),
-            }, $rec['motivos']);
-
-            return "Te recomendamos cambiar {$rec['componente']} en el próximo servicio".($porque ? ' porque '.$unir($porque) : '').'.';
-        }, $r['recomendaciones']);
-
-        return ['seguridad' => $seguridad, 'recomendaciones' => $recomendaciones];
+        return InformeRevision::frasesFijas($t);
     }
 
     // El modelo devuelve {"texto": cuerpo}; el texto final es seguridad + cuerpo + recomendaciones.
@@ -287,7 +261,7 @@ class RedactarInforme implements ShouldBeUniqueUntilProcessing, ShouldQueue
         $frases = collect(preg_split('/(?<=[.;:!?])\s+/', $norm($texto)))->filter(fn ($f) => preg_match('/\bcambi\w*/', $f));
 
         return collect($revision['componentes'] ?? [])
-            ->filter(fn ($c) => array_intersect($c['motivos'] ?? [], self::MOTIVOS_SEGURIDAD))
+            ->filter(fn ($c) => array_intersect($c['motivos'] ?? [], config('taller.motivos_seguridad')))
             ->keys()
             ->filter(function ($clave) use ($norm, $frases) {
                 $nombre = preg_replace('/^(el|la|los|las) /', '', $norm(config("taller.componentes_cliente.{$clave}", $clave)));

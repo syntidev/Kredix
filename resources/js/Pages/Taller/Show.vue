@@ -1,11 +1,12 @@
 <script setup>
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
-import { ClipboardCheck, Crown, Download, FileText, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
+import { ClipboardCheck, Crown, Download, Eye, FileText, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
+import FotosCasillas from '../../Components/FotosCasillas.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
@@ -20,6 +21,9 @@ const props = defineProps({
     mecanicos: { type: Array, required: true },
     empresaNombre: { type: String, default: 'Kredix' },
     ticketQrDataUri: { type: String, default: '' },
+    // etiquetas de paquete y categoria desde config('taller') (fuente unica)
+    etiquetas: { type: Object, required: true },
+    maxFotos: { type: Number, required: true },
 });
 
 const esServicioCliente = computed(() => props.ticket.tipo === 'servicio_cliente');
@@ -81,8 +85,8 @@ function descargarPdfAtencion() {
     window.open(`/taller/${props.ticket.id}/atencion-${nombreSlug}.pdf?descargar=1`, '_blank', 'noopener');
 }
 
-const TIPO_SERVICIO_LABEL = { basico: 'Básico', full: 'Full', vip: 'VIP', otro: 'Otro' };
-const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
+const TIPO_SERVICIO_LABEL = props.etiquetas.paquetes;
+const CATEGORIA_LABEL = props.etiquetas.categorias;
 
 // --- edicion de campos basicos ---
 const editando = ref(false);
@@ -280,62 +284,78 @@ function eliminarRepuesto(repuesto) {
     });
 }
 
-// --- trabajo realizado (seccion de cierre, requisito para marcar atendido
-// igual que la foto de salida) ---
-const trabajoRealizadoForm = useForm({ trabajo_realizado: props.ticket.trabajo_realizado ?? '' });
-const exitoTrabajoRealizado = ref('');
+// --- texto para el cliente: compuerta unica (a mano, automatico o IA) ---
+// borrador = no se imprime; aprobado = lo vio y guardo una persona;
+// desactualizado = la revision cambio despues de aprobar (tampoco se imprime)
+const textoCliente = computed(() => props.ticket.texto_cliente);
+const textoForm = useForm({ trabajo_realizado: props.ticket.trabajo_realizado ?? '' });
+const editandoTexto = ref(false);
+const procesandoTexto = ref(false);
+const exitoTexto = ref('');
+const errorTexto = ref('');
+// aprobado se lee; borrador, desactualizado o vacio se editan directo
+const mostrarEditor = computed(() => editandoTexto.value || textoCliente.value.estado !== 'aprobado');
+const ORIGEN_LABEL = { manual: 'escrito a mano', automatico: 'armado desde la revisión', ia: 'redactado por la IA' };
 
-function guardarTrabajoRealizado() {
-    trabajoRealizadoForm.patch(`/taller/${props.ticket.id}/trabajo-realizado`, {
-        preserveScroll: true,
-        onSuccess: () => mostrarMensaje(exitoTrabajoRealizado, 'Trabajo realizado guardado.'),
-    });
-}
-
-// reemplaza el texto del cuadro con el informe de la revision -- queda
-// editable, no se guarda hasta tocar Guardar
-function generarDesdeRevision() {
-    trabajoRealizadoForm.trabajo_realizado = props.ticket.revision.texto;
-}
-
-// --- informe para el cliente (IA). ticket.informe null = IA apagada o sin informe ---
-const informe = computed(() => props.ticket.informe);
-const informeForm = useForm({ texto: props.ticket.informe?.texto ?? '' });
-const editandoInforme = ref(false);
-
-watch(() => props.ticket.informe?.texto, (texto) => {
-    if (!editandoInforme.value) informeForm.texto = texto ?? '';
+watch(() => props.ticket.trabajo_realizado, (texto) => {
+    if (!editandoTexto.value) textoForm.trabajo_realizado = texto ?? '';
 });
 
-// router/useForm de Inertia no devuelven promesa: onFinish es su "finally"
-// (corre siempre, con exito, error o cancelacion) y libera el bloqueo
-const procesandoInforme = ref(false);
-const errorInforme = ref('');
-
-function aprobarInforme() {
-    procesandoInforme.value = true;
-    informeForm.patch(`/taller/${props.ticket.id}/informe/aprobar`, {
+// guardar es aprobar: una persona lo vio. Inertia no devuelve promesa,
+// onFinish es su "finally" y libera el bloqueo siempre
+function guardarTexto() {
+    procesandoTexto.value = true;
+    errorTexto.value = '';
+    textoForm.patch(`/taller/${props.ticket.id}/trabajo-realizado`, {
         preserveScroll: true,
-        onSuccess: () => (editandoInforme.value = false),
-        onFinish: () => (procesandoInforme.value = false),
+        onSuccess: () => {
+            editandoTexto.value = false;
+            mostrarMensaje(exitoTexto, 'Texto aprobado: ya sale en el PDF.');
+        },
+        onFinish: () => (procesandoTexto.value = false),
     });
 }
 
-function reintentarInforme() {
-    procesandoInforme.value = true;
-    errorInforme.value = '';
+function generarTexto(fuente) {
+    procesandoTexto.value = true;
+    errorTexto.value = '';
+    router.post(`/taller/${props.ticket.id}/texto-cliente/generar`, { fuente }, {
+        preserveScroll: true,
+        onSuccess: () => (editandoTexto.value = false),
+        onError: () => (errorTexto.value = 'No se pudo armar el texto. Intenta de nuevo.'),
+        onFinish: () => (procesandoTexto.value = false),
+    });
+}
+
+function pedirTextoIa() {
+    procesandoTexto.value = true;
+    errorTexto.value = '';
     router.post(`/taller/${props.ticket.id}/informe/reintentar`, {}, {
         preserveScroll: true,
-        onError: () => (errorInforme.value = 'No se pudo volver a pedir el informe. Intenta de nuevo.'),
-        onFinish: () => (procesandoInforme.value = false),
+        onError: () => (errorTexto.value = 'No se pudo pedir el texto a la IA. Intenta de nuevo.'),
+        onFinish: () => (procesandoTexto.value = false),
     });
 }
 
-// pendiente: recarga solo el ticket cada 15 s, maximo 10 min
+// nota interna del tecnico -> al borrador editable; no se guarda hasta tocar Guardar
+function usarNota(nota) {
+    textoForm.trabajo_realizado = [textoForm.trabajo_realizado.trim(), nota.trim()].filter(Boolean).join(' ');
+    editandoTexto.value = true;
+    mostrarMensaje(exitoTexto, 'Nota copiada al texto. Revísalo y guárdalo para aprobarlo.');
+}
+
+// el PDF real con lo que hay en el cuadro, marcado BORRADOR
+function vistaPrevia() {
+    const nombreSlug = slug(props.ticket.bici_marca_modelo) || 'ticket';
+    const texto = encodeURIComponent(textoForm.trabajo_realizado ?? '');
+    window.open(`/taller/${props.ticket.id}/atencion-${nombreSlug}.pdf?vista_previa=1&texto=${texto}`, '_blank', 'noopener');
+}
+
+// IA redactando: recarga solo el ticket cada 15 s, maximo 10 min
 const RECARGA_MS = 15000;
 const RECARGAS_MAX = 40;
 let recargaInforme = null;
-watch(() => informe.value?.estado, (estado) => {
+watch(() => textoCliente.value.ia?.estado, (estado) => {
     clearInterval(recargaInforme);
     if (estado !== 'pendiente') return;
     let recargas = 0;
@@ -346,66 +366,73 @@ watch(() => informe.value?.estado, (estado) => {
 }, { immediate: true });
 onUnmounted(() => clearInterval(recargaInforme));
 
-// --- fotos: mismo endpoint generico sirve para ambas colecciones
-// (entrada/salida), sin limite de MediaLibrary -- se puede agregar en
-// cualquier momento, no solo al crear el ticket ---
-const fotosEntradaError = ref('');
-const subiendoFotosEntrada = ref('');
-const exitoFotosEntrada = ref('');
-const fotosSalidaError = ref('');
-const subiendoFotosSalida = ref('');
-const exitoFotosSalida = ref('');
+// --- fotos: casillas con tope por coleccion (entrada / salida) ---
+// etapa no vacia = bloqueado desde el primer toque, antes de la conversion: un
+// segundo toque durante ella subia otra foto
+const fotosEstado = reactive({
+    entrada: { etapa: '', error: '', exito: '' },
+    salida: { etapa: '', error: '', exito: '' },
+});
 
-// subiendoRef guarda la etapa ('Procesando foto…' / 'Subiendo…'), vacia =
-// libre. Se bloquea desde el primer toque, antes de la conversion: un segundo
-// toque durante ella subia otra foto
-async function subirFotosColeccion(event, coleccion, errorRef, subiendoRef, exitoRef) {
-    if (subiendoRef.value) return;
-    subiendoRef.value = 'Procesando foto…';
-    errorRef.value = '';
-    exitoRef.value = '';
-    const archivos = [];
-    for (const raw of event.target.files) {
-        const convertido = await convertirHeicSiEsNecesario(raw);
-        if (convertido === null) {
-            errorRef.value = MENSAJE_HEIC_FALLO;
-            subiendoRef.value = '';
-            event.target.value = '';
-            return;
-        }
-        // horizontal -> vertical ANTES de subir -- elimina la mezcla de
-        // orientaciones que complicaba el layout del PDF de atencion
-        const vertical = await forzarVerticalSiEsNecesario(convertido);
-        archivos.push(await comprimirImagenSiEsNecesario(vertical));
+// HEIC -> horizontal a vertical -> compresion, igual que al crear el ticket
+async function prepararFoto(raw) {
+    const convertido = await convertirHeicSiEsNecesario(raw);
+    if (convertido === null) return null;
+    return comprimirImagenSiEsNecesario(await forzarVerticalSiEsNecesario(convertido));
+}
+
+function avisarFoto(coleccion, texto) {
+    fotosEstado[coleccion].exito = texto;
+    setTimeout(() => {
+        if (fotosEstado[coleccion].exito === texto) fotosEstado[coleccion].exito = '';
+    }, 2500);
+}
+
+async function enviarFoto(coleccion, raw, url, campo, mensaje) {
+    const e = fotosEstado[coleccion];
+    if (e.etapa) return;
+    e.etapa = 'Procesando foto…';
+    e.error = '';
+    let lista = null;
+    try {
+        lista = await prepararFoto(raw);
+    } catch {
+        lista = null;
     }
-    if (archivos.length === 0) {
-        subiendoRef.value = '';
+    if (!lista) {
+        e.error = MENSAJE_HEIC_FALLO;
+        e.etapa = '';
         return;
     }
-
-    subiendoRef.value = 'Subiendo…';
-    router.post(`/taller/${props.ticket.id}/fotos/${coleccion}`, { fotos: archivos }, {
+    e.etapa = 'Subiendo…';
+    router.post(url, { [campo]: campo === 'fotos' ? [lista] : lista }, {
         preserveScroll: true,
         forceFormData: true,
-        onSuccess: () => {
-            mostrarMensaje(exitoRef, archivos.length === 1 ? '1 foto subida.' : `${archivos.length} fotos subidas.`);
-        },
-        onError: () => {
-            errorRef.value = 'No se pudo subir la foto. Intenta de nuevo.';
-        },
-        onFinish: () => {
-            subiendoRef.value = '';
-            event.target.value = '';
-        },
+        onSuccess: () => avisarFoto(coleccion, mensaje),
+        onError: (errors) => (e.error = errors.fotos ?? errors['fotos.0'] ?? errors.foto ?? 'No se pudo subir la foto. Intenta de nuevo.'),
+        onFinish: () => (e.etapa = ''),
     });
 }
 
-function onFotosEntradaChange(event) {
-    subirFotosColeccion(event, 'entrada', fotosEntradaError, subiendoFotosEntrada, exitoFotosEntrada);
+function agregarFoto(coleccion, archivo) {
+    enviarFoto(coleccion, archivo, `/taller/${props.ticket.id}/fotos/${coleccion}`, 'fotos', 'Foto subida.');
 }
 
-function onFotosSalidaChange(event) {
-    subirFotosColeccion(event, 'salida', fotosSalidaError, subiendoFotosSalida, exitoFotosSalida);
+function reemplazarFoto(coleccion, foto, _indice, archivo) {
+    enviarFoto(coleccion, archivo, `/taller/${props.ticket.id}/fotos/${coleccion}/${foto.id}/reemplazar`, 'foto', 'Foto reemplazada.');
+}
+
+function eliminarFoto(coleccion, foto) {
+    const e = fotosEstado[coleccion];
+    if (e.etapa || !window.confirm('¿Borrar esta foto? Queda registrado quién la borró y cuándo.')) return;
+    e.etapa = 'Borrando…';
+    e.error = '';
+    router.delete(`/taller/${props.ticket.id}/fotos/${coleccion}/${foto.id}`, {
+        preserveScroll: true,
+        onSuccess: () => avisarFoto(coleccion, 'Foto borrada.'),
+        onError: () => (e.error = 'No se pudo borrar la foto. Intenta de nuevo.'),
+        onFinish: () => (e.etapa = ''),
+    });
 }
 
 // --- modal de fotos: mismo componente ya usado para comprobantes en
@@ -429,8 +456,8 @@ function marcarAtendido() {
     errorAtendido.value = '';
     router.patch(`/taller/${props.ticket.id}/marcar-atendido`, esServicioCliente.value ? { pagado_en_taller: pagadoEnTaller.value } : {}, {
         preserveScroll: true,
-        // el cierre puede generar el texto desde la revision -- reflejarlo en el cuadro
-        onSuccess: () => (trabajoRealizadoForm.trabajo_realizado = props.ticket.trabajo_realizado ?? ''),
+        // el cierre puede dejar un borrador armado desde la revision -- reflejarlo en el cuadro
+        onSuccess: () => (textoForm.trabajo_realizado = props.ticket.trabajo_realizado ?? ''),
         onError: (errors) => {
             errorAtendido.value = errors.trabajo_realizado ?? errors.fotos_entrada ?? errors.fotos_salida ?? errors.pagado_en_taller ?? 'No se pudo marcar como atendido.';
         },
@@ -441,6 +468,11 @@ const faltaFotoEntrada = computed(() => props.ticket.fotos_entrada.length === 0)
 const faltaFotoSalida = computed(() => props.ticket.fotos_salida.length === 0);
 // revision con al menos 1 accion basta: el backend genera el texto al cerrar
 const faltaTrabajoRealizado = computed(() => !props.ticket.trabajo_realizado?.trim() && !props.ticket.revision);
+// no bloquea el cierre, pero se avisa: ese texto no sale en el PDF
+const avisoTextoCliente = computed(() => ({
+    borrador: 'El texto para el cliente está en borrador: no saldrá en el PDF hasta que alguien lo apruebe.',
+    desactualizado: 'La revisión cambió después de aprobar el texto para el cliente: no saldrá en el PDF hasta que lo revises y lo guardes de nuevo.',
+}[textoCliente.value.estado] ?? ''));
 const faltaPagoElegido = computed(() => esServicioCliente.value && pagadoEnTaller.value === null);
 const puedeMarcarAtendido = computed(() => !faltaFotoEntrada.value && !faltaFotoSalida.value && !faltaTrabajoRealizado.value && !faltaPagoElegido.value);
 
@@ -450,7 +482,7 @@ const puedeMarcarAtendido = computed(() => !faltaFotoEntrada.value && !faltaFoto
 // frontend no la mostraba como razon de bloqueo)
 const itemsFaltantesParaCerrar = computed(() => {
     const items = [];
-    if (faltaTrabajoRealizado.value) items.push('hacer la revision tecnica o registrar el trabajo realizado');
+    if (faltaTrabajoRealizado.value) items.push('hacer la revisión técnica o escribir el texto para el cliente');
     if (faltaFotoEntrada.value) items.push('subir al menos 1 foto de entrada');
     if (faltaFotoSalida.value) items.push('subir al menos 1 foto de salida');
     if (faltaPagoElegido.value) items.push('indicar si se pago en el momento');
@@ -548,6 +580,7 @@ const itemsFaltantesParaCerrar = computed(() => {
         <p v-if="!atendido && !puedeMarcarAtendido" class="text-sm text-kredix-gris">
             Falta {{ itemsFaltantesParaCerrar.join(', ') }} para poder cerrar el ticket.
         </p>
+        <p v-if="avisoTextoCliente" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{{ avisoTextoCliente }}</p>
 
         <div class="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
             <div class="flex items-center justify-between">
@@ -584,7 +617,11 @@ const itemsFaltantesParaCerrar = computed(() => {
                         <span class="font-medium">{{ i.componente }}:</span> {{ i.acciones.join(', ') }}
                     </div>
                     <div v-for="r in ticket.revision.recomendados" :key="'r' + r.componente" class="rounded-lg bg-amber-50 p-2 text-sm text-amber-800">
-                        <span class="font-medium">{{ r.componente }}:</span> se recomienda cambio<span v-if="r.motivos.length"> ({{ r.motivos.join(', ') }})</span><span v-if="r.nota"> — {{ r.nota }}</span>
+                        <span class="font-medium">{{ r.componente }}:</span> se recomienda cambio<span v-if="r.motivos.length"> ({{ r.motivos.join(', ') }})</span>
+                        <div v-if="r.nota" class="mt-2 flex flex-col gap-2 rounded-md border border-amber-200 bg-white p-2 text-kredix-negro">
+                            <p><span class="text-xs font-semibold uppercase text-kredix-gris">Nota interna del técnico (no sale en el PDF)</span><br />{{ r.nota }}</p>
+                            <button type="button" class="min-h-11 self-start rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="usarNota(r.nota)">Usar en el texto del cliente</button>
+                        </div>
                     </div>
                     <p v-if="ticket.revision.ok" class="text-sm text-green-700">{{ ticket.revision.ok }} {{ ticket.revision.ok === 1 ? 'componente quedo OK' : 'componentes quedaron OK' }}</p>
                     <p class="text-xs text-kredix-gris">Revisado por {{ ticket.revision.revisado_por ?? '-' }} el {{ ticket.revision.revisado_en }}</p>
@@ -676,9 +713,7 @@ const itemsFaltantesParaCerrar = computed(() => {
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Categoria</label>
                     <select v-model="editForm.categoria_bici" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
-                        <option value="ruta">Ruta</option>
-                        <option value="mtb">MTB</option>
-                        <option value="otro">Otro</option>
+                        <option v-for="(etiqueta, valor) in etiquetas.categorias" :key="valor" :value="valor">{{ etiqueta }}</option>
                     </select>
                     <p v-if="editForm.errors.categoria_bici" class="text-sm text-kredix-rojo">{{ editForm.errors.categoria_bici }}</p>
                 </div>
@@ -694,10 +729,7 @@ const itemsFaltantesParaCerrar = computed(() => {
                 <div v-if="esServicioCliente" class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Tipo de servicio</label>
                     <select v-model="editForm.tipo_servicio" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
-                        <option value="basico">Básico</option>
-                        <option value="full">Full</option>
-                        <option value="vip">VIP</option>
-                        <option value="otro">Otro</option>
+                        <option v-for="(etiqueta, valor) in etiquetas.paquetes" :key="valor" :value="valor">{{ etiqueta }}</option>
                     </select>
                 </div>
                 <div v-if="esServicioCliente" class="flex flex-col gap-1">
@@ -770,98 +802,156 @@ const itemsFaltantesParaCerrar = computed(() => {
             </form>
         </div>
 
-        <div class="flex flex-col gap-2 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
-            <div class="flex items-center justify-between gap-2">
-                <h2 class="font-medium text-kredix-negro">Trabajo realizado</h2>
+        <div class="flex flex-col gap-3 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 class="font-medium text-kredix-negro">Texto para el cliente</h2>
+                <span
+                    v-if="textoCliente.estado"
+                    class="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                    :class="{
+                        'bg-green-100 text-green-800': textoCliente.estado === 'aprobado',
+                        'bg-gray-100 text-kredix-negro': textoCliente.estado === 'borrador',
+                        'bg-amber-100 text-amber-800': textoCliente.estado === 'desactualizado',
+                    }"
+                >
+                    {{ { aprobado: 'Aprobado', borrador: 'Borrador', desactualizado: 'Desactualizado' }[textoCliente.estado] }}
+                </span>
+            </div>
+
+            <p v-if="textoCliente.estado === 'borrador'" class="rounded-lg bg-gray-50 p-2 text-sm text-kredix-gris">
+                Borrador {{ ORIGEN_LABEL[textoCliente.origen] ?? '' }}. No sale en el PDF hasta que alguien lo revise y lo guarde.
+            </p>
+            <p v-else-if="textoCliente.estado === 'desactualizado'" class="rounded-lg bg-amber-50 p-2 text-sm text-amber-800">
+                La revisión cambió después de aprobar este texto. No sale en el PDF hasta que lo revises y lo guardes de nuevo.
+            </p>
+            <p v-if="textoCliente.ia?.estado === 'pendiente'" class="text-sm text-kredix-gris">La IA está redactando un texto…</p>
+            <p v-if="textoCliente.ia?.estado === 'requiere_revision'" class="rounded-lg bg-amber-50 p-2 text-sm text-amber-800">
+                La IA mencionó algo que no está en la revisión. Revísalo antes de usarlo.
+            </p>
+            <p v-if="errorTexto" class="text-sm text-kredix-rojo">{{ errorTexto }}</p>
+
+            <template v-if="!mostrarEditor">
+                <p class="whitespace-pre-line text-sm text-kredix-negro">{{ ticket.trabajo_realizado }}</p>
+                <p class="text-xs text-kredix-gris">
+                    <template v-if="textoCliente.aprobado_por">Aprobado por {{ textoCliente.aprobado_por }} el {{ textoCliente.aprobado_en }}</template>
+                    <template v-else>Texto registrado antes de la aprobación de textos</template>
+                </p>
+                <button type="button" class="min-h-11 self-start rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="editandoTexto = true">Editar</button>
+            </template>
+
+            <form v-else class="flex flex-col gap-2" @submit.prevent="guardarTexto">
+                <textarea
+                    v-model="textoForm.trabajo_realizado"
+                    rows="5"
+                    placeholder="Qué le hicimos a la bici, en palabras para el cliente…"
+                    class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                ></textarea>
+                <p v-if="textoForm.errors.trabajo_realizado" class="text-sm text-kredix-rojo">{{ textoForm.errors.trabajo_realizado }}</p>
+                <div class="flex flex-wrap gap-2">
+                    <button type="submit" class="min-h-11 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" :disabled="procesandoTexto || !textoForm.trabajo_realizado.trim()">
+                        {{ procesandoTexto ? 'Guardando…' : (textoCliente.estado === 'aprobado' ? 'Guardar' : 'Guardar y aprobar') }}
+                    </button>
+                    <button v-if="editandoTexto" type="button" class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="editandoTexto = false">Cancelar</button>
+                    <button
+                        type="button"
+                        class="flex min-h-11 items-center gap-1.5 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="!textoForm.trabajo_realizado.trim()"
+                        @click="vistaPrevia"
+                    >
+                        <Eye :size="16" aria-hidden="true" />
+                        Vista previa
+                    </button>
+                </div>
+            </form>
+
+            <div v-if="ticket.revision || textoCliente.ia" class="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
                 <button
                     v-if="ticket.revision"
                     type="button"
-                    class="min-h-11 rounded-lg border border-blue-600 px-3 text-sm font-medium text-blue-700 active:bg-blue-50"
-                    @click="generarDesdeRevision"
+                    class="min-h-11 rounded-lg border border-blue-600 px-3 text-sm font-medium text-blue-700 active:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="procesandoTexto"
+                    @click="generarTexto('automatico')"
                 >
-                    Generar desde la revision
+                    Armar borrador desde la revisión
+                </button>
+                <button
+                    v-if="textoCliente.ia?.texto"
+                    type="button"
+                    class="min-h-11 rounded-lg border border-blue-600 px-3 text-sm font-medium text-blue-700 active:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="procesandoTexto"
+                    @click="generarTexto('ia')"
+                >
+                    Usar borrador de la IA
+                </button>
+                <button
+                    v-else-if="textoCliente.ia && textoCliente.ia.estado !== 'pendiente'"
+                    type="button"
+                    class="min-h-11 rounded-lg border border-blue-600 px-3 text-sm font-medium text-blue-700 active:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="procesandoTexto"
+                    @click="pedirTextoIa"
+                >
+                    Pedir borrador a la IA
                 </button>
             </div>
-            <form class="flex flex-col gap-2" @submit.prevent="guardarTrabajoRealizado">
-                <textarea
-                    v-model="trabajoRealizadoForm.trabajo_realizado"
-                    rows="3"
-                    placeholder="Que se hizo en general (ej: ajuste de frenos, cambio de cadena, lubricacion completa)..."
-                    class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
-                ></textarea>
-                <p v-if="trabajoRealizadoForm.errors.trabajo_realizado" class="text-sm text-kredix-rojo">{{ trabajoRealizadoForm.errors.trabajo_realizado }}</p>
-                <button type="submit" class="min-h-11 self-start rounded-lg bg-kredix-negro px-4 text-sm font-semibold text-white disabled:opacity-60" :disabled="trabajoRealizadoForm.processing">
-                    {{ trabajoRealizadoForm.processing ? 'Guardando...' : 'Guardar' }}
-                </button>
-                <p v-if="exitoTrabajoRealizado" class="text-sm font-medium text-green-700">{{ exitoTrabajoRealizado }}</p>
-            </form>
-        </div>
+            <p v-if="exitoTexto" class="text-sm font-medium text-green-700">{{ exitoTexto }}</p>
 
-        <div v-if="informe" class="flex flex-col gap-2 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
-            <h2 class="font-medium text-kredix-negro">Informe para el cliente</h2>
-            <p v-if="errorInforme" class="text-sm text-kredix-rojo">{{ errorInforme }}</p>
-
-            <p v-if="informe.estado === 'pendiente'" class="text-sm text-kredix-gris">Redactando…</p>
-
-            <template v-else-if="informe.estado === 'error'">
-                <p class="text-sm text-kredix-gris">No se pudo redactar. Se usará el texto automático.</p>
-                <button type="button" class="min-h-11 self-start rounded-lg bg-kredix-negro px-4 text-sm font-semibold text-white disabled:opacity-60" :disabled="procesandoInforme" @click="reintentarInforme">Reintentar</button>
-            </template>
-
-            <template v-else-if="informe.estado === 'desactualizado'">
-                <p class="rounded-lg bg-amber-50 p-2 text-sm text-amber-800">La revisión cambió después de este texto.</p>
-                <p class="whitespace-pre-line text-sm text-kredix-negro">{{ informe.texto }}</p>
-                <button type="button" class="min-h-11 self-start rounded-lg bg-kredix-negro px-4 text-sm font-semibold text-white disabled:opacity-60" :disabled="procesandoInforme" @click="reintentarInforme">Regenerar</button>
-            </template>
-
-            <template v-else-if="informe.estado === 'aprobado' && !editandoInforme">
-                <p class="whitespace-pre-line text-sm text-kredix-negro">{{ informe.texto }}</p>
-                <p class="text-xs text-kredix-gris">Aprobado por {{ informe.aprobado_por ?? '-' }}</p>
-                <button type="button" class="min-h-11 self-start rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="editandoInforme = true">Editar</button>
-            </template>
-
-            <form v-else class="flex flex-col gap-2" @submit.prevent="aprobarInforme">
-                <p v-if="informe.estado === 'requiere_revision'" class="rounded-lg bg-amber-50 p-2 text-sm text-amber-800">La IA mencionó algo que no está en la revisión. Revísalo antes de aprobar.</p>
-                <textarea v-model="informeForm.texto" rows="5" class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
-                <p v-if="informeForm.errors.texto" class="text-sm text-kredix-rojo">{{ informeForm.errors.texto }}</p>
-                <div class="flex gap-2">
-                    <button v-if="editandoInforme" type="button" class="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="editandoInforme = false">Cancelar</button>
-                    <button type="submit" class="min-h-11 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white disabled:opacity-60" :disabled="procesandoInforme">
-                        {{ editandoInforme ? 'Guardar' : 'Aprobar' }}
-                    </button>
+            <!-- todo lo demas que lleva el PDF, para que nada salga sin haberse visto -->
+            <div v-if="ticket.revision" class="flex flex-col gap-2 rounded-lg bg-gray-50 p-3">
+                <p class="text-sm font-medium text-kredix-negro">Lo que también verá el cliente</p>
+                <!-- misma informacion que la tabla "Revision tecnica" del PDF, en lista para el celular -->
+                <ul class="flex flex-col text-sm text-kredix-negro">
+                    <li v-for="i in ticket.revision.intervenidos" :key="'pi' + i.componente" class="flex items-start justify-between gap-2 border-t border-gray-200 py-1.5">
+                        <span><span class="font-medium">{{ i.componente }}</span> · {{ i.acciones.join(', ') }}</span>
+                        <span class="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">Intervenido</span>
+                    </li>
+                    <li v-for="r in ticket.revision.recomendados" :key="'pr' + r.componente" class="flex items-start justify-between gap-2 border-t border-gray-200 py-1.5">
+                        <span><span class="font-medium">{{ r.componente }}</span> · se recomienda cambio<span v-if="r.motivos.length"> ({{ r.motivos.join(', ') }})</span></span>
+                        <span class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">Recomendado</span>
+                    </li>
+                    <li v-if="ticket.revision.ok" class="border-t border-gray-200 py-1.5">
+                        {{ ticket.revision.ok }} {{ ticket.revision.ok === 1 ? 'componente revisado' : 'componentes revisados' }} sin novedad
+                    </li>
+                </ul>
+                <div v-if="ticket.revision.recomendados.length" class="flex flex-col gap-1 text-sm text-kredix-negro">
+                    <p class="font-medium">Recomendaciones</p>
+                    <p v-for="r in ticket.revision.recomendados" :key="'rr' + r.componente">
+                        {{ r.componente }}<span v-if="r.motivos.length"> — {{ r.motivos.join(', ') }}</span>: se recomienda cambio en el próximo servicio.
+                    </p>
                 </div>
-            </form>
+                <p class="text-xs text-kredix-gris">Revisado por: {{ ticket.revision.revisado_por ?? '-' }}<span v-if="ticket.revision.revisado_en"> el {{ ticket.revision.revisado_en }}</span></p>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div class="flex flex-col gap-2 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
-                <h2 class="font-medium text-kredix-negro">Fotos de entrada</h2>
-                <p v-if="ticket.fotos_entrada.length === 0" class="text-sm text-kredix-gris">Sin fotos.</p>
-                <div v-else class="grid grid-cols-3 gap-2">
-                    <button v-for="(f, i) in ticket.fotos_entrada" :key="f.id" type="button" @click="abrirFoto(ticket.fotos_entrada, i)">
-                        <img :src="f.thumb_url" class="aspect-square w-full rounded-lg object-cover" />
-                    </button>
-                </div>
-                <label class="mt-1 text-xs font-medium text-kredix-negro">Agregar foto de entrada</label>
-                <input type="file" accept="image/*" multiple class="text-sm" :disabled="!!subiendoFotosEntrada" @change="onFotosEntradaChange" />
-                <p v-if="subiendoFotosEntrada" class="text-sm text-kredix-gris">{{ subiendoFotosEntrada }}</p>
-                <p v-if="exitoFotosEntrada" class="text-sm font-medium text-green-700">{{ exitoFotosEntrada }}</p>
-                <p v-if="fotosEntradaError" class="text-sm text-kredix-rojo">{{ fotosEntradaError }}</p>
+            <div class="rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+                <FotosCasillas
+                    titulo="Fotos de entrada"
+                    :fotos="ticket.fotos_entrada"
+                    :max="maxFotos"
+                    :obligatoria="ticket.tipo_servicio !== 'vip'"
+                    :procesando="fotosEstado.entrada.etapa"
+                    :error="fotosEstado.entrada.error"
+                    :exito="fotosEstado.entrada.exito"
+                    @agregar="(archivo) => agregarFoto('entrada', archivo)"
+                    @reemplazar="(foto, i, archivo) => reemplazarFoto('entrada', foto, i, archivo)"
+                    @eliminar="(foto) => eliminarFoto('entrada', foto)"
+                    @ver="(i) => abrirFoto(ticket.fotos_entrada, i)"
+                />
             </div>
-
-            <div class="flex flex-col gap-2 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
-                <h2 class="font-medium text-kredix-negro">Fotos de salida</h2>
-                <p v-if="ticket.fotos_salida.length === 0" class="text-sm text-kredix-gris">Sin fotos.</p>
-                <div v-else class="grid grid-cols-3 gap-2">
-                    <button v-for="(f, i) in ticket.fotos_salida" :key="f.id" type="button" @click="abrirFoto(ticket.fotos_salida, i)">
-                        <img :src="f.thumb_url" class="aspect-square w-full rounded-lg object-cover" />
-                    </button>
-                </div>
-                <label class="mt-1 text-xs font-medium text-kredix-negro">Agregar foto de salida</label>
-                <input type="file" accept="image/*" multiple class="text-sm" :disabled="!!subiendoFotosSalida" @change="onFotosSalidaChange" />
-                <p v-if="subiendoFotosSalida" class="text-sm text-kredix-gris">{{ subiendoFotosSalida }}</p>
-                <p v-if="exitoFotosSalida" class="text-sm font-medium text-green-700">{{ exitoFotosSalida }}</p>
-                <p v-if="fotosSalidaError" class="text-sm text-kredix-rojo">{{ fotosSalidaError }}</p>
+            <div class="rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+                <FotosCasillas
+                    titulo="Fotos de salida"
+                    :fotos="ticket.fotos_salida"
+                    :max="maxFotos"
+                    :obligatoria="ticket.tipo_servicio !== 'vip'"
+                    :procesando="fotosEstado.salida.etapa"
+                    :error="fotosEstado.salida.error"
+                    :exito="fotosEstado.salida.exito"
+                    @agregar="(archivo) => agregarFoto('salida', archivo)"
+                    @reemplazar="(foto, i, archivo) => reemplazarFoto('salida', foto, i, archivo)"
+                    @eliminar="(foto) => eliminarFoto('salida', foto)"
+                    @ver="(i) => abrirFoto(ticket.fotos_salida, i)"
+                />
             </div>
         </div>
 

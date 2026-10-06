@@ -1,6 +1,6 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { Camera, Check, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
@@ -15,9 +15,18 @@ const props = defineProps({
     catalogo: { type: Object, required: true },
     // null = IA apagada (nada de IA en pantalla)
     sugerencias: { type: Object, default: null },
+    // etiquetas de paquete y categoria desde config('taller') (fuente unica)
+    etiquetas: { type: Object, required: true },
+    maxFotos: { type: Number, required: true },
 });
 
-const TIPO_SERVICIO_LABEL = { basico: 'Básico', full: 'Full', vip: 'VIP', otro: 'Otro' };
+const TIPO_SERVICIO_LABEL = props.etiquetas.paquetes;
+
+// chips del componente sin sus acciones excluidas (ej. "Cambiado" en el sistema de frenos)
+function accionesDe(clave) {
+    const excluidas = props.catalogo.acciones_excluidas[clave] ?? [];
+    return Object.fromEntries(Object.entries(props.catalogo.acciones).filter(([accion]) => !excluidas.includes(accion)));
+}
 const atendido = props.ticket.estado === 'atendido';
 
 // estado local = mismo formato que el JSON revision_tecnica. Un componente
@@ -118,9 +127,12 @@ const revisados = computed(() => Object.keys(revision.componentes).length);
 const guardado = ref('');
 const errorGuardado = ref('');
 let guardarTimeout = null;
+// hay un toque que todavia no salio al servidor
+let pendiente = false;
 
 async function guardar() {
     clearTimeout(guardarTimeout);
+    pendiente = false;
     guardado.value = 'guardando';
     try {
         await axios.patch(`/taller/${props.ticket.id}/revision`, revision);
@@ -132,9 +144,45 @@ async function guardar() {
 }
 
 watch(revision, () => {
+    pendiente = true;
     clearTimeout(guardarTimeout);
     guardarTimeout = setTimeout(guardar, 600);
 }, { deep: true });
+
+// al salir (otra pantalla, app al fondo, cerrar pestaña) el ultimo toque se
+// envia ya, sin esperar el debounce. fetch con keepalive sobrevive a que la
+// pagina se descargue; axios no
+function guardarAlSalir() {
+    if (!pendiente || atendido) return;
+    clearTimeout(guardarTimeout);
+    pendiente = false;
+    const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+    fetch(`/taller/${props.ticket.id}/revision`, {
+        method: 'PATCH',
+        keepalive: true,
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf },
+        body: JSON.stringify(revision),
+    }).catch(() => {});
+}
+
+function alOcultar() {
+    if (document.visibilityState === 'hidden') guardarAlSalir();
+}
+
+let quitarNavegacion = null;
+onMounted(() => {
+    document.addEventListener('visibilitychange', alOcultar);
+    window.addEventListener('pagehide', guardarAlSalir);
+    // navegacion dentro de la app (Inertia): antes de cambiar de pantalla
+    quitarNavegacion = router.on('before', guardarAlSalir);
+});
+onBeforeUnmount(() => {
+    guardarAlSalir();
+    document.removeEventListener('visibilitychange', alOcultar);
+    window.removeEventListener('pagehide', guardarAlSalir);
+    quitarNavegacion?.();
+});
 
 // --- foto de salida: mismo flujo que Show.vue (HEIC -> vertical -> compresion) ---
 // etapa no vacia = bloqueado desde el primer toque: la conversion tarda y un
@@ -144,8 +192,10 @@ const fotosSalida = ref(props.ticket.fotos_salida);
 const fotoError = ref('');
 const fotoExito = ref('');
 
+const fotosCompletas = computed(() => fotosSalida.value >= props.maxFotos);
+
 async function onFotoSalida(event) {
-    if (etapaFoto.value) return;
+    if (etapaFoto.value || fotosCompletas.value) return;
     etapaFoto.value = 'Procesando foto…';
     fotoError.value = '';
     fotoExito.value = '';
@@ -252,7 +302,7 @@ async function onFotoSalida(event) {
                     <div v-if="abierto === clave" class="flex flex-col gap-2 rounded-xl bg-gray-50 p-2">
                         <div class="grid grid-cols-2 gap-2">
                             <button
-                                v-for="(accion, claveAccion) in catalogo.acciones"
+                                v-for="(accion, claveAccion) in accionesDe(clave)"
                                 :key="claveAccion"
                                 type="button"
                                 class="min-h-14 rounded-xl border-2 px-2 text-base font-semibold"
@@ -281,7 +331,7 @@ async function onFotoSalida(event) {
                                 v-model="revision.componentes[clave].nota"
                                 type="text"
                                 maxlength="500"
-                                placeholder="Nota (opcional)"
+                                placeholder="Nota interna (opcional, no sale en el PDF)"
                                 class="min-h-14 rounded-xl border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                             />
                         </template>
@@ -304,13 +354,17 @@ async function onFotoSalida(event) {
                     <button v-else-if="guardado === 'error'" type="button" class="font-semibold text-red-300 underline" @click="guardar">{{ errorGuardado || 'Error, reintentar' }}</button>
                 </p>
             </div>
-            <label v-if="!atendido" class="flex min-h-14 shrink-0 items-center gap-2 rounded-xl bg-white px-4 text-base font-semibold text-kredix-negro active:opacity-80" :class="etapaFoto ? 'pointer-events-none opacity-60' : 'cursor-pointer'">
-                <Camera :size="20" />
-                {{ etapaFoto || 'Foto de salida' }}
-                <input type="file" accept="image/*" capture="environment" class="hidden" :disabled="!!etapaFoto" @change="onFotoSalida" />
+            <label v-if="!atendido" class="flex min-h-14 shrink-0 flex-col items-center justify-center rounded-xl bg-white px-4 text-base font-semibold text-kredix-negro active:opacity-80" :class="etapaFoto || fotosCompletas ? 'pointer-events-none cursor-not-allowed opacity-50' : 'cursor-pointer'">
+                <span class="flex items-center gap-2">
+                    <Camera :size="20" aria-hidden="true" />
+                    {{ etapaFoto || 'Foto de salida' }}
+                </span>
+                <span class="text-xs font-normal text-kredix-gris">{{ fotosSalida }} de {{ maxFotos }}</span>
+                <input type="file" accept="image/*" capture="environment" class="hidden" :disabled="!!etapaFoto || fotosCompletas" @change="onFotoSalida" />
             </label>
         </div>
         <p v-if="fotoError" class="text-sm text-red-300">{{ fotoError }}</p>
-        <p v-else-if="fotoExito" class="text-sm text-green-300">{{ fotoExito }} ({{ fotosSalida }} en total)</p>
+        <p v-else-if="fotoExito" class="text-sm text-green-300">{{ fotoExito }}</p>
+        <p v-else-if="fotosCompletas && !atendido" class="text-sm text-white/70">Fotos de salida completas. Para cambiar una, hazlo desde el ticket.</p>
     </div>
 </template>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\RedactarInforme;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -26,6 +27,11 @@ class TicketTaller extends Model implements HasMedia
         'es_electrica',
         'motivo_ingreso',
         'trabajo_realizado',
+        'texto_cliente_estado',
+        'texto_cliente_origen',
+        'texto_cliente_aprobado_por',
+        'texto_cliente_aprobado_en',
+        'texto_cliente_hash',
         'revision_tecnica',
         'revisado_por',
         'revisado_en',
@@ -57,6 +63,7 @@ class TicketTaller extends Model implements HasMedia
         'sugerencias_ia' => 'array',
         'informe_ia_generado_en' => 'datetime',
         'informe_ia_desactualizado' => 'boolean',
+        'texto_cliente_aprobado_en' => 'datetime',
         'es_electrica' => 'boolean',
         'pagado_en_taller' => 'boolean',
     ];
@@ -74,6 +81,32 @@ class TicketTaller extends Model implements HasMedia
     public function registradoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'registrado_por');
+    }
+
+    public function textoClienteAprobadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'texto_cliente_aprobado_por');
+    }
+
+    // Compuerta "Texto para el cliente". Estado null con texto = ticket anterior
+    // a la compuerta: texto manual aprobado, se imprime igual que siempre
+    public function textoClienteAprobado(): bool
+    {
+        return filled($this->trabajo_realizado) && in_array($this->texto_cliente_estado, [null, 'aprobado'], true);
+    }
+
+    // la revision cambio despues de aprobar el texto
+    public function textoClienteDesactualizado(): bool
+    {
+        return $this->textoClienteAprobado()
+            && $this->texto_cliente_hash !== null
+            && $this->texto_cliente_hash !== RedactarInforme::hash($this->revision_tecnica);
+    }
+
+    // lo unico que el PDF imprime: aprobado por una persona y al dia con la revision
+    public function textoClienteImprimible(): ?string
+    {
+        return $this->textoClienteAprobado() && ! $this->textoClienteDesactualizado() ? $this->trabajo_realizado : null;
     }
 
     public function revisadoPor(): BelongsTo

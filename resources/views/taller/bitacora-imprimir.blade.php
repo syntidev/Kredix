@@ -61,7 +61,7 @@
         <p class="sin-tickets">No hay tickets en proceso.</p>
     @else
         @php
-            $categoriaLabel = ['ruta' => 'Ruta', 'mtb' => 'MTB', 'otro' => 'Otro'];
+            $categoriaLabel = config('taller.categorias');
         @endphp
         <table>
             <thead>
