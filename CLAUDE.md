@@ -296,8 +296,28 @@ cd /var/www/kredix
 git pull origin main
 composer install --no-dev
 npm run build
+
+# Si el deploy trae migraciones, este paso va ANTES de los comandos de cache --
+# migrar con la configuracion vieja ya cacheada puede correr la migracion contra
+# parametros que ya no son los del codigo recien traido
 php artisan migrate --force
+
+# view:clear es OBLIGATORIO, no opcional: el cron de Kredix corre como root
+# (* * * * * cd /var/www/kredix && php artisan schedule:run), y root deja vistas
+# compiladas en storage/framework/views a nombre de root:root 644 que www-data NO
+# puede reescribir. Si una plantilla Blade cambio en este deploy y su compilado
+# quedo a nombre de root, Laravel intenta reescribirlo, falla y la pagina
+# devuelve 500. view:clear los borra (root pasa por encima de los permisos) y
+# www-data los recompila a su nombre en la primera visita.
+# Caso real encontrado el 2026-10-06: el compilado de pdf/taller-atencion.blade.php
+# estaba a nombre de root justo cuando la rama feat/taller-revision modificaba ese
+# blade -- sin view:clear, el PDF de taller rompia en todos los tickets
 php artisan config:clear && php artisan cache:clear && php artisan view:clear
+
+# Ultimo paso, siempre: devuelve la propiedad a www-data. Los comandos de arriba
+# corridos como root (y el cron de cada minuto) dejan archivos root:root en
+# storage y bootstrap/cache que la web no puede sobreescribir despues
+chown -R www-data:www-data storage bootstrap/cache
 ```
 
 ---
