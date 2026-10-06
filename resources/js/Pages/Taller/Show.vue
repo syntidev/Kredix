@@ -81,7 +81,7 @@ function descargarPdfAtencion() {
     window.open(`/taller/${props.ticket.id}/atencion-${nombreSlug}.pdf?descargar=1`, '_blank', 'noopener');
 }
 
-const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 'Otro' };
+const TIPO_SERVICIO_LABEL = { basico: 'Básico', full: 'Full', vip: 'VIP', otro: 'Otro' };
 const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
 
 // --- edicion de campos basicos ---
@@ -646,7 +646,7 @@ const itemsFaltantesParaCerrar = computed(() => {
                 <div v-if="esServicioCliente" class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Tipo de servicio</label>
                     <select v-model="editForm.tipo_servicio" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
-                        <option value="basico">Basico</option>
+                        <option value="basico">Básico</option>
                         <option value="full">Full</option>
                         <option value="vip">VIP</option>
                         <option value="otro">Otro</option>

@@ -61,11 +61,52 @@ return [
     // chip = boton en pantalla, texto = sustantivo para el informe
     'acciones' => [
         'ok' => ['chip' => 'OK', 'texto' => 'revisado sin novedad'],
-        'ajustado' => ['chip' => 'Ajustado', 'texto' => 'ajuste'],
-        'lubricado' => ['chip' => 'Lubricado', 'texto' => 'lubricación'],
-        'limpiado' => ['chip' => 'Limpiado', 'texto' => 'limpieza'],
-        'cambiado' => ['chip' => 'Cambiado', 'texto' => 'cambio'],
+        'ajustado' => ['chip' => 'Ajustado', 'texto' => 'ajuste', 'verbo' => 'ajustamos'],
+        'lubricado' => ['chip' => 'Lubricado', 'texto' => 'lubricación', 'verbo' => 'lubricamos'],
+        'limpiado' => ['chip' => 'Limpiado', 'texto' => 'limpieza', 'verbo' => 'limpiamos'],
+        'cambiado' => ['chip' => 'Cambiado', 'texto' => 'cambio', 'verbo' => 'cambiamos'],
         'recomendar' => ['chip' => 'Recomendar cambio', 'texto' => 'se recomienda cambio'],
+    ],
+
+    // solo para el texto al cliente (GUIA_VOZ_ONBIKE): texto corto del
+    // componente con su articulo, sin "y" ni comas propias para que cada
+    // enumeracion lleve una sola "y"; y tarea en primera persona plural. Las
+    // etiquetas de arriba siguen siendo las de la pantalla y el PDF
+    'componentes_cliente' => [
+        'cadena' => 'la cadena',
+        'pinones' => 'los piñones',
+        'platos_bielas' => 'los platos',
+        'cambio_trasero' => 'el cambio trasero',
+        'cambio_delantero' => 'el cambio delantero',
+        'guayas_cambio' => 'las guayas de cambio',
+        'pastillas' => 'las pastillas',
+        'discos' => 'los discos',
+        'mordazas' => 'las mordazas',
+        'sistema_freno' => 'el sistema de frenos',
+        'cauchos' => 'los cauchos',
+        'tripa_tubeless' => 'la tripa',
+        'rayos_centrado' => 'los rayos',
+        'mazas' => 'las mazas',
+        'direccion' => 'el juego de dirección',
+        'pedalier' => 'la caja de pedalier',
+        'cuadro' => 'el cuadro',
+        'horquilla' => 'la horquilla',
+        'cockpit' => 'el manubrio',
+        'pedales' => 'los pedales',
+        'bateria' => 'la batería',
+        'motor' => 'el motor',
+        'cableado' => 'el cableado',
+    ],
+
+    'tareas_cliente' => [
+        'lubricar_cadena' => 'lubricamos la cadena',
+        'ajustar_frenos' => 'ajustamos los frenos',
+        'ajustar_cambios' => 'ajustamos los cambios',
+        'presion_cauchos' => 'calibramos la presión de los cauchos',
+        'limpieza_transmision' => 'limpiamos la transmisión',
+        'centrado_ruedas' => 'centramos las ruedas',
+        'revision_rolineras' => 'revisamos las rolineras',
+        'lavado' => 'lavamos la bici',
     ],
 
     'motivos' => [

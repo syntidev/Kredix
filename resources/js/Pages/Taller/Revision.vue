@@ -15,7 +15,7 @@ const props = defineProps({
     catalogo: { type: Object, required: true },
 });
 
-const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 'Otro' };
+const TIPO_SERVICIO_LABEL = { basico: 'Básico', full: 'Full', vip: 'VIP', otro: 'Otro' };
 const atendido = props.ticket.estado === 'atendido';
 
 // estado local = mismo formato que el JSON revision_tecnica. Un componente

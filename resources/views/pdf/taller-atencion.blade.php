@@ -50,7 +50,7 @@
             }
         }
         $categoriaLabel = ['ruta' => 'Ruta', 'mtb' => 'MTB', 'otro' => 'Otro'];
-        $tipoServicioLabel = ['basico' => 'Basico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro'];
+        $tipoServicioLabel = ['basico' => 'Básico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro'];
         $totalRepuestos = $ticket->totalRepuestos();
         $totalTicket = $ticket->totalTicket();
         // el salto forzado + mini-encabezado de continuidad solo tienen
@@ -229,7 +229,7 @@
                 @foreach ($revision['recomendados'] as $fila)
                     <tr>
                         <td>{{ $fila['componente'] }}</td>
-                        <td>se recomienda cambio{{ $fila['motivos'] ? ' ('.implode(', ', $fila['motivos']).')' : '' }}</td>
+                        <td>se recomienda cambio{{ $fila['motivos'] ? ' ('.implode(', ', $fila['motivos']).')' : '' }}{{ $fila['nota'] !== '' ? ' — '.\Illuminate\Support\Str::limit($fila['nota'], 140, '…') : '' }}</td>
                         <td>Recomendado</td>
                     </tr>
                 @endforeach
@@ -243,7 +243,7 @@
         @if ($revision['recomendados'])
             <h2>Recomendaciones</h2>
             @foreach ($revision['recomendados'] as $fila)
-                <p class="nota">{{ $fila['componente'] }}{{ $fila['motivos'] ? ' — '.implode(', ', $fila['motivos']) : '' }}: se recomienda cambio en el próximo servicio{{ $fila['nota'] !== '' ? ' ('.$fila['nota'].')' : '' }}.</p>
+                <p class="nota">{{ $fila['componente'] }}{{ $fila['motivos'] ? ' — '.implode(', ', $fila['motivos']) : '' }}: se recomienda cambio en el próximo servicio.</p>
             @endforeach
         @endif
         <p class="nota">Revisado por: {{ $ticket->revisadoPor->name ?? '-' }}{{ $ticket->revisado_en ? ' el '.$ticket->revisado_en->format('d/m/Y H:i') : '' }}</p>

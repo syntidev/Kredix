@@ -307,7 +307,7 @@ function submit() {
             <div v-if="esServicioCliente" class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Tipo de servicio</label>
                 <select v-model="form.tipo_servicio" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @change="onTipoServicioChange">
-                    <option value="basico">Basico ($15)</option>
+                    <option value="basico">Básico ($15)</option>
                     <option value="full">Full ($20)</option>
                     <option value="vip">VIP ($25)</option>
                     <option value="otro">Otro</option>
