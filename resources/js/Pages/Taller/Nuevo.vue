@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
-import { AlertTriangle, Check, UserPlus, Zap } from '@lucide/vue';
+import { UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
@@ -15,7 +15,6 @@ defineProps({
     mecanicos: { type: Array, required: true },
 });
 
-const CHECKLIST_ITEMS = ['Cadena', 'Frenos', 'Rayos', 'Cauchos', 'Rolineras', 'Cambios'];
 const CATEGORIAS_BICI = [
     { valor: 'ruta', etiqueta: 'Ruta' },
     { valor: 'mtb', etiqueta: 'MTB' },
@@ -23,10 +22,6 @@ const CATEGORIAS_BICI = [
 ];
 const TALLAS_RIN_CORTAS = ['16', '20', '24', '26', '29'];
 const MONTOS_SERVICIO = { basico: 15, full: 20, vip: 25 };
-
-function diagnosticoVacio() {
-    return CHECKLIST_ITEMS.map((item) => ({ item, estado: 'bien', nota: '' }));
-}
 
 const form = useForm({
     tipo: 'servicio_cliente',
@@ -40,7 +35,6 @@ const form = useForm({
     domicilio_direccion: '',
     monto_servicio: MONTOS_SERVICIO.basico,
     mecanico_id: '',
-    diagnostico: diagnosticoVacio(),
     fotos_entrada: [],
 });
 
@@ -145,14 +139,6 @@ function onTipoServicioChange() {
     }
 }
 
-// --- checklist ---
-function toggleItem(i, estado) {
-    form.diagnostico[i].estado = estado;
-    if (estado === 'bien') {
-        form.diagnostico[i].nota = '';
-    }
-}
-
 // --- fotos de entrada (multiples, con conversion HEIC igual que foto_producto en Show.vue) ---
 const fotosEntradaError = ref('');
 
@@ -174,10 +160,7 @@ async function onFotosEntradaChange(event) {
 }
 
 function submit() {
-    form.transform((data) => ({
-        ...data,
-        diagnostico: data.diagnostico.filter((d) => d.estado === 'atencion' || d.nota),
-    })).post('/taller');
+    form.post('/taller');
 }
 </script>
 
@@ -324,7 +307,7 @@ function submit() {
             <div v-if="esServicioCliente" class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Tipo de servicio</label>
                 <select v-model="form.tipo_servicio" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @change="onTipoServicioChange">
-                    <option value="basico">Basico ($15)</option>
+                    <option value="basico">Básico ($15)</option>
                     <option value="full">Full ($20)</option>
                     <option value="vip">VIP ($25)</option>
                     <option value="otro">Otro</option>
@@ -359,51 +342,6 @@ function submit() {
                     <option v-for="m in mecanicos" :key="m.id" :value="m.id">{{ m.name }}</option>
                 </select>
                 <p v-if="form.errors.mecanico_id" class="text-sm text-kredix-rojo">{{ form.errors.mecanico_id }}</p>
-            </div>
-
-            <div class="flex flex-col gap-2">
-                <label class="text-sm font-medium text-kredix-negro">Diagnostico</label>
-                <div v-for="(d, i) in form.diagnostico" :key="d.item" class="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
-                    <div class="flex items-center justify-between gap-2">
-                        <span class="text-sm font-medium text-kredix-negro">{{ d.item }}</span>
-                        <div class="inline-flex shrink-0 rounded-lg border border-gray-300 p-0.5">
-                            <button
-                                type="button"
-                                class="flex min-h-9 items-center gap-1 rounded-md px-2.5 text-xs font-semibold transition-colors"
-                                :class="d.estado === 'bien' ? 'bg-green-600 text-white' : 'text-kredix-gris'"
-                                @click="toggleItem(i, 'bien')"
-                            >
-                                <Check :size="14" />
-                                Bien
-                            </button>
-                            <button
-                                type="button"
-                                class="flex min-h-9 items-center gap-1 rounded-md px-2.5 text-xs font-semibold transition-colors"
-                                :class="d.estado === 'atencion' ? 'bg-amber-500 text-white' : 'text-kredix-gris'"
-                                @click="toggleItem(i, 'atencion')"
-                            >
-                                <AlertTriangle :size="14" />
-                                Requiere atencion
-                            </button>
-                        </div>
-                    </div>
-                    <Transition
-                        enter-active-class="transition duration-150 ease-out"
-                        enter-from-class="opacity-0 -translate-y-1"
-                        enter-to-class="opacity-100 translate-y-0"
-                        leave-active-class="transition duration-100 ease-in"
-                        leave-from-class="opacity-100 translate-y-0"
-                        leave-to-class="opacity-0 -translate-y-1"
-                    >
-                        <textarea
-                            v-if="d.estado === 'atencion'"
-                            v-model="d.nota"
-                            rows="2"
-                            placeholder="Especifica que se observo..."
-                            class="rounded-lg border border-gray-300 px-3 py-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none"
-                        ></textarea>
-                    </Transition>
-                </div>
             </div>
 
             <div class="flex flex-col gap-1">

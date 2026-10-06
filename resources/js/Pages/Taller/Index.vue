@@ -7,6 +7,7 @@ import { formatFecha } from '../../lib/formatFecha';
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
+    misTickets: { type: Array, default: null },
     tickets: { type: Object, required: true },
     estado: { type: String, default: null },
     rango: { type: String, default: null },
@@ -73,7 +74,7 @@ function labelEstado(estado) {
     return estado === 'atendido' ? 'Atendido' : 'En proceso';
 }
 
-const TIPO_SERVICIO_LABEL = { basico: 'Basico', full: 'Full', vip: 'VIP', otro: 'Otro' };
+const TIPO_SERVICIO_LABEL = { basico: 'Básico', full: 'Full', vip: 'VIP', otro: 'Otro' };
 
 const CATEGORIA_ICONO = { ruta: Route, mtb: Mountain, otro: Bike };
 const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
@@ -102,6 +103,24 @@ const CATEGORIA_LABEL = { ruta: 'Ruta', mtb: 'MTB', otro: 'Otro' };
                     + Nuevo ticket
                 </Link>
             </div>
+        </div>
+
+        <div v-if="misTickets" class="flex flex-col gap-2">
+            <h2 class="text-lg font-semibold text-kredix-negro">Mis tickets en proceso</h2>
+            <p v-if="misTickets.length === 0" class="text-sm text-kredix-gris">No tienes tickets en proceso.</p>
+            <Link
+                v-for="t in misTickets"
+                :key="t.id"
+                :href="`/taller/${t.id}/revision`"
+                class="flex min-h-20 flex-col justify-center rounded-xl border-2 border-orange-500 bg-white p-4 shadow-card active:bg-orange-50"
+            >
+                <p class="text-xl font-bold text-kredix-negro">{{ t.cliente ?? 'Armado interno' }}</p>
+                <p class="text-base text-kredix-gris">
+                    {{ t.bici_marca_modelo }}
+                    <span v-if="t.tipo_servicio">· {{ TIPO_SERVICIO_LABEL[t.tipo_servicio] ?? t.tipo_servicio }}</span>
+                    · #{{ t.id }}
+                </p>
+            </Link>
         </div>
 
         <div class="flex flex-wrap gap-2">
