@@ -87,7 +87,7 @@ class TallerController extends Controller
         $tickets->getCollection()->transform(fn ($ticket) => $this->ticketResumen($ticket));
 
         $misTickets = $request->user()->rol_taller
-            ? TicketTaller::with('cliente:id,nombre')
+            ? TicketTaller::with(['cliente:id,nombre', 'mecanico:id,name', 'registradoPor:id,name'])
                 ->where('mecanico_id', $request->user()->id)
                 ->where('estado', 'en_proceso')
                 ->orderByDesc('created_at')
@@ -519,8 +519,7 @@ class TallerController extends Controller
             $ticket->addMedia($rutaComprimida)->usingFileName($foto->getClientOriginalName())->toMediaCollection($coleccion);
         }
 
-        // back(): se sube desde Show.vue y desde Revision.vue, cada una vuelve a si misma
-        return back();
+        return redirect()->route('taller.show', $ticket->id);
     }
 
     public function agregarRepuesto(Request $request, TicketTaller $ticket)
@@ -578,10 +577,18 @@ class TallerController extends Controller
             return response()->json(['message' => 'El ticket ya esta atendido, la revision no se puede modificar.'], 422);
         }
 
+        // solo tareas del paquete del ticket y componentes de grupos que aplican
+        // (ebike solo si es_electrica) -- mismo filtro que revision()
+        $tareasPermitidas = config("taller.paquetes.{$ticket->tipo_servicio}", []);
+        $componentesPermitidos = collect(config('taller.grupos'))
+            ->reject(fn ($g) => ($g['solo_electrica'] ?? false) && ! $ticket->es_electrica)
+            ->flatMap(fn ($g) => array_keys($g['componentes']))
+            ->all();
+
         $validated = $request->validate([
-            'tareas' => ['present', 'array:'.implode(',', array_keys(config('taller.tareas')))],
+            'tareas' => ['present', 'array:'.implode(',', $tareasPermitidas)],
             'tareas.*' => ['boolean'],
-            'componentes' => ['present', 'array:'.implode(',', array_keys(InformeRevision::componentes()))],
+            'componentes' => ['present', 'array:'.implode(',', $componentesPermitidos)],
             'componentes.*.acciones' => ['present', 'array'],
             'componentes.*.acciones.*' => [Rule::in(array_keys(config('taller.acciones')))],
             'componentes.*.motivos' => ['nullable', 'array'],
@@ -608,7 +615,11 @@ class TallerController extends Controller
                 ])
                 ->all(),
         ];
-        $ticket->revisado_por = $request->user()->id;
+        // el credito es del mecanico del ticket si el ya toco la revision,
+        // aunque otro guarde despues; si no, de quien guarda
+        if ((int) $ticket->revisado_por !== (int) $ticket->mecanico_id) {
+            $ticket->revisado_por = $request->user()->id;
+        }
         $ticket->revisado_en = now();
 
         if (blank($ticket->trabajo_realizado) || $ticket->trabajo_realizado === $textoAnterior) {

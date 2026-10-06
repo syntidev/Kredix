@@ -302,13 +302,18 @@ function generarDesdeRevision() {
 // (entrada/salida), sin limite de MediaLibrary -- se puede agregar en
 // cualquier momento, no solo al crear el ticket ---
 const fotosEntradaError = ref('');
-const subiendoFotosEntrada = ref(false);
+const subiendoFotosEntrada = ref('');
 const exitoFotosEntrada = ref('');
 const fotosSalidaError = ref('');
-const subiendoFotosSalida = ref(false);
+const subiendoFotosSalida = ref('');
 const exitoFotosSalida = ref('');
 
+// subiendoRef guarda la etapa ('Procesando foto…' / 'Subiendo…'), vacia =
+// libre. Se bloquea desde el primer toque, antes de la conversion: un segundo
+// toque durante ella subia otra foto
 async function subirFotosColeccion(event, coleccion, errorRef, subiendoRef, exitoRef) {
+    if (subiendoRef.value) return;
+    subiendoRef.value = 'Procesando foto…';
     errorRef.value = '';
     exitoRef.value = '';
     const archivos = [];
@@ -316,6 +321,7 @@ async function subirFotosColeccion(event, coleccion, errorRef, subiendoRef, exit
         const convertido = await convertirHeicSiEsNecesario(raw);
         if (convertido === null) {
             errorRef.value = MENSAJE_HEIC_FALLO;
+            subiendoRef.value = '';
             event.target.value = '';
             return;
         }
@@ -324,9 +330,12 @@ async function subirFotosColeccion(event, coleccion, errorRef, subiendoRef, exit
         const vertical = await forzarVerticalSiEsNecesario(convertido);
         archivos.push(await comprimirImagenSiEsNecesario(vertical));
     }
-    if (archivos.length === 0) return;
+    if (archivos.length === 0) {
+        subiendoRef.value = '';
+        return;
+    }
 
-    subiendoRef.value = true;
+    subiendoRef.value = 'Subiendo…';
     router.post(`/taller/${props.ticket.id}/fotos/${coleccion}`, { fotos: archivos }, {
         preserveScroll: true,
         forceFormData: true,
@@ -337,7 +346,7 @@ async function subirFotosColeccion(event, coleccion, errorRef, subiendoRef, exit
             errorRef.value = 'No se pudo subir la foto. Intenta de nuevo.';
         },
         onFinish: () => {
-            subiendoRef.value = false;
+            subiendoRef.value = '';
             event.target.value = '';
         },
     });
@@ -750,8 +759,8 @@ const itemsFaltantesParaCerrar = computed(() => {
                     </button>
                 </div>
                 <label class="mt-1 text-xs font-medium text-kredix-negro">Agregar foto de entrada</label>
-                <input type="file" accept="image/*" multiple class="text-sm" :disabled="subiendoFotosEntrada" @change="onFotosEntradaChange" />
-                <p v-if="subiendoFotosEntrada" class="text-sm text-kredix-gris">Subiendo...</p>
+                <input type="file" accept="image/*" multiple class="text-sm" :disabled="!!subiendoFotosEntrada" @change="onFotosEntradaChange" />
+                <p v-if="subiendoFotosEntrada" class="text-sm text-kredix-gris">{{ subiendoFotosEntrada }}</p>
                 <p v-if="exitoFotosEntrada" class="text-sm font-medium text-green-700">{{ exitoFotosEntrada }}</p>
                 <p v-if="fotosEntradaError" class="text-sm text-kredix-rojo">{{ fotosEntradaError }}</p>
             </div>
@@ -765,8 +774,8 @@ const itemsFaltantesParaCerrar = computed(() => {
                     </button>
                 </div>
                 <label class="mt-1 text-xs font-medium text-kredix-negro">Agregar foto de salida</label>
-                <input type="file" accept="image/*" multiple class="text-sm" :disabled="subiendoFotosSalida" @change="onFotosSalidaChange" />
-                <p v-if="subiendoFotosSalida" class="text-sm text-kredix-gris">Subiendo...</p>
+                <input type="file" accept="image/*" multiple class="text-sm" :disabled="!!subiendoFotosSalida" @change="onFotosSalidaChange" />
+                <p v-if="subiendoFotosSalida" class="text-sm text-kredix-gris">{{ subiendoFotosSalida }}</p>
                 <p v-if="exitoFotosSalida" class="text-sm font-medium text-green-700">{{ exitoFotosSalida }}</p>
                 <p v-if="fotosSalidaError" class="text-sm text-kredix-rojo">{{ fotosSalidaError }}</p>
             </div>

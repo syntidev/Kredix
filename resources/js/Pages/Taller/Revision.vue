@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import { Camera, Check, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
@@ -108,37 +108,43 @@ watch(revision, () => {
 }, { deep: true });
 
 // --- foto de salida: mismo flujo que Show.vue (HEIC -> vertical -> compresion) ---
-const subiendoFoto = ref(false);
+// etapa no vacia = bloqueado desde el primer toque: la conversion tarda y un
+// segundo toque durante ella subia otra foto (doble foto del ticket #59)
+const etapaFoto = ref('');
+const fotosSalida = ref(props.ticket.fotos_salida);
 const fotoError = ref('');
 const fotoExito = ref('');
 
 async function onFotoSalida(event) {
+    if (etapaFoto.value) return;
+    etapaFoto.value = 'Procesando foto…';
     fotoError.value = '';
     fotoExito.value = '';
-    const archivos = [];
-    for (const raw of event.target.files) {
-        const convertido = await convertirHeicSiEsNecesario(raw);
-        if (convertido === null) {
-            fotoError.value = MENSAJE_HEIC_FALLO;
-            event.target.value = '';
-            return;
+    try {
+        const archivos = [];
+        for (const raw of event.target.files) {
+            const convertido = await convertirHeicSiEsNecesario(raw);
+            if (convertido === null) {
+                fotoError.value = MENSAJE_HEIC_FALLO;
+                return;
+            }
+            archivos.push(await comprimirImagenSiEsNecesario(await forzarVerticalSiEsNecesario(convertido)));
         }
-        archivos.push(await comprimirImagenSiEsNecesario(await forzarVerticalSiEsNecesario(convertido)));
-    }
-    if (archivos.length === 0) return;
+        if (archivos.length === 0) return;
 
-    subiendoFoto.value = true;
-    router.post(`/taller/${props.ticket.id}/fotos/salida`, { fotos: archivos }, {
-        preserveScroll: true,
-        preserveState: true,
-        forceFormData: true,
-        onSuccess: () => (fotoExito.value = 'Foto de salida subida.'),
-        onError: () => (fotoError.value = 'No se pudo subir la foto. Intenta de nuevo.'),
-        onFinish: () => {
-            subiendoFoto.value = false;
-            event.target.value = '';
-        },
-    });
+        etapaFoto.value = 'Subiendo…';
+        const datos = new FormData();
+        archivos.forEach((f) => datos.append('fotos[]', f));
+        // axios, no Inertia: subirFotos() redirige a Show y aqui hay que quedarse
+        await axios.post(`/taller/${props.ticket.id}/fotos/salida`, datos);
+        fotosSalida.value += archivos.length;
+        fotoExito.value = 'Foto de salida subida.';
+    } catch {
+        fotoError.value = 'No se pudo subir la foto. Intenta de nuevo.';
+    } finally {
+        etapaFoto.value = '';
+        event.target.value = '';
+    }
 }
 </script>
 
@@ -252,13 +258,13 @@ async function onFotoSalida(event) {
                     <button v-else-if="guardado === 'error'" type="button" class="font-semibold text-red-300 underline" @click="guardar">{{ errorGuardado || 'Error, reintentar' }}</button>
                 </p>
             </div>
-            <label class="flex min-h-14 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-white px-4 text-base font-semibold text-kredix-negro active:opacity-80" :class="subiendoFoto ? 'opacity-60' : ''">
+            <label v-if="!atendido" class="flex min-h-14 shrink-0 items-center gap-2 rounded-xl bg-white px-4 text-base font-semibold text-kredix-negro active:opacity-80" :class="etapaFoto ? 'pointer-events-none opacity-60' : 'cursor-pointer'">
                 <Camera :size="20" />
-                {{ subiendoFoto ? 'Subiendo…' : 'Foto de salida' }}
-                <input type="file" accept="image/*" capture="environment" class="hidden" :disabled="subiendoFoto" @change="onFotoSalida" />
+                {{ etapaFoto || 'Foto de salida' }}
+                <input type="file" accept="image/*" capture="environment" class="hidden" :disabled="!!etapaFoto" @change="onFotoSalida" />
             </label>
         </div>
         <p v-if="fotoError" class="text-sm text-red-300">{{ fotoError }}</p>
-        <p v-else-if="fotoExito" class="text-sm text-green-300">{{ fotoExito }} ({{ ticket.fotos_salida }} en total)</p>
+        <p v-else-if="fotoExito" class="text-sm text-green-300">{{ fotoExito }} ({{ fotosSalida }} en total)</p>
     </div>
 </template>
