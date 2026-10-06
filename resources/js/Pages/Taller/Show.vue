@@ -452,13 +452,34 @@ const errorAtendido = ref('');
 // cliente que pague, no genera cargo)
 const pagadoEnTaller = ref(null);
 
-function marcarAtendido() {
+// texto que no saldra en el PDF (borrador, desactualizado o el borrador que
+// armaria el propio cierre): cerrar asi pide confirmar, en pantalla y en el servidor
+const textoPendiente = computed(() => ['borrador', 'desactualizado'].includes(textoCliente.value.estado)
+    || (!props.ticket.trabajo_realizado?.trim() && !!props.ticket.revision));
+const confirmandoCierre = ref(false);
+
+// confirmacion: null | 'aprobar' (aprueba con quien cierra) | 'sin_texto'
+function marcarAtendido(confirmacion = null) {
     errorAtendido.value = '';
-    router.patch(`/taller/${props.ticket.id}/marcar-atendido`, esServicioCliente.value ? { pagado_en_taller: pagadoEnTaller.value } : {}, {
+    if (textoPendiente.value && !confirmacion) {
+        confirmandoCierre.value = true;
+        return;
+    }
+    router.patch(`/taller/${props.ticket.id}/marcar-atendido`, {
+        ...(esServicioCliente.value ? { pagado_en_taller: pagadoEnTaller.value } : {}),
+        ...(confirmacion ? { texto_cliente: confirmacion } : {}),
+    }, {
         preserveScroll: true,
-        // el cierre puede dejar un borrador armado desde la revision -- reflejarlo en el cuadro
-        onSuccess: () => (textoForm.trabajo_realizado = props.ticket.trabajo_realizado ?? ''),
+        // el cierre puede dejar o aprobar un borrador armado desde la revision -- reflejarlo en el cuadro
+        onSuccess: () => {
+            confirmandoCierre.value = false;
+            textoForm.trabajo_realizado = props.ticket.trabajo_realizado ?? '';
+        },
         onError: (errors) => {
+            if (errors.texto_cliente) {
+                confirmandoCierre.value = true;
+                return;
+            }
             errorAtendido.value = errors.trabajo_realizado ?? errors.fotos_entrada ?? errors.fotos_salida ?? errors.pagado_en_taller ?? 'No se pudo marcar como atendido.';
         },
     });
@@ -534,7 +555,7 @@ const itemsFaltantesParaCerrar = computed(() => {
                     class="min-h-11 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
                     :disabled="!puedeMarcarAtendido"
                     :title="!puedeMarcarAtendido ? 'Falta: ' + itemsFaltantesParaCerrar.join(', ') : ''"
-                    @click="marcarAtendido"
+                    @click="marcarAtendido()"
                 >
                     Marcar como atendido
                 </button>
@@ -580,7 +601,20 @@ const itemsFaltantesParaCerrar = computed(() => {
         <p v-if="!atendido && !puedeMarcarAtendido" class="text-sm text-kredix-gris">
             Falta {{ itemsFaltantesParaCerrar.join(', ') }} para poder cerrar el ticket.
         </p>
-        <p v-if="avisoTextoCliente" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{{ avisoTextoCliente }}</p>
+        <p v-if="avisoTextoCliente && !confirmandoCierre" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{{ avisoTextoCliente }}</p>
+
+        <div v-if="confirmandoCierre && !atendido" role="alertdialog" aria-labelledby="aviso-cierre" class="flex flex-col gap-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-4">
+            <p id="aviso-cierre" class="font-semibold text-amber-900">El cliente recibirá el informe SIN el texto de trabajo realizado</p>
+            <p class="text-sm text-amber-800">{{ avisoTextoCliente || 'El texto armado desde la revisión quedará en borrador y no saldrá en el PDF.' }}</p>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <button type="button" class="min-h-11 flex-1 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" :disabled="!puedeMarcarAtendido" @click="marcarAtendido('aprobar')">
+                    Aprobar y cerrar
+                </button>
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-kredix-negro active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!puedeMarcarAtendido" @click="marcarAtendido('sin_texto')">
+                    Cerrar sin texto
+                </button>
+            </div>
+        </div>
 
         <div class="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
             <div class="flex items-center justify-between">

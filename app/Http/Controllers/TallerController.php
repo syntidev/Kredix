@@ -850,7 +850,22 @@ class TallerController extends Controller
             'pagado_en_taller.required' => 'indica si el ticket se pago en el momento',
         ]);
 
-        DB::transaction(function () use ($ticket, $esServicioCliente, $validated) {
+        // texto en borrador o desactualizado (o el borrador que este cierre armaria)
+        // NO sale en el PDF: cerrar asi exige decirlo explicito. "aprobar" lo
+        // aprueba con quien cierra; "sin_texto" cierra tal cual
+        $textoPendiente = blank($ticket->trabajo_realizado)
+            || $ticket->texto_cliente_estado === 'borrador'
+            || $ticket->textoClienteDesactualizado();
+        $confirmacion = $request->validate([
+            'texto_cliente' => ['nullable', Rule::in(['aprobar', 'sin_texto'])],
+        ])['texto_cliente'] ?? null;
+        if ($textoPendiente && ! $confirmacion) {
+            throw ValidationException::withMessages([
+                'texto_cliente' => 'El cliente recibirá el informe SIN el texto de trabajo realizado.',
+            ]);
+        }
+
+        DB::transaction(function () use ($ticket, $esServicioCliente, $validated, $textoPendiente, $confirmacion) {
             $pagadoEnTaller = $esServicioCliente ? (bool) $validated['pagado_en_taller'] : false;
 
             // si ya tiene movimiento_cuenta_id, el cargo ya se genero antes --
@@ -899,6 +914,15 @@ class TallerController extends Controller
             // nunca escribe texto que se imprima sin que nadie lo vea: solo un borrador
             if (blank($ticket->trabajo_realizado)) {
                 $ticket->fill(self::borradorDe($this->informeRevision->generarTexto($ticket), 'automatico'));
+            }
+            // confirmado en pantalla: quien cierra lo aprueba, con su nombre y la hora
+            if ($textoPendiente && $confirmacion === 'aprobar') {
+                $ticket->fill([
+                    'texto_cliente_estado' => 'aprobado',
+                    'texto_cliente_aprobado_por' => auth()->id(),
+                    'texto_cliente_aprobado_en' => now(),
+                    'texto_cliente_hash' => RedactarInforme::hash($ticket->revision_tecnica),
+                ]);
             }
             $ticket->estado = 'atendido';
             $ticket->pagado_en_taller = $pagadoEnTaller;

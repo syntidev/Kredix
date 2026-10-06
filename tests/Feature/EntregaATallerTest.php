@@ -118,19 +118,88 @@ class EntregaATallerTest extends TestCase
             ->assertInertia(fn ($pagina) => $pagina->where('ticket.texto_cliente.estado', 'desactualizado'));
     }
 
-    public function test_marcar_atendido_solo_deja_un_borrador_que_no_se_imprime(): void
+    // ticket con fotos y revision, listo para cerrar (armado interno: sin pago)
+    private function ticketParaCerrar(array $datos = []): TicketTaller
     {
-        $t = $this->ticket(['revision_tecnica' => $this->revision(['cadena' => ['acciones' => ['lubricado']]])]);
+        $t = $this->ticket(['revision_tecnica' => $this->revision(['cadena' => ['acciones' => ['lubricado']]]), ...$datos]);
         foreach (['entrada', 'salida'] as $coleccion) {
             $t->addMedia(UploadedFile::fake()->image("$coleccion.jpg", 600, 900))->toMediaCollection($coleccion);
         }
 
-        $this->actingAs($this->usuario)->patch("/taller/{$t->id}/marcar-atendido")->assertRedirect();
+        return $t;
+    }
+
+    public function test_cerrar_con_texto_en_borrador_sin_confirmacion_responde_422(): void
+    {
+        $t = $this->ticketParaCerrar();
+        $this->actingAs($this->usuario)->post("/taller/{$t->id}/texto-cliente/generar", ['fuente' => 'automatico']);
+
+        $this->actingAs($this->usuario)->patchJson("/taller/{$t->id}/marcar-atendido")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['texto_cliente' => 'SIN el texto de trabajo realizado']);
+        $this->assertSame('en_proceso', $t->fresh()->estado);
+
+        // desactualizado tambien pide confirmar
+        $d = $this->ticketParaCerrar();
+        $this->actingAs($this->usuario)->patch("/taller/{$d->id}/trabajo-realizado", ['trabajo_realizado' => 'Lubricamos la cadena.']);
+        $d->update(['revision_tecnica' => $this->revision(['cadena' => ['acciones' => ['cambiado']]])]);
+        $this->actingAs($this->usuario)->patchJson("/taller/{$d->id}/marcar-atendido")->assertStatus(422);
+    }
+
+    public function test_cerrar_sin_texto_cierra_y_el_pdf_no_tiene_la_fila(): void
+    {
+        // sin texto: el cierre arma un borrador automatico, que tampoco se imprime
+        $t = $this->ticketParaCerrar();
+
+        $this->actingAs($this->usuario)->patchJson("/taller/{$t->id}/marcar-atendido")->assertStatus(422);
+        $this->actingAs($this->usuario)->patch("/taller/{$t->id}/marcar-atendido", ['texto_cliente' => 'sin_texto'])->assertRedirect();
 
         $t->refresh();
         $this->assertSame('atendido', $t->estado);
         $this->assertSame('borrador', $t->texto_cliente_estado);
-        $this->assertNull($t->textoClienteImprimible());
+        $this->assertNull($t->texto_cliente_aprobado_por);
+        $this->assertStringNotContainsString('Trabajo realizado', $this->htmlDelPdf($t));
+    }
+
+    public function test_aprobar_y_cerrar_registra_aprobador_y_hora_y_el_pdf_incluye_el_texto(): void
+    {
+        $t = $this->ticketParaCerrar();
+        $this->actingAs($this->usuario)->post("/taller/{$t->id}/texto-cliente/generar", ['fuente' => 'automatico']);
+
+        $this->actingAs($this->usuario)->patch("/taller/{$t->id}/marcar-atendido", ['texto_cliente' => 'aprobar'])->assertRedirect();
+
+        $t->refresh();
+        $this->assertSame('atendido', $t->estado);
+        $this->assertSame('aprobado', $t->texto_cliente_estado);
+        $this->assertSame($this->usuario->id, $t->texto_cliente_aprobado_por);
+        $this->assertNotNull($t->texto_cliente_aprobado_en);
+        $html = $this->htmlDelPdf($t);
+        $this->assertStringContainsString('Trabajo realizado', $html);
+        $this->assertStringContainsString('Lubricamos la cadena', $html);
+    }
+
+    public function test_texto_aprobado_cierra_sin_aviso(): void
+    {
+        $t = $this->ticketParaCerrar();
+        $this->actingAs($this->usuario)->patch("/taller/{$t->id}/trabajo-realizado", ['trabajo_realizado' => 'Lubricamos la cadena.']);
+
+        $this->actingAs($this->usuario)->patchJson("/taller/{$t->id}/marcar-atendido")->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertSame('atendido', $t->fresh()->estado);
+        $this->actingAs($this->usuario)->get("/taller/{$t->id}")
+            ->assertInertia(fn ($pagina) => $pagina->where('ticket.texto_cliente.estado', 'aprobado'));
+    }
+
+    public function test_ticket_legado_cierra_sin_aviso(): void
+    {
+        // anterior a la compuerta: texto con estado null = manual aprobado
+        $t = $this->ticketParaCerrar(['revision_tecnica' => null, 'trabajo_realizado' => 'Ajuste general.']);
+
+        $this->actingAs($this->usuario)->patchJson("/taller/{$t->id}/marcar-atendido")->assertSessionHasNoErrors()->assertRedirect();
+
+        $t->refresh();
+        $this->assertSame('atendido', $t->estado);
+        $this->assertNull($t->texto_cliente_estado, 'el ticket legado no cambia de estado de texto');
     }
 
     public function test_vista_previa_imprime_el_borrador_sin_aprobarlo(): void

@@ -47,3 +47,13 @@ Ordenado por impacto.
   saldo del cliente baja. Es coherente con "renegociar es explícito", pero el operador no recibe ninguna advertencia.
   Falta: avisar en el modal de eliminación que la línea pertenece a una compra financiada y que el plan no se ajusta
   solo, y ofrecer el camino de renegociación.
+
+## Registrado por CLI Taller (Entrega A, 2026-10-06)
+
+- **Vista previa del PDF por GET con el texto en la URL.** El botón "Vista previa" abre
+  `/taller/{id}/atencion-….pdf?vista_previa=1&texto=…`: el borrador viaja en la URL (queda en el historial del navegador
+  y en los logs del servidor, y tiene tope práctico de largo). Pasarla a POST (formulario a una pestaña nueva o fetch +
+  blob) sin cambiar el PDF que se genera.
+- **Etiqueta "anterior al control" para textos legados.** Los tickets con texto anterior a la compuerta (estado null) se
+  tratan como manual aprobado y Show dice "Texto registrado antes de la aprobación de textos". Unificar con una etiqueta
+  corta y consistente ("anterior al control") en la insignia de estado, para distinguirlos de un aprobado con nombre y hora.
