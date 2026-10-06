@@ -68,6 +68,9 @@ $correrJob = function ($comando, string $clase, callable $mostrar) {
 
         return 1;
     }
+    if ($comando->option('modelo')) {
+        config(['ia.modelo_texto' => $comando->option('modelo')]);
+    }
     $inicio = hrtime(true);
     try {
         $clase::dispatchSync($ticket);
@@ -81,11 +84,11 @@ $correrJob = function ($comando, string $clase, callable $mostrar) {
     $mostrar($ticket->fresh());
 };
 
-Artisan::command('ia:sugerir {ticket}', function () use ($correrJob) {
+Artisan::command('ia:sugerir {ticket} {--modelo=}', function () use ($correrJob) {
     return $correrJob($this, SugerirRevision::class, fn ($t) => $this->line(json_encode($t->sugerencias_ia, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)));
 })->purpose('Corre SugerirRevision sobre un ticket, sin cola');
 
-Artisan::command('ia:redactar {ticket}', function () use ($correrJob) {
+Artisan::command('ia:redactar {ticket} {--modelo=}', function () use ($correrJob) {
     return $correrJob($this, RedactarInforme::class, function ($t) {
         $this->line("Estado: {$t->informe_ia_estado}");
         $this->line((string) $t->informe_ia);

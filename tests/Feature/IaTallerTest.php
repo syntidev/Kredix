@@ -131,12 +131,48 @@ class IaTallerTest extends TestCase
 
         $this->redactar($t);
 
-        $this->assertSame(['paquete', 'bici', 'revision'], array_keys(RedactarInforme::entrada($t)));
         Http::assertSent(function (Request $r) {
             $usuario = $r['messages'][1]['content'];
 
-            return str_contains($usuario, 'Cadena') && ! str_contains(mb_strtolower($usuario), 'disco');
+            return str_contains($usuario, 'la cadena') && ! str_contains(mb_strtolower($usuario), 'disco');
         });
+    }
+
+    public function test_entrada_separa_seguridad_de_recomendaciones_y_omite_notas(): void
+    {
+        $t = new TicketTaller(['bici_marca_modelo' => 'Trek', 'tipo_servicio' => 'basico', 'revision_tecnica' => ['componentes' => [
+            'cuadro' => ['acciones' => ['recomendar'], 'motivos' => ['fisura'], 'nota' => 'cerca del pedalier'],
+            'pinones' => ['acciones' => ['recomendar'], 'motivos' => ['desgaste'], 'nota' => ''],
+            'pastillas' => ['acciones' => ['cambiado', 'ajustado'], 'motivos' => [], 'nota' => ''],
+        ]]]);
+
+        $e = RedactarInforme::entrada($t);
+        $fijas = RedactarInforme::frasesFijas($t);
+
+        $this->assertSame('Por seguridad, te recomendamos no rodar hasta que un especialista evalúe el cuadro: encontramos una fisura.', $fijas['seguridad']);
+        $this->assertSame(['Te recomendamos cambiar los piñones en el próximo servicio porque ya muestran desgaste.'], $fijas['recomendaciones']);
+        $this->assertSame(['cambiamos las pastillas', 'ajustamos las pastillas'], $e['hechos']);
+        $this->assertSame('Básico', $e['paquete']);
+        // el modelo no ve hallazgos, recomendaciones ni notas
+        $this->assertStringNotContainsString('cuadro', json_encode($e, JSON_UNESCAPED_UNICODE));
+        $this->assertStringNotContainsString('pedalier', json_encode($e, JSON_UNESCAPED_UNICODE));
+    }
+
+    public function test_detector_marca_requiere_revision_si_sugiere_cambiar_pieza_con_fisura(): void
+    {
+        $revision = ['componentes' => [
+            'cuadro' => ['acciones' => ['recomendar'], 'motivos' => ['fisura'], 'nota' => ''],
+            'pinones' => ['acciones' => ['recomendar'], 'motivos' => ['desgaste'], 'nota' => ''],
+        ]];
+        $this->fakeIa('{"texto":"Revisamos tu bici y encontramos una fisura en el cuadro. Te recomendamos cambiar el cuadro y los piñones en el próximo servicio porque tienen desgaste."}');
+        $t = TicketTaller::create(['revision_tecnica' => $revision]);
+
+        $this->assertSame('requiere_revision', $this->redactar($t)->informe_ia_estado);
+        $this->assertSame(['cuadro'], RedactarInforme::cambioPorSeguridad($t->fresh()->informe_ia, $revision));
+        $this->assertSame([], RedactarInforme::cambioPorSeguridad(
+            'Por seguridad, te recomendamos no rodar hasta que un especialista evalúe el cuadro: encontramos una fisura. Te recomendamos cambiar los piñones en el próximo servicio porque tienen desgaste.',
+            $revision,
+        ));
     }
 
     public function test_borrador_aprobado_con_hash_viejo_se_marca_desactualizado(): void
@@ -215,7 +251,7 @@ class IaTallerTest extends TestCase
 
     public function test_texto_fuera_de_largo_termina_en_error(): void
     {
-        $this->fakeIa('{"texto":"Listo."}');
+        $this->fakeIa('{"texto":"'.str_repeat('Lubricamos la cadena. ', 40).'"}');
         $t = TicketTaller::create(['revision_tecnica' => self::REVISION]);
 
         $this->assertSame('error', $this->redactar($t)->informe_ia_estado);
