@@ -128,12 +128,32 @@ Ninguna de las dos ramas existe todavia en `origin` — ambas son locales.
 - **Rotar la API key de NVIDIA** — [sin verificar] no hay ninguna key de NVIDIA en el
   repo (la unica mencion al proveedor esta en `PLAN_TALLER_SMART.md`), asi que la key
   vive fuera del repositorio y su rotacion no se puede confirmar desde aqui.
-- **Vulnerabilidades de npm sin revisar** — `npm audit` del 06/10 reporta **10**
-  vulnerabilidades, no 8: 2 moderate, 6 high, 2 critical. Ninguna revisada ni
-  clasificada todavia.
+- ~~Vulnerabilidades de npm sin revisar~~ — **resuelto parcialmente el 06/10**
+  (commit `67193f7`). Se analizaron las 10 una por una: ninguna llega al navegador
+  (0 rastros en `public/build`), todas son herramientas de compilacion. Se elimino
+  `concurrently` (dependencia muerta: ningun script la usaba) y con ella las 2
+  criticas, y `npm audit fix` subio `source-map-js` a 1.2.2. Quedan 7, todas de la
+  cadena de Tailwind — ver Riesgos aceptados.
 - **Formula de "buen/mal pagador" sin definir** — sigue siendo decision de Carlos y
   sigue bloqueando que el modulo KPI se considere completo. Es el mismo pendiente que
   ya figuraba en la version del 2026-09-09 de este documento.
+
+## Riesgos aceptados (decision consciente, no son pendientes)
+
+- **7 vulnerabilidades de Tailwind v3 (solo de compilacion, no llegan al navegador).**
+  Se aceptan por decision de stack: migrar a v4 rompe la paleta. Revisar si en algun
+  momento se migra Tailwind.
+  Detalle para quien lo revise despues: son `tailwindcss` 3.4.19 (directa) mas
+  `braces`, `chokidar`, `fast-glob`, `micromatch`, `postcss-nested` y
+  `postcss-selector-parser` (todas transitivas suyas). Son agotamiento de CPU /
+  denegacion de servicio, explotables solo por quien controle la entrada del proceso
+  de build — en Kredix el build lo corre Carlos con su propio codigo. El unico fix que
+  ofrece npm es Tailwind 4.3.3, salto mayor: el CLAUDE.md fija v3 porque Breeze para
+  Vue no soporta el enfoque CSS-first de v4 y la paleta vive en `tailwind.config.js`,
+  no en `@theme`.
+- **4 asientos `cargo` del Grupo B inflando el KPI "Otorgado" en $2,415.00** — ver
+  Cambios hechos fuera de git. Aceptado explicitamente por Carlos para poder llevar a
+  cero las 4 cuentas con saldo negativo.
 
 ## Housekeeping pendiente (bajo riesgo, sin apuro)
 
@@ -144,9 +164,11 @@ Ninguna de las dos ramas existe todavia en `origin` — ambas son locales.
   ResponsiveNavLink, DropdownLink, Dropdown) — limpiar en una pasada dedicada
 - Rotar password del usuario de prueba `sistema@kredix.local` y el certificado de
   Cloudflare (quedaron en texto plano en el historial de un chat)
-- Commitear o descartar los 3 documentos untracked en `.doc/`
-  (`PLAN_TALLER_SMART.md`, `ADENDA_app-env-produccion.md`,
-  `auditoria-taller-2026-10-06/`)
+- ~~Commitear o descartar los documentos untracked en `.doc/`~~ — **resuelto el
+  06/10**: `PLAN_TALLER_SMART.md` (`6dfa42f`), `ADENDA_app-env-produccion.md` y
+  `auditoria-taller-2026-10-06/INFORME.md` ya estan versionados. Las copias de codigo
+  fuente de esa carpeta de auditoria quedaron en `.gitignore` a proposito (duplican
+  archivos de `app/` y `resources/` y se desactualizan solas)
 - 3 cuentas reales de los operadores: parcialmente resuelto — ya existen usuarios
   reales (Wilmer Moreno, Carlos Rojas, Kleiver Rojas), no todo corre bajo "Sistema"
   como decia la version anterior de este documento

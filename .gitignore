@@ -27,3 +27,9 @@ DataClientes/
 
 awesome-design-md/
 DataProspectos/
+
+# Auditoria de Taller: se versiona solo el informe, no las copias de codigo
+# fuente que se sacaron para revision externa (duplican archivos que ya viven
+# en app/ y resources/, y se desactualizan solos)
+.doc/auditoria-taller-2026-10-06/*
+!.doc/auditoria-taller-2026-10-06/INFORME.md
