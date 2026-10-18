@@ -298,6 +298,9 @@ class MovimientoCuentaController extends Controller
                 'monto' => $montoInicial,
                 'moneda' => 'usd',
                 'metodo_pago' => $validated['metodo_pago_inicial'],
+                'tasa_cambio' => $validated['tasa_cambio'] ?? null,
+                'plan_financiamiento_id' => $plan->id,
+                'es_inicial' => true,
                 'comentario' => 'Inicial pactada al financiar la venta',
                 'registrado_por' => auth()->id(),
             ]);
@@ -320,51 +323,22 @@ class MovimientoCuentaController extends Controller
         }
     }
 
-    // "Llenar y desbordar": la cuota vigente (primera con saldo pendiente) se
-    // completa primero, el excedente pasa a la siguiente, y asi hasta agotar el
-    // abono o las cuotas -- si sobra monto despues de cubrir TODAS las cuotas,
-    // el resto se registra como abono normal sin cuota_id (nunca se pierde dinero)
+    // Un pago es UNA fila con el monto completo, ligada al plan (no a una
+    // cuota). "Llenar y desbordar" lo hace recalcularCascada(): la cuota vigente
+    // se completa primero y el excedente pasa a la siguiente; lo que sobre de
+    // cubrir TODAS las cuotas se queda en la misma fila (nunca se pierde dinero)
     private function aplicarAbonoAPlan(array $datosBase, float $monto, PlanFinanciamiento $plan, bool $llevaComprobante): MovimientoCuenta
     {
-        $restante = $monto;
-        $primero = null;
+        $fila = MovimientoCuenta::create([
+            ...$datosBase,
+            'monto' => $monto,
+            'plan_financiamiento_id' => $plan->id,
+            'estado_validacion' => $llevaComprobante ? 'pendiente' : null,
+        ]);
 
-        $cuotasPendientes = $plan->cuotas()->whereColumn('monto_abonado', '<', 'monto_pactado')->orderBy('numero')->get();
+        $plan->recalcularCascada();
 
-        foreach ($cuotasPendientes as $cuota) {
-            if ($restante <= 0) {
-                break;
-            }
-
-            $faltante = round((float) $cuota->monto_pactado - (float) $cuota->monto_abonado, 2);
-            $aplicado = min($restante, $faltante);
-
-            $fila = MovimientoCuenta::create([
-                ...$datosBase,
-                'monto' => $aplicado,
-                'cuota_id' => $cuota->id,
-            ]);
-
-            $cuota->recalcular();
-            $primero ??= $fila;
-            $restante = round($restante - $aplicado, 2);
-        }
-
-        if ($restante > 0) {
-            $sobrante = MovimientoCuenta::create([
-                ...$datosBase,
-                'monto' => $restante,
-            ]);
-            $primero ??= $sobrante;
-        }
-
-        // el comprobante (uno solo, adjuntado despues por el caller) siempre va
-        // sobre la primera fila creada, asi que solo ella puede nacer "pendiente"
-        if ($llevaComprobante) {
-            $primero->update(['estado_validacion' => 'pendiente']);
-        }
-
-        return $primero;
+        return $fila;
     }
 
     public function update(Request $request, MovimientoCuenta $movimiento)
@@ -431,6 +405,9 @@ class MovimientoCuentaController extends Controller
             'referencia' => ($validated['metodo_pago'] ?? null) !== 'efectivo' ? ($validated['referencia'] ?? null) : null,
             'comentario' => $validated['comentario'] ?? null,
         ]);
+
+        // editar el monto de un abono de plan reparte de nuevo la cascada
+        $movimiento->planDeAbono()?->recalcularCascada();
 
         if ($request->hasFile('comprobante')) {
             $this->adjuntarComprimida($movimiento, $request->file('comprobante'), 'comprobantes');
@@ -500,6 +477,9 @@ class MovimientoCuentaController extends Controller
             'eliminado_por' => auth()->id(),
         ]);
         $movimiento->delete();
+
+        // anular un abono de plan libera lo que habia cubierto en las cuotas
+        $movimiento->planDeAbono()?->recalcularCascada();
 
         return redirect()->route('clientes.show', $clienteId);
     }

@@ -64,4 +64,25 @@ class PlanFinanciamiento extends Model
     {
         return $this->hasMany(Cuota::class)->orderBy('numero');
     }
+
+    // Cascada: la suma de abonos vigentes del plan (sin la inicial) se reparte en
+    // orden sobre monto_pactado y se persiste en cada cuota -- siempre desde la
+    // suma real, nunca incremental. Cuenta las filas nuevas (plan_financiamiento_id)
+    // y las viejas partidas por cuota (cuota_id), una sola vez cada una. Lo que
+    // sobra de cubrir todas las cuotas simplemente queda sin asignar
+    public function recalcularCascada(): void
+    {
+        $cuotas = $this->cuotas()->get();
+
+        $restante = (float) MovimientoCuenta::where('tipo', 'abono')
+            ->where('es_inicial', false)
+            ->where(fn ($q) => $q->where('plan_financiamiento_id', $this->id)->orWhereIn('cuota_id', $cuotas->modelKeys()))
+            ->sum('monto');
+
+        foreach ($cuotas as $cuota) {
+            $aplicado = round(min($restante, (float) $cuota->monto_pactado), 2);
+            $cuota->update(['monto_abonado' => $aplicado]);
+            $restante = round($restante - $aplicado, 2);
+        }
+    }
 }

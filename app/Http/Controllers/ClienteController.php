@@ -438,10 +438,11 @@ class ClienteController extends Controller
             ->values();
     }
 
-    // Cuotas REALES: monto_abonado es un valor persistido (Cuota::recalcular,
-    // nunca calculado al vuelo aqui) -- a diferencia de compromisosCuotas() esto
-    // es un registro contable de verdad, un abono especifico queda ligado a una
-    // cuota especifica via movimientos_cuenta.cuota_id
+    // Cuotas REALES: monto_abonado es un valor persistido (lo fija
+    // PlanFinanciamiento::recalcularCascada, nunca calculado al vuelo aqui) -- a
+    // diferencia de compromisosCuotas() esto es un registro contable de verdad:
+    // los abonos se ligan al plan (movimientos_cuenta.plan_financiamiento_id) y
+    // la cascada los reparte sobre las cuotas
     private function planesFinanciamiento(Cliente $cliente)
     {
         return PlanFinanciamiento::whereHas('cargo', fn ($q) => $q->where('cliente_id', $cliente->id))

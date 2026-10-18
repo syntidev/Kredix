@@ -35,15 +35,8 @@ class Cuota extends Model
         return $this->hasMany(MovimientoCuenta::class, 'cuota_id');
     }
 
-    // monto_abonado es un valor persistido (no calculado al vuelo) -- se
-    // recalcula por SUM real cada vez que un abono ligado a esta cuota se
-    // crea/edita/borra, nunca por suma incremental (evita drift si algo falla
-    // a mitad de camino)
-    public function recalcular(): void
-    {
-        $this->monto_abonado = $this->abonos()->where('tipo', 'abono')->sum('monto');
-        $this->save();
-    }
+    // monto_abonado es un valor persistido (no calculado al vuelo): lo fija
+    // PlanFinanciamiento::recalcularCascada() desde la suma de abonos del plan
 
     public function estado(): string
     {

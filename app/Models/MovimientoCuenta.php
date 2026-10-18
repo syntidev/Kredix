@@ -29,6 +29,8 @@ class MovimientoCuenta extends Model implements HasMedia
         'cantidad',
         'plazo_meses',
         'cuota_id',
+        'plan_financiamiento_id',
+        'es_inicial',
         'frecuencia_pago',
         'precio_unitario',
         'modalidad_precio',
@@ -56,6 +58,7 @@ class MovimientoCuenta extends Model implements HasMedia
         'tasa_cambio' => 'decimal:4',
         'validado_en' => 'datetime',
         'duplicado_confirmado' => 'boolean',
+        'es_inicial' => 'boolean',
     ];
 
     public function cliente(): BelongsTo
@@ -81,6 +84,18 @@ class MovimientoCuenta extends Model implements HasMedia
     public function cuota(): BelongsTo
     {
         return $this->belongsTo(Cuota::class);
+    }
+
+    // plan al que se abona: filas nuevas via plan_financiamiento_id, filas
+    // viejas (partidas por cuota) via cuota_id -> cuota -> plan
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(PlanFinanciamiento::class, 'plan_financiamiento_id');
+    }
+
+    public function planDeAbono(): ?PlanFinanciamiento
+    {
+        return $this->plan ?? $this->cuota?->plan;
     }
 
     // solo tiene sentido en filas tipo=cargo -- el plan de financiamiento
