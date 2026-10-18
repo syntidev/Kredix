@@ -2,7 +2,7 @@
 import { computed, onUnmounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
-import { ClipboardCheck, Crown, Download, Eye, FileText, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
+import { ClipboardCheck, Crown, Download, Eye, FileText, MessageCircle, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
@@ -18,6 +18,8 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
     ticket: { type: Object, required: true },
     siguienteTicketId: { type: Number, default: null },
+    // texto del aviso "unidad lista"; null = ticket sin atender o sin cliente con telefono
+    mensajeWhatsapp: { type: String, default: null },
     mecanicos: { type: Array, required: true },
     empresaNombre: { type: String, default: 'Kredix' },
     ticketQrDataUri: { type: String, default: '' },
@@ -28,6 +30,18 @@ const props = defineProps({
 
 const esServicioCliente = computed(() => props.ticket.tipo === 'servicio_cliente');
 const atendido = computed(() => props.ticket.estado === 'atendido');
+
+// --- aviso por WhatsApp: cuadro con el texto editable; lo que se edite es lo
+// que viaja en el enlace. cliente.telefono esta en E.164, basta quitar el "+" ---
+const avisandoWhatsapp = ref(false);
+const textoWhatsapp = ref('');
+
+function abrirAvisoWhatsapp() {
+    textoWhatsapp.value = props.mensajeWhatsapp;
+    avisandoWhatsapp.value = true;
+}
+
+const waLink = computed(() => `https://wa.me/${props.ticket.cliente.telefono.replace('+', '')}?text=${encodeURIComponent(textoWhatsapp.value)}`);
 
 // window.print() inline en el template (@click="window.print()") resolvia
 // mal el global en el codigo compilado -> "Cannot read properties of
@@ -574,6 +588,39 @@ const itemsFaltantesParaCerrar = computed(() => {
             </div>
         </div>
         <p v-if="errorAtendido" class="text-sm text-kredix-rojo">{{ errorAtendido }}</p>
+
+        <button
+            v-if="mensajeWhatsapp && !avisandoWhatsapp"
+            type="button"
+            class="flex min-h-11 w-fit items-center gap-1.5 rounded-lg border border-green-600 px-4 text-sm font-medium text-green-700 active:bg-green-50"
+            @click="abrirAvisoWhatsapp"
+        >
+            <MessageCircle :size="16" />
+            Avisar por WhatsApp
+        </button>
+        <div v-if="mensajeWhatsapp && avisandoWhatsapp" class="flex flex-col gap-2 rounded-xl border border-green-600 bg-white p-3">
+            <label for="texto-whatsapp" class="text-sm font-medium text-kredix-negro">Mensaje para {{ ticket.cliente.nombre }} <span class="font-normal text-kredix-gris">(puedes editarlo antes de enviar)</span></label>
+            <textarea
+                id="texto-whatsapp"
+                v-model="textoWhatsapp"
+                rows="6"
+                class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+            ></textarea>
+            <div class="flex gap-2">
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="avisandoWhatsapp = false">Cancelar</button>
+                <a
+                    :href="waLink"
+                    target="_blank"
+                    rel="noopener"
+                    class="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-green-600 text-sm font-semibold text-white"
+                    :class="textoWhatsapp.trim() ? '' : 'pointer-events-none opacity-50'"
+                    @click="avisandoWhatsapp = false"
+                >
+                    <MessageCircle :size="16" />
+                    Abrir WhatsApp
+                </a>
+            </div>
+        </div>
 
         <Link
             :href="`/taller/${ticket.id}/revision`"
