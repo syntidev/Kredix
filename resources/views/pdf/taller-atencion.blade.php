@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <style>
-        @page { margin: 50px 36px {{ $margenPiePx }}px 36px; }
+        @page { margin: 50px 36px 80px 36px; }
         .banner-pdf { width: 100%; display: block; margin: 0 0 14px; }
         body { font-family: sans-serif; font-size: 11px; color: #101010; }
         h2 { font-size: 13px; margin: 16px 0 6px; }
@@ -79,7 +79,7 @@
         </tr>
     </table>
 
-    @if ($mostrarBanners && $bannerSuperiorBase64)
+    @if ($bannerSuperiorBase64)
         <img class="banner-pdf" src="{{ $bannerSuperiorBase64 }}">
     @endif
 
@@ -265,6 +265,10 @@
                 @endforeach
             </table>
         </div>
+    @endif
+
+    @if ($bannerInferiorBase64)
+        <img class="banner-pdf" src="{{ $bannerInferiorBase64 }}" style="margin-top: 14px;">
     @endif
 </body>
 </html>

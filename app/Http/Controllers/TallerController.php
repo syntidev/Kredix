@@ -230,27 +230,6 @@ class TallerController extends Controller
 
         $mostrarBanners = (bool) ConfiguracionPdf::instancia()->mostrar_banners_en_taller;
 
-        // banner_inferior se dibuja via canvas->page_script() despues del
-        // render (ver mas abajo), una vez por cada pagina real generada --
-        // ponerlo en el HTML normal solo lo mostraria una vez, en la pagina
-        // donde termine cayendo el flujo del documento. Se necesita su ruta +
-        // alto real (la conversion 'pdf' ya fija el ancho en 722px, el alto
-        // queda proporcional) para reservarle espacio fijo en el margen
-        // inferior de @page ANTES de que DomPDF calcule cuanto le queda a las
-        // fotos. El canvas de DomPDF trabaja en PUNTOS (pt), no en los px de
-        // CSS -- confirmado empiricamente (get_height() de una pagina A4 da
-        // 841.89, el alto real en pt, no 1122.52px) -- por eso aqui todo se
-        // convierte a pt (*0.75) antes de pasarlo a page_script()/image()
-        $bannerInferiorMedia = $mostrarBanners ? ConfiguracionPdf::instancia()->getFirstMedia('banner_inferior') : null;
-        $bannerInferiorRuta = $bannerInferiorMedia && file_exists($bannerInferiorMedia->getPath('pdf'))
-            ? $bannerInferiorMedia->getPath('pdf')
-            : null;
-        $bannerInferiorAltoPx = $bannerInferiorRuta ? (getimagesize($bannerInferiorRuta)[1] ?? 0) : 0;
-        // 40 = zona donde ya vive el folio/paginacion (yFooter = height-40,
-        // mismas unidades que el canvas, pt), 10 de aire, 10 de aire inferior
-        // -- @page margin SI es en px de CSS, por eso aqui se queda en px
-        $margenPiePx = 80 + ($bannerInferiorRuta ? $bannerInferiorAltoPx + 20 : 0);
-
         // vista previa: el PDF real con el texto en borrador, marcado BORRADOR
         $vistaPrevia = $request->boolean('vista_previa');
 
@@ -273,9 +252,10 @@ class TallerController extends Controller
             'alturaSalida' => $alturaSalida,
             'padEntrada' => $padEntrada,
             'padSalida' => $padSalida,
-            'margenPiePx' => $margenPiePx,
-            'mostrarBanners' => $mostrarBanners,
+            // mismos banners en el flujo del documento que el estado de cuenta:
+            // el superior abre la pagina 1, el inferior cierra la ultima
             'bannerSuperiorBase64' => $mostrarBanners ? ConfiguracionPdf::bannerBase64('banner_superior') : null,
+            'bannerInferiorBase64' => $mostrarBanners ? ConfiguracionPdf::bannerBase64('banner_inferior') : null,
             'empresa' => [
                 'razon_social' => Configuracion::valorDe('empresa_razon_social'),
                 'rif' => Configuracion::valorDe('empresa_rif'),
@@ -304,19 +284,6 @@ class TallerController extends Controller
         if ($vistaPrevia) {
             $fontNegrita = $pdf->getDomPDF()->getFontMetrics()->getFont('helvetica', 'bold');
             $canvas->page_text(36, 16, 'BORRADOR — vista previa, no enviar al cliente', $fontNegrita, 11, [0.8, 0, 0]);
-        }
-
-        // banner_inferior en cada pagina -- todo en pt (*0.75 desde px, ver
-        // comentario mas arriba): x=36px->27pt, ancho=722px->541.5pt (la
-        // misma conversion que ya valida el comentario de ConfiguracionPdf,
-        // 541.28pt de ancho de contenido medido con el motor de DomPDF)
-        if ($bannerInferiorRuta) {
-            $bannerAnchoPt = 722 * 0.75;
-            $bannerAltoPt = $bannerInferiorAltoPx * 0.75;
-            $bannerYPt = $yFooter - 10 - $bannerAltoPt;
-            $canvas->page_script(function ($pageNumber, $pageCount, $canvas) use ($bannerInferiorRuta, $bannerAnchoPt, $bannerAltoPt, $bannerYPt) {
-                $canvas->image($bannerInferiorRuta, 27, $bannerYPt, $bannerAnchoPt, $bannerAltoPt);
-            });
         }
 
         $response = $request->boolean('descargar')
