@@ -364,6 +364,27 @@ class TallerController extends Controller
         return redirect()->route('taller.show', $ticket->id);
     }
 
+    // Aviso de "unidad lista": solo con el ticket atendido y un cliente con
+    // telefono; si no, null y la pantalla no ofrece el boton. {monto} es el
+    // total del ticket en USD, mismo formato que el resto de Taller
+    private function mensajeWhatsappListo(TicketTaller $ticket): ?string
+    {
+        if ($ticket->estado !== 'atendido' || blank($ticket->cliente?->telefono)) {
+            return null;
+        }
+
+        return str_replace(
+            ['{nombre}', '{bici}', '{monto}'],
+            [
+                // los nombres de cliente se guardan en mayusculas
+                mb_convert_case($ticket->cliente->nombre, MB_CASE_TITLE, 'UTF-8'),
+                $ticket->bici_marca_modelo,
+                '$'.number_format($ticket->totalTicket(), 2),
+            ],
+            config('taller.whatsapp_listo.'.($ticket->pagado_en_taller ? 'pagado' : 'por_cobrar'))
+        );
+    }
+
     public function show(TicketTaller $ticket)
     {
         $ticket->load(['cliente:id,nombre,telefono', 'mecanico:id,name', 'registradoPor:id,name', 'revisadoPor:id,name', 'textoClienteAprobadoPor:id,name', 'repuestos']);
@@ -388,6 +409,7 @@ class TallerController extends Controller
 
         return Inertia::render('Taller/Show', [
             'siguienteTicketId' => $siguienteTicket?->id,
+            'mensajeWhatsapp' => $this->mensajeWhatsappListo($ticket),
             'ticket' => [
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',
