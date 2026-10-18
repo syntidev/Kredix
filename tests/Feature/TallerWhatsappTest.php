@@ -74,7 +74,8 @@ class TallerWhatsappTest extends TestCase
         $this->assertStringContainsString('Hola Ana Perez', $mensaje);
         $this->assertStringContainsString('Tu Trek Marlin 7 ya está lista', $mensaje);
         // 15 de servicio + 2 x 5 de repuestos
-        $this->assertStringContainsString('El monto del servicio es $25.00', $mensaje);
+        $this->assertStringContainsString('El total es $25.00', $mensaje);
+        $this->assertStringNotContainsString('El monto del servicio', $mensaje);
         $this->assertStringNotContainsString('{', $mensaje);
     }
 
@@ -94,6 +95,22 @@ class TallerWhatsappTest extends TestCase
     public function test_sin_telefono_no_hay_mensaje(): void
     {
         $this->assertNull($this->mensaje($this->ticket([], '')));
+    }
+
+    public function test_los_apellidos_con_enie_y_tilde_salen_bien(): void
+    {
+        $t = $this->ticket();
+        $t->cliente->update(['nombre' => 'MUÑOZ PÉREZ']);
+
+        $this->assertStringContainsString('Hola Muñoz Pérez', $this->mensaje($t));
+    }
+
+    public function test_un_armado_con_cliente_telefono_y_monto_avisa_el_total_servicio_mas_repuestos(): void
+    {
+        // 30 de servicio de armado + 2 x 5 de repuestos
+        $t = $this->ticket(['tipo' => 'armado_interno', 'tipo_servicio' => null, 'monto_servicio' => 30]);
+
+        $this->assertStringContainsString('El total es $40.00', $this->mensaje($t));
     }
 
     public function test_un_armado_sin_cliente_no_tiene_mensaje(): void

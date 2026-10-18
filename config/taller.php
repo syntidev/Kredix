@@ -166,7 +166,7 @@ return [
     // en WhatsApp). Marcadores: {nombre} {bici} {monto}. Si el ticket ya se pago
     // en el taller no hay monto que pedir. El operador lo edita antes de enviar
     'whatsapp_listo' => [
-        'por_cobrar' => "Hola {nombre} 👋 Te saludamos del taller. Tu {bici} ya está lista para retirar 🚲\nEl monto del servicio es {monto}.\nTe esperamos.",
+        'por_cobrar' => "Hola {nombre} 👋 Te saludamos del taller. Tu {bici} ya está lista para retirar 🚲\nEl total es {monto}.\nTe esperamos.",
         'pagado' => "Hola {nombre} 👋 Te saludamos del taller. Tu {bici} ya está lista para retirar 🚲\nEl servicio ya está pagado.\nTe esperamos.",
     ],
 
