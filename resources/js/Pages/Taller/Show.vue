@@ -27,6 +27,9 @@ const props = defineProps({
 });
 
 const esServicioCliente = computed(() => props.ticket.tipo === 'servicio_cliente');
+const tieneMontoServicio = computed(() => esServicioCliente.value || Number(props.ticket.monto_servicio || 0) > 0);
+// mismo criterio que TicketTaller::seCobra(): servicio siempre; armado con cliente y monto
+const seCobra = computed(() => esServicioCliente.value || (!!props.ticket.cliente && Number(props.ticket.monto_servicio || 0) > 0));
 const atendido = computed(() => props.ticket.estado === 'atendido');
 
 // window.print() inline en el template (@click="window.print()") resolvia
@@ -237,9 +240,8 @@ const exitoRepuesto = ref('');
 const errorRepuesto = ref('');
 
 const totalRepuestos = computed(() => props.ticket.repuestos.reduce((acc, r) => acc + Number(r.cantidad) * Number(r.precio), 0));
-// armado_interno no tiene cliente final que pague ni monto_servicio -- el
-// total ahi es solo repuestos, sin sumar nada mas
-const totalTicket = computed(() => totalRepuestos.value + (esServicioCliente.value ? Number(props.ticket.monto_servicio || 0) : 0));
+// monto_servicio es null en los armados sin monto: ahi el total es solo repuestos
+const totalTicket = computed(() => totalRepuestos.value + Number(props.ticket.monto_servicio || 0));
 
 const repuestoForm = useForm({ producto: '', cantidad: 1, precio: '' });
 
@@ -448,8 +450,8 @@ function abrirFoto(fotos, index) {
 // --- marcar atendido ---
 const errorAtendido = ref('');
 // null = el operador aun no eligio -- decision explicita, sin default
-// silencioso. Solo aplica a servicio_cliente (armado_interno no tiene
-// cliente que pague, no genera cargo)
+// silencioso. Solo aplica si el ticket se cobra (servicio, o armado con cliente
+// y monto); un armado sin cliente o sin monto no genera cargo
 const pagadoEnTaller = ref(null);
 
 // texto que no saldra en el PDF (borrador, desactualizado o el borrador que
@@ -466,7 +468,7 @@ function marcarAtendido(confirmacion = null) {
         return;
     }
     router.patch(`/taller/${props.ticket.id}/marcar-atendido`, {
-        ...(esServicioCliente.value ? { pagado_en_taller: pagadoEnTaller.value } : {}),
+        ...(seCobra.value ? { pagado_en_taller: pagadoEnTaller.value } : {}),
         ...(confirmacion ? { texto_cliente: confirmacion } : {}),
     }, {
         preserveScroll: true,
@@ -494,7 +496,7 @@ const avisoTextoCliente = computed(() => ({
     borrador: 'El texto para el cliente está en borrador: no saldrá en el PDF hasta que alguien lo apruebe.',
     desactualizado: 'La revisión cambió después de aprobar el texto para el cliente: no saldrá en el PDF hasta que lo revises y lo guardes de nuevo.',
 }[textoCliente.value.estado] ?? ''));
-const faltaPagoElegido = computed(() => esServicioCliente.value && pagadoEnTaller.value === null);
+const faltaPagoElegido = computed(() => seCobra.value && pagadoEnTaller.value === null);
 const puedeMarcarAtendido = computed(() => !faltaFotoEntrada.value && !faltaFotoSalida.value && !faltaTrabajoRealizado.value && !faltaPagoElegido.value);
 
 // lista en vez de cadena de if/else-if -- con 4 condiciones posibles la
@@ -583,7 +585,7 @@ const itemsFaltantesParaCerrar = computed(() => {
             Revision tecnica
         </Link>
 
-        <div v-if="!atendido && esServicioCliente" class="flex flex-col gap-1 rounded-xl border border-gray-200 bg-white p-3">
+        <div v-if="!atendido && seCobra" class="flex flex-col gap-1 rounded-xl border border-gray-200 bg-white p-3">
             <label class="text-sm font-medium text-kredix-negro">¿Se pago en el momento?</label>
             <div class="flex gap-2">
                 <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="pagadoEnTaller === true ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-300 text-kredix-negro'">
@@ -626,7 +628,7 @@ const itemsFaltantesParaCerrar = computed(() => {
 
             <template v-if="!editando">
                 <p class="text-sm text-kredix-gris">
-                    {{ esServicioCliente ? (ticket.cliente?.nombre ?? '-') : 'Armado interno' }} · {{ formatFecha(ticket.created_at) }}
+                    {{ ticket.cliente?.nombre ?? (esServicioCliente ? '-' : 'Armado interno') }} · {{ formatFecha(ticket.created_at) }}
                 </p>
                 <div v-if="esServicioCliente" class="flex flex-col gap-1">
                     <p class="text-sm font-medium text-kredix-negro">Motivo de ingreso</p>
@@ -637,8 +639,8 @@ const itemsFaltantesParaCerrar = computed(() => {
                     <span v-if="CATEGORIA_LABEL[ticket.categoria_bici]">· {{ CATEGORIA_LABEL[ticket.categoria_bici] }}</span>
                     <span v-if="ticket.talla_rin">· Rin {{ ticket.talla_rin }}</span>
                 </p>
-                <p v-if="esServicioCliente" class="text-sm text-kredix-negro">
-                    {{ TIPO_SERVICIO_LABEL[ticket.tipo_servicio] ?? ticket.tipo_servicio }} — {{ formatMoney(ticket.monto_servicio) }}
+                <p v-if="tieneMontoServicio" class="text-sm text-kredix-negro">
+                    {{ esServicioCliente ? (TIPO_SERVICIO_LABEL[ticket.tipo_servicio] ?? ticket.tipo_servicio) : 'Servicio de armado' }} — {{ formatMoney(ticket.monto_servicio) }}
                 </p>
                 <p v-if="ticket.tipo_servicio === 'vip' && ticket.domicilio_direccion" class="text-sm text-kredix-negro">
                     <span class="font-medium">Domicilio:</span> {{ ticket.domicilio_direccion }}
@@ -672,8 +674,8 @@ const itemsFaltantesParaCerrar = computed(() => {
             </template>
 
             <form v-else class="flex flex-col gap-3" @submit.prevent="guardarEdicion">
-                <div v-if="esServicioCliente" class="flex flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Cliente</label>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Cliente <span v-if="!esServicioCliente" class="font-normal text-kredix-gris">(opcional)</span></label>
                     <div v-if="clienteSeleccionado" class="flex items-center justify-between rounded-lg border border-gray-300 px-3 py-2">
                         <span class="text-sm text-kredix-negro">{{ clienteSeleccionado.nombre }}</span>
                         <button type="button" class="min-h-9 shrink-0 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="quitarCliente">Cambiar</button>
@@ -699,7 +701,7 @@ const itemsFaltantesParaCerrar = computed(() => {
                         </div>
 
                         <button
-                            v-if="!creandoCliente"
+                            v-if="!creandoCliente && esServicioCliente"
                             type="button"
                             class="flex min-h-9 self-start shrink-0 items-center gap-1.5 rounded-lg bg-kredix-negro px-3 text-sm font-medium text-white active:opacity-80"
                             @click="abrirCrearCliente"
@@ -766,8 +768,8 @@ const itemsFaltantesParaCerrar = computed(() => {
                         <option v-for="(etiqueta, valor) in etiquetas.paquetes" :key="valor" :value="valor">{{ etiqueta }}</option>
                     </select>
                 </div>
-                <div v-if="esServicioCliente" class="flex flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Monto</label>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Monto <span v-if="!esServicioCliente" class="font-normal text-kredix-gris">(opcional; con cliente genera cargo al cerrar)</span></label>
                     <input v-model="editForm.monto_servicio" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 </div>
                 <div class="flex flex-col gap-1">
@@ -808,7 +810,7 @@ const itemsFaltantesParaCerrar = computed(() => {
             <div class="flex items-baseline justify-between rounded-lg bg-kredix-negro px-3 py-2.5">
                 <span class="text-sm font-medium text-white">
                     Total del ticket
-                    <span v-if="esServicioCliente" class="block text-xs font-normal text-white/70">Repuestos + servicio ({{ formatMoney(totalRepuestos) }} + {{ formatMoney(ticket.monto_servicio) }})</span>
+                    <span v-if="tieneMontoServicio" class="block text-xs font-normal text-white/70">Repuestos + servicio ({{ formatMoney(totalRepuestos) }} + {{ formatMoney(ticket.monto_servicio) }})</span>
                 </span>
                 <span class="tabular-nums text-2xl font-bold text-white">{{ formatMoney(totalTicket) }}</span>
             </div>
@@ -1029,10 +1031,10 @@ const itemsFaltantesParaCerrar = computed(() => {
 
             <!-- jerarquia: nombre del cliente es el elemento MAS GRANDE (asi
             se refieren a las bicis en el taller real, no por numero). Sin
-            cliente (armado_interno) el numero de ticket toma ese lugar --
+            cliente (armado interno anonimo) el numero de ticket toma ese lugar --
             nunca queda sin protagonista visual -->
-            <p v-if="esServicioCliente && ticket.cliente" class="my-1 text-3xl font-bold leading-tight">{{ ticket.cliente.nombre }}</p>
-            <p class="font-bold" :class="esServicioCliente && ticket.cliente ? 'text-lg' : 'my-1 text-4xl'">#{{ ticket.id }}</p>
+            <p v-if="ticket.cliente" class="my-1 text-3xl font-bold leading-tight">{{ ticket.cliente.nombre }}</p>
+            <p class="font-bold" :class="ticket.cliente ? 'text-lg' : 'my-1 text-4xl'">#{{ ticket.id }}</p>
 
             <p class="text-xs">{{ formatFecha(ticket.created_at) }}</p>
             <p class="text-sm">{{ ticket.bici_marca_modelo }}</p>

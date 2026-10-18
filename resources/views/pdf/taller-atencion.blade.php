@@ -103,7 +103,7 @@
             </tr>
             <tr>
                 <td class="label">Tipo de servicio</td>
-                <td>{{ $ticket->tipo_servicio ? ($tipoServicioLabel[$ticket->tipo_servicio] ?? $ticket->tipo_servicio) : 'Armado interno' }}</td>
+                <td>{{ $ticket->tipo_servicio ? ($tipoServicioLabel[$ticket->tipo_servicio] ?? $ticket->tipo_servicio) : ($ticket->cliente ? 'Armado' : 'Armado interno') }}</td>
                 <td class="label">Mecanico</td>
                 <td>{{ $ticket->mecanico->name ?? '-' }}</td>
             </tr>
@@ -150,7 +150,7 @@
         // tabla "Desglose" junto con los repuestos (bug real, confirmado con
         // el ticket #13: $35 de repuesto + $20 de servicio = $55 de total,
         // pero el PDF solo mostraba el repuesto)
-        $mostrarServicio = $ticket->tipo === 'servicio_cliente' && (float) $ticket->monto_servicio > 0;
+        $mostrarServicio = (float) $ticket->monto_servicio > 0;
     @endphp
     @if ($mostrarServicio || $ticket->repuestos->isNotEmpty())
         <h2>Desglose</h2>
@@ -166,7 +166,7 @@
             <tbody>
                 @if ($mostrarServicio)
                     <tr>
-                        <td>Servicio {{ $tipoServicioLabel[$ticket->tipo_servicio] ?? $ticket->tipo_servicio }}</td>
+                        <td>{{ $ticket->tipo_servicio ? 'Servicio '.($tipoServicioLabel[$ticket->tipo_servicio] ?? $ticket->tipo_servicio) : 'Servicio de armado' }}</td>
                         <td class="monto">1</td>
                         <td class="monto">{{ formatMoneyPdfTaller($ticket->monto_servicio) }}</td>
                         <td class="monto">{{ formatMoneyPdfTaller($ticket->monto_servicio) }}</td>

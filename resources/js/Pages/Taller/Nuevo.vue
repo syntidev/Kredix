@@ -40,6 +40,12 @@ const form = useForm({
 const esServicioCliente = computed(() => form.tipo === 'servicio_cliente');
 const esVip = computed(() => esServicioCliente.value && form.tipo_servicio === 'vip');
 
+// el monto arranca en el del paquete basico: en armado debe arrancar vacio
+// (sin monto ni cliente el armado cierra sin cargo)
+watch(() => form.tipo, (tipo) => {
+    form.monto_servicio = tipo === 'armado_interno' ? '' : (MONTOS_SERVICIO[form.tipo_servicio] ?? '');
+});
+
 // --- buscador de cliente (mismo patron que Home/Index.vue) ---
 const busquedaCliente = ref('');
 const resultadosCliente = ref([]);
@@ -243,8 +249,8 @@ function submit() {
                 <p v-if="form.errors.motivo_ingreso" class="text-sm text-kredix-rojo">{{ form.errors.motivo_ingreso }}</p>
             </div>
 
-            <div v-if="esServicioCliente" class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Cliente</label>
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Cliente <span v-if="!esServicioCliente" class="font-normal text-kredix-gris">(opcional)</span></label>
                 <div v-if="clienteSeleccionado" class="flex items-center justify-between rounded-lg border border-gray-300 px-3 py-2">
                     <span class="text-sm text-kredix-negro">{{ clienteSeleccionado.nombre }}</span>
                     <button type="button" class="min-h-9 shrink-0 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="quitarCliente">Cambiar</button>
@@ -270,7 +276,7 @@ function submit() {
                     </div>
 
                     <button
-                        v-if="!creandoCliente"
+                        v-if="!creandoCliente && esServicioCliente"
                         type="button"
                         class="flex min-h-9 self-start shrink-0 items-center gap-1.5 rounded-lg bg-kredix-negro px-3 text-xs font-medium text-white active:opacity-80"
                         @click="abrirCrearCliente"
@@ -361,6 +367,18 @@ function submit() {
                     :readonly="form.tipo_servicio !== 'otro'"
                     class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                     :class="form.tipo_servicio !== 'otro' ? 'bg-gray-50 text-kredix-gris' : ''"
+                />
+                <p v-if="form.errors.monto_servicio" class="text-sm text-kredix-rojo">{{ form.errors.monto_servicio }}</p>
+            </div>
+
+            <div v-else class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">Monto del servicio <span class="font-normal text-kredix-gris">(opcional; con cliente genera cargo al cerrar)</span></label>
+                <input
+                    v-model="form.monto_servicio"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                 />
                 <p v-if="form.errors.monto_servicio" class="text-sm text-kredix-rojo">{{ form.errors.monto_servicio }}</p>
             </div>
