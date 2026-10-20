@@ -28,10 +28,12 @@ const props = defineProps({
     maxFotos: { type: Number, required: true },
 });
 
-const esServicioCliente = computed(() => props.ticket.tipo === 'servicio_cliente');
-const tieneMontoServicio = computed(() => esServicioCliente.value || Number(props.ticket.monto_servicio || 0) > 0);
-// mismo criterio que TicketTaller::seCobra(): servicio siempre; armado con cliente y monto
-const seCobra = computed(() => esServicioCliente.value || (!!props.ticket.cliente && Number(props.ticket.monto_servicio || 0) > 0));
+// "Trabajo de la tienda" = ticket sin cliente: ahi no se muestra ni se registra ninguna cifra
+const tieneCliente = computed(() => !!props.ticket.cliente);
+const tieneMontoServicio = computed(() => tieneCliente.value && (!!props.ticket.tipo_servicio || Number(props.ticket.monto_servicio || 0) > 0));
+// mismo criterio que TicketTaller::seCobra(): servicio siempre; armado viejo con cliente y monto
+const seCobra = computed(() => props.ticket.tipo === 'servicio_cliente' || (tieneCliente.value && Number(props.ticket.monto_servicio || 0) > 0));
+const ETIQUETA_TOTAL = { acumulado: 'Acumulado', pagado: 'Pagado', a_cuenta: 'A cuenta' };
 const atendido = computed(() => props.ticket.estado === 'atendido');
 
 // --- aviso por WhatsApp: cuadro con el texto editable; lo que se edite es lo
@@ -117,7 +119,24 @@ const editForm = useForm({
     es_electrica: props.ticket.es_electrica,
     tipo_servicio: props.ticket.tipo_servicio ?? 'basico',
     monto_servicio: props.ticket.monto_servicio,
+    trabajo_tienda: !props.ticket.cliente,
+    incluye_armado: props.ticket.incluye_armado,
+    monto_armado: props.ticket.monto_armado,
     mecanico_id: props.ticket.mecanico_id,
+});
+const puedeIncluirArmado = computed(() => !editForm.trabajo_tienda && editForm.tipo_servicio !== 'armado');
+
+// marcar "Trabajo de la tienda" quita el cliente y todo lo que lleva cifras
+watch(() => editForm.trabajo_tienda, (marcado) => {
+    if (!marcado) return;
+    quitarCliente();
+    editForm.incluye_armado = false;
+    editForm.monto_armado = '';
+});
+watch(() => editForm.tipo_servicio, (tipo) => {
+    if (tipo !== 'armado') return;
+    editForm.incluye_armado = false;
+    editForm.monto_armado = '';
 });
 
 // --- reasignar cliente (mismo patron de buscador que Taller/Nuevo.vue),
@@ -238,7 +257,9 @@ function mostrarMensaje(msgRef, texto, ms = 2500) {
 const exitoEdicion = ref('');
 
 function guardarEdicion() {
-    editForm.put(`/taller/${props.ticket.id}`, {
+    editForm.transform((datos) => (datos.trabajo_tienda
+        ? { ...datos, cliente_id: null, tipo_servicio: null, monto_servicio: null, incluye_armado: false, monto_armado: null }
+        : datos)).put(`/taller/${props.ticket.id}`, {
         preserveScroll: true,
         onSuccess: () => {
             editando.value = false;
@@ -253,9 +274,9 @@ let sugerenciasRepuestoTimeout = null;
 const exitoRepuesto = ref('');
 const errorRepuesto = ref('');
 
-const totalRepuestos = computed(() => props.ticket.repuestos.reduce((acc, r) => acc + Number(r.cantidad) * Number(r.precio), 0));
-// monto_servicio es null en los armados sin monto: ahi el total es solo repuestos
-const totalTicket = computed(() => totalRepuestos.value + Number(props.ticket.monto_servicio || 0));
+const totalRepuestos = computed(() => props.ticket.repuestos.reduce((acc, r) => acc + Number(r.cantidad) * Number(r.precio || 0), 0));
+// monto_servicio y monto_armado son null cuando no aplican: suman 0
+const totalTicket = computed(() => totalRepuestos.value + Number(props.ticket.monto_servicio || 0) + Number(props.ticket.monto_armado || 0));
 
 const repuestoForm = useForm({ producto: '', cantidad: 1, precio: '' });
 
@@ -282,7 +303,8 @@ function elegirSugerenciaRepuesto(nombre) {
 }
 
 function agregarRepuesto() {
-    repuestoForm.post(`/taller/${props.ticket.id}/repuestos`, {
+    // en trabajo de la tienda el repuesto se registra sin cifras
+    repuestoForm.transform((datos) => (tieneCliente.value ? datos : { ...datos, precio: null })).post(`/taller/${props.ticket.id}/repuestos`, {
         preserveScroll: true,
         onSuccess: () => {
             repuestoForm.reset();
@@ -675,10 +697,10 @@ const itemsFaltantesParaCerrar = computed(() => {
 
             <template v-if="!editando">
                 <p class="text-sm text-kredix-gris">
-                    {{ ticket.cliente?.nombre ?? (esServicioCliente ? '-' : 'Armado interno') }} · {{ formatFecha(ticket.created_at) }}
+                    {{ ticket.cliente?.nombre ?? 'Trabajo de la tienda' }} · {{ formatFecha(ticket.created_at) }}
                 </p>
-                <div v-if="esServicioCliente" class="flex flex-col gap-1">
-                    <p class="text-sm font-medium text-kredix-negro">Motivo de ingreso</p>
+                <div v-if="tieneCliente || ticket.motivo_ingreso" class="flex flex-col gap-1">
+                    <p class="text-sm font-medium text-kredix-negro">{{ tieneCliente ? 'Motivo de ingreso' : 'Trabajo a realizar' }}</p>
                     <p class="text-sm text-kredix-gris">{{ ticket.motivo_ingreso || '-' }}</p>
                 </div>
                 <p class="text-sm text-kredix-negro">
@@ -687,7 +709,11 @@ const itemsFaltantesParaCerrar = computed(() => {
                     <span v-if="ticket.talla_rin">· Rin {{ ticket.talla_rin }}</span>
                 </p>
                 <p v-if="tieneMontoServicio" class="text-sm text-kredix-negro">
-                    {{ esServicioCliente ? (TIPO_SERVICIO_LABEL[ticket.tipo_servicio] ?? ticket.tipo_servicio) : 'Servicio de armado' }} — {{ formatMoney(ticket.monto_servicio) }}
+                    {{ ticket.tipo_servicio ? (TIPO_SERVICIO_LABEL[ticket.tipo_servicio] ?? ticket.tipo_servicio) : 'Servicio de armado' }} — {{ formatMoney(ticket.monto_servicio) }}
+                </p>
+                <p v-if="ticket.incluye_armado" class="flex items-center gap-2 text-sm text-kredix-negro">
+                    <span class="rounded bg-black px-1.5 py-0.5 text-xs font-bold text-white">+ ARMADO</span>
+                    <span v-if="Number(ticket.monto_armado) > 0">{{ formatMoney(ticket.monto_armado) }}</span>
                 </p>
                 <p v-if="ticket.tipo_servicio === 'vip' && ticket.domicilio_direccion" class="text-sm text-kredix-negro">
                     <span class="font-medium">Domicilio:</span> {{ ticket.domicilio_direccion }}
@@ -721,8 +747,8 @@ const itemsFaltantesParaCerrar = computed(() => {
             </template>
 
             <form v-else class="flex flex-col gap-3" @submit.prevent="guardarEdicion">
-                <div class="flex flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Cliente <span v-if="!esServicioCliente" class="font-normal text-kredix-gris">(opcional)</span></label>
+                <fieldset :disabled="editForm.trabajo_tienda" class="m-0 flex min-w-0 flex-col gap-1 border-0 p-0 disabled:opacity-50">
+                    <label class="text-sm font-medium text-kredix-negro">Cliente</label>
                     <div v-if="clienteSeleccionado" class="flex items-center justify-between rounded-lg border border-gray-300 px-3 py-2">
                         <span class="text-sm text-kredix-negro">{{ clienteSeleccionado.nombre }}</span>
                         <button type="button" class="min-h-9 shrink-0 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="quitarCliente">Cambiar</button>
@@ -748,7 +774,7 @@ const itemsFaltantesParaCerrar = computed(() => {
                         </div>
 
                         <button
-                            v-if="!creandoCliente && esServicioCliente"
+                            v-if="!creandoCliente"
                             type="button"
                             class="flex min-h-9 self-start shrink-0 items-center gap-1.5 rounded-lg bg-kredix-negro px-3 text-sm font-medium text-white active:opacity-80"
                             @click="abrirCrearCliente"
@@ -783,9 +809,16 @@ const itemsFaltantesParaCerrar = computed(() => {
                         </div>
                     </template>
                     <p v-if="editForm.errors.cliente_id" class="text-sm text-kredix-rojo">{{ editForm.errors.cliente_id }}</p>
-                </div>
-                <div v-if="esServicioCliente" class="flex flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Motivo de ingreso <span class="font-normal text-kredix-gris">(por que llego)</span></label>
+                </fieldset>
+                <label class="flex min-h-11 items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro">
+                    <input v-model="editForm.trabajo_tienda" type="checkbox" class="h-5 w-5" />
+                    Trabajo de la tienda (sin cliente)
+                </label>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">
+                        {{ editForm.trabajo_tienda ? 'Trabajo a realizar' : 'Motivo de ingreso' }}
+                        <span v-if="!editForm.trabajo_tienda" class="font-normal text-kredix-gris">(por que llego)</span>
+                    </label>
                     <textarea v-model="editForm.motivo_ingreso" rows="2" class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
                     <p v-if="editForm.errors.motivo_ingreso" class="text-sm text-kredix-rojo">{{ editForm.errors.motivo_ingreso }}</p>
                 </div>
@@ -809,15 +842,28 @@ const itemsFaltantesParaCerrar = computed(() => {
                     <Zap :size="16" class="text-amber-500" />
                     ¿Es electrica / asistida (e-bike)?
                 </label>
-                <div v-if="esServicioCliente" class="flex flex-col gap-1">
+                <div v-if="!editForm.trabajo_tienda" class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Tipo de servicio</label>
                     <select v-model="editForm.tipo_servicio" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
                         <option v-for="(etiqueta, valor) in etiquetas.paquetes" :key="valor" :value="valor">{{ etiqueta }}</option>
                     </select>
                 </div>
-                <div class="flex flex-col gap-1">
-                    <label class="text-sm font-medium text-kredix-negro">Monto <span v-if="!esServicioCliente" class="font-normal text-kredix-gris">(opcional; con cliente genera cargo al cerrar)</span></label>
+                <div v-if="!editForm.trabajo_tienda" class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Monto</label>
                     <input v-model="editForm.monto_servicio" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                </div>
+                <div v-if="puedeIncluirArmado" class="flex flex-col gap-2">
+                    <label class="flex min-h-14 items-start gap-3 rounded-lg border-4 border-kredix-negro p-3 text-base font-bold text-kredix-negro">
+                        <input v-model="editForm.incluye_armado" type="checkbox" class="mt-0.5 h-6 w-6 shrink-0" />
+                        <span>
+                            Incluye armado
+                            <span class="block text-sm font-normal text-kredix-gris">Marca ARMADO en la etiqueta, en la lista y en la bitácora.</span>
+                        </span>
+                    </label>
+                    <div v-if="editForm.incluye_armado" class="flex flex-col gap-1">
+                        <label class="text-sm font-medium text-kredix-negro">Monto del armado <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                        <input v-model="editForm.monto_armado" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    </div>
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Mecanico</label>
@@ -841,23 +887,23 @@ const itemsFaltantesParaCerrar = computed(() => {
             <div v-for="r in ticket.repuestos" :key="r.id" class="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
                 <span class="text-kredix-negro">{{ r.producto }} × {{ r.cantidad }}</span>
                 <div class="flex items-center gap-2">
-                    <span class="text-kredix-gris">{{ formatMoney(r.precio) }}</span>
+                    <span v-if="tieneCliente" class="text-kredix-gris">{{ formatMoney(r.precio) }}</span>
                     <button type="button" class="text-kredix-rojo" @click="eliminarRepuesto(r)">
                         <Trash2 :size="14" />
                     </button>
                 </div>
             </div>
-            <p v-if="ticket.repuestos.length > 0" class="flex justify-between border-t border-gray-100 pt-2 text-sm font-semibold text-kredix-negro">
+            <p v-if="tieneCliente && ticket.repuestos.length > 0" class="flex justify-between border-t border-gray-100 pt-2 text-sm font-semibold text-kredix-negro">
                 <span>Total repuestos</span>
                 <span class="tabular-nums">{{ formatMoney(totalRepuestos) }}</span>
             </p>
             <p v-if="exitoRepuesto" class="text-sm font-medium text-green-700">{{ exitoRepuesto }}</p>
             <p v-if="errorRepuesto" class="text-sm text-kredix-rojo">{{ errorRepuesto }}</p>
 
-            <div class="flex items-baseline justify-between rounded-lg bg-kredix-negro px-3 py-2.5">
+            <div v-if="tieneCliente" class="flex items-baseline justify-between rounded-lg bg-kredix-negro px-3 py-2.5">
                 <span class="text-sm font-medium text-white">
                     Total del ticket
-                    <span v-if="tieneMontoServicio" class="block text-xs font-normal text-white/70">Repuestos + servicio ({{ formatMoney(totalRepuestos) }} + {{ formatMoney(ticket.monto_servicio) }})</span>
+                    <span v-if="tieneMontoServicio || ticket.incluye_armado" class="block text-xs font-normal text-white/70">Repuestos + servicio<template v-if="ticket.incluye_armado"> + armado</template> ({{ formatMoney(totalRepuestos) }} + {{ formatMoney(ticket.monto_servicio || 0) }}<template v-if="ticket.incluye_armado"> + {{ formatMoney(ticket.monto_armado || 0) }}</template>)</span>
                 </span>
                 <span class="tabular-nums text-2xl font-bold text-white">{{ formatMoney(totalTicket) }}</span>
             </div>
@@ -874,7 +920,7 @@ const itemsFaltantesParaCerrar = computed(() => {
                     <label class="text-sm font-medium text-kredix-negro">Cant.</label>
                     <input v-model="repuestoForm.cantidad" type="number" min="1" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 </div>
-                <div class="flex w-full flex-col gap-1 md:w-28">
+                <div v-if="tieneCliente" class="flex w-full flex-col gap-1 md:w-28">
                     <label class="text-sm font-medium text-kredix-negro">Precio</label>
                     <input v-model="repuestoForm.precio" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 </div>
@@ -1083,11 +1129,18 @@ const itemsFaltantesParaCerrar = computed(() => {
             <p v-if="ticket.cliente" class="my-1 text-3xl font-bold leading-tight">{{ ticket.cliente.nombre }}</p>
             <p class="font-bold" :class="ticket.cliente ? 'text-lg' : 'my-1 text-4xl'">#{{ ticket.id }}</p>
 
+            <p v-if="ticket.incluye_armado" class="marca-armado my-1 inline-block bg-black px-2 text-lg font-bold text-white">+ ARMADO</p>
+            <!-- total del ticket; el trabajo de la tienda no lleva cifra -->
+            <template v-if="ticket.total !== null">
+                <p class="text-2xl font-bold leading-tight">{{ formatMoney(ticket.total) }}</p>
+                <p class="text-[10px] font-semibold uppercase tracking-wide">{{ ETIQUETA_TOTAL[ticket.etiqueta_total] }}</p>
+            </template>
+
             <p class="text-xs">{{ formatFecha(ticket.created_at) }}</p>
             <p class="text-sm">{{ ticket.bici_marca_modelo }}</p>
             <p v-if="ticket.mecanico" class="text-xs">Mecanico: {{ ticket.mecanico.name }}</p>
-            <p v-if="esServicioCliente && ticket.motivo_ingreso" class="truncate text-xs" :title="ticket.motivo_ingreso">Motivo: {{ ticket.motivo_ingreso }}</p>
-            <p v-if="esServicioCliente" class="text-xs">{{ TIPO_SERVICIO_LABEL[ticket.tipo_servicio] ?? ticket.tipo_servicio }}</p>
+            <p v-if="ticket.motivo_ingreso" class="truncate text-xs" :title="ticket.motivo_ingreso">{{ tieneCliente ? 'Motivo' : 'Trabajo' }}: {{ ticket.motivo_ingreso }}</p>
+            <p v-if="ticket.tipo_servicio" class="text-xs">{{ TIPO_SERVICIO_LABEL[ticket.tipo_servicio] ?? ticket.tipo_servicio }}</p>
 
             <img :src="ticketQrDataUri" alt="QR del ticket" class="mx-auto mt-2 h-[2.8cm] w-[2.8cm]" />
         </div>
@@ -1111,6 +1164,11 @@ poder perforar sin tapar texto, aun con @page margin en 0 */
     .ticket-print,
     .ticket-print * {
         visibility: visible;
+    }
+    /* la marca ARMADO lleva fondo negro: sin esto el navegador no imprime fondos */
+    .marca-armado {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
     .ticket-print {
         display: block !important;

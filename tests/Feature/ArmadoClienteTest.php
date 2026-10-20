@@ -66,56 +66,6 @@ class ArmadoClienteTest extends TestCase
         ]);
     }
 
-    private function datosNuevo(array $extra = []): array
-    {
-        return [
-            'tipo' => 'armado_interno',
-            'bici_marca_modelo' => 'GW nueva',
-            'categoria_bici' => 'mtb',
-            'mecanico_id' => $this->usuario->id,
-            'fotos_entrada' => [UploadedFile::fake()->image('entrada.jpg', 600, 900)],
-            ...$extra,
-        ];
-    }
-
-    public function test_se_crea_un_armado_con_cliente_y_monto(): void
-    {
-        $this->actingAs($this->usuario)
-            ->post('/taller', $this->datosNuevo(['cliente_id' => $this->cliente->id, 'monto_servicio' => 30]))
-            ->assertRedirect();
-
-        $t = TicketTaller::firstOrFail();
-        $this->assertSame('armado_interno', $t->tipo);
-        $this->assertSame($this->cliente->id, $t->cliente_id);
-        $this->assertSame(30.0, (float) $t->monto_servicio);
-    }
-
-    public function test_un_armado_sin_cliente_ni_monto_sigue_anonimo(): void
-    {
-        $this->actingAs($this->usuario)->post('/taller', $this->datosNuevo())->assertRedirect();
-
-        $t = TicketTaller::firstOrFail();
-        $this->assertNull($t->cliente_id);
-        $this->assertNull($t->monto_servicio);
-    }
-
-    public function test_se_edita_un_armado_para_asignarle_cliente_y_monto(): void
-    {
-        $t = $this->armado();
-
-        $this->actingAs($this->usuario)->put("/taller/{$t->id}", [
-            'cliente_id' => $this->cliente->id,
-            'bici_marca_modelo' => 'Trek Marlin',
-            'categoria_bici' => 'mtb',
-            'mecanico_id' => $this->usuario->id,
-            'monto_servicio' => 25,
-        ])->assertRedirect();
-
-        $t->refresh();
-        $this->assertSame($this->cliente->id, $t->cliente_id);
-        $this->assertSame(25.0, (float) $t->monto_servicio);
-    }
-
     public function test_con_cliente_y_monto_a_credito_genera_el_cargo_por_el_total(): void
     {
         $t = $this->armado(['cliente_id' => $this->cliente->id, 'monto_servicio' => 30]);
@@ -188,17 +138,17 @@ class ArmadoClienteTest extends TestCase
         $this->assertFalse($t->fresh()->seCobra());
     }
 
-    public function test_el_pdf_de_un_armado_con_cliente_no_dice_armado_interno(): void
+    public function test_el_pdf_de_un_armado_viejo_con_cliente_se_ve_igual(): void
     {
         $conCliente = $this->armado(['cliente_id' => $this->cliente->id, 'monto_servicio' => 30]);
         $sinCliente = $this->armado();
 
         $html = $this->htmlDelPdf($conCliente);
         $this->assertStringContainsString('Ana Perez', $html);
-        $this->assertStringNotContainsString('Armado interno', $html);
+        $this->assertStringNotContainsString('Trabajo de la tienda', $html);
         $this->assertStringContainsString('Servicio de armado', $html);
 
-        $this->assertStringContainsString('Armado interno', $this->htmlDelPdf($sinCliente));
+        $this->assertStringContainsString('Trabajo de la tienda', $this->htmlDelPdf($sinCliente));
     }
 
     private function htmlDelPdf(TicketTaller $t): string

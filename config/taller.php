@@ -144,10 +144,12 @@ return [
         'full' => ['lubricar_cadena', 'ajustar_frenos', 'ajustar_cambios', 'presion_cauchos', 'limpieza_transmision', 'centrado_ruedas', 'revision_rolineras', 'lavado'],
         'vip' => ['lubricar_cadena', 'ajustar_frenos', 'ajustar_cambios', 'presion_cauchos', 'limpieza_transmision', 'centrado_ruedas', 'revision_rolineras', 'lavado'],
         'otro' => [],
+        // armados de cliente o de evento: sin tareas de servicio
+        'armado' => [],
     ],
 
     // fuente unica de etiquetas: pantallas (via payload), PDF, texto automatico e IA
-    'paquetes_etiqueta' => ['basico' => 'Básico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro'],
+    'paquetes_etiqueta' => ['basico' => 'Básico', 'full' => 'Full', 'vip' => 'VIP', 'otro' => 'Otro', 'armado' => 'Armado'],
     'categorias' => ['ruta' => 'Ruta', 'mtb' => 'MTB', 'otro' => 'Otro'],
 
     // hallazgos que no se recomiendan cambiar: los evalua un especialista

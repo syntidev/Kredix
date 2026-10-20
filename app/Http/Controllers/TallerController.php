@@ -50,6 +50,10 @@ class TallerController extends Controller
             'mecanico' => $ticket->mecanico?->name,
             'registrado_por' => $ticket->registradoPor?->name,
             'estado' => $ticket->estado,
+            'incluye_armado' => $ticket->incluye_armado,
+            // null en trabajo de la tienda: para esos tickets no viaja ninguna cifra
+            'total' => $ticket->totalVisible(),
+            'etiqueta_total' => $ticket->etiquetaTotal(),
         ];
     }
 
@@ -76,7 +80,7 @@ class TallerController extends Controller
         $tipoServicio = $request->query('tipo_servicio');
 
         $tickets = TicketTaller::query()
-            ->with(['cliente:id,nombre', 'mecanico:id,name', 'registradoPor:id,name'])
+            ->with(['cliente:id,nombre', 'mecanico:id,name', 'registradoPor:id,name', 'repuestos'])
             ->when(in_array($estado, ['en_proceso', 'atendido'], true), fn ($query) => $query->where('estado', $estado))
             ->when($rango === 'hoy', fn ($query) => $query->whereDate('created_at', today()))
             ->when($rango === 'esta_semana', fn ($query) => $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]))
@@ -95,7 +99,7 @@ class TallerController extends Controller
         $tickets->getCollection()->transform(fn ($ticket) => $this->ticketResumen($ticket));
 
         $misTickets = $request->user()->rol_taller
-            ? TicketTaller::with(['cliente:id,nombre', 'mecanico:id,name', 'registradoPor:id,name'])
+            ? TicketTaller::with(['cliente:id,nombre', 'mecanico:id,name', 'registradoPor:id,name', 'repuestos'])
                 ->where('mecanico_id', $request->user()->id)
                 ->where('estado', 'en_proceso')
                 ->orderByDesc('created_at')
@@ -121,7 +125,7 @@ class TallerController extends Controller
         $rango = $request->query('rango');
 
         $tickets = TicketTaller::query()
-            ->with(['cliente:id,nombre', 'mecanico:id,name'])
+            ->with(['cliente:id,nombre', 'mecanico:id,name', 'repuestos'])
             ->where('estado', 'en_proceso')
             ->when($rango === 'hoy', fn ($query) => $query->whereDate('created_at', today()))
             ->when($rango === 'esta_semana', fn ($query) => $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]))
@@ -305,54 +309,80 @@ class TallerController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    // Reglas comunes de alta y edicion. Un ticket es "trabajo de la tienda" si se
+    // marca ese check: entonces no lleva cliente, tipo de servicio, monto ni armado.
+    // Con cliente es siempre servicio_cliente; la UI decide por presencia de cliente,
+    // no por el campo tipo
+    private function datosTicket(Request $request, array $reglasExtra = [], array $mensajesExtra = []): array
     {
-        $esServicioCliente = $request->input('tipo') === 'servicio_cliente';
-
-        $esVip = $esServicioCliente && $request->input('tipo_servicio') === 'vip';
+        $esTienda = $request->boolean('trabajo_tienda');
+        $esVip = ! $esTienda && $request->input('tipo_servicio') === 'vip';
 
         $validated = $request->validate([
-            'tipo' => ['required', 'in:servicio_cliente,armado_interno'],
-            'cliente_id' => [Rule::requiredIf($esServicioCliente), 'nullable', 'exists:clientes,id'],
-            'motivo_ingreso' => [Rule::requiredIf($esServicioCliente), 'nullable', 'string', 'max:1000'],
+            'trabajo_tienda' => ['nullable', 'boolean'],
+            'cliente_id' => [Rule::requiredIf(! $esTienda), 'nullable', 'exists:clientes,id'],
+            'motivo_ingreso' => ['required', 'string', 'max:1000'],
             'bici_marca_modelo' => ['required', 'string', 'max:255'],
             'categoria_bici' => ['required', 'in:ruta,mtb,otro'],
             'talla_rin' => ['nullable', 'string', 'max:255'],
             'es_electrica' => ['nullable', 'boolean'],
-            'tipo_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'in:basico,full,vip,otro'],
+            'tipo_servicio' => [Rule::requiredIf(! $esTienda), 'nullable', 'in:basico,full,vip,otro,armado'],
             'domicilio_direccion' => [Rule::requiredIf($esVip), 'nullable', 'string', 'max:1000'],
-            'monto_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'numeric', 'min:0'],
+            'monto_servicio' => [Rule::requiredIf(! $esTienda), 'nullable', 'numeric', 'min:0'],
+            'incluye_armado' => ['nullable', 'boolean'],
+            'monto_armado' => ['nullable', 'numeric', 'min:0'],
             'mecanico_id' => ['required', 'exists:users,id'],
             'diagnostico' => ['nullable', 'array'],
             'diagnostico.*.item' => ['required_with:diagnostico', 'string', 'max:255'],
             'diagnostico.*.estado' => ['required_with:diagnostico', 'in:bien,atencion'],
             'diagnostico.*.nota' => ['nullable', 'string', 'max:1000'],
-            // VIP se agenda por telefono antes de que el mecanico vea la bici
-            // -- exigir foto en ese momento hace imposible registrar la cita.
-            // Para el resto de tipos se mantiene obligatoria al crear.
-            'fotos_entrada' => [Rule::requiredIf(! $esVip), 'array', 'max:'.config('taller.max_fotos')],
-            'fotos_entrada.*' => ['image', 'max:5120'],
+            ...$reglasExtra,
         ], [
-            'motivo_ingreso.required' => 'motivo de ingreso requerido',
+            'cliente_id.required' => 'indica el cliente o marca "Trabajo de la tienda"',
+            'motivo_ingreso.required' => $esTienda ? 'trabajo a realizar requerido' : 'motivo de ingreso requerido',
             'categoria_bici.required' => 'categoria de bici requerida',
             'domicilio_direccion.required' => 'direccion del domicilio requerida para servicio VIP',
-            'fotos_entrada.required' => 'al menos 1 foto de entrada requerida',
+            ...$mensajesExtra,
         ]);
 
-        $ticket = TicketTaller::create([
-            'tipo' => $validated['tipo'],
-            // el armado acepta cliente y monto de servicio, ambos opcionales
-            'cliente_id' => $validated['cliente_id'] ?? null,
-            'motivo_ingreso' => $esServicioCliente ? $validated['motivo_ingreso'] : null,
+        // "Incluye armado" no aplica al trabajo de la tienda ni al tipo de servicio Armado
+        $conArmado = ! $esTienda && $validated['tipo_servicio'] !== 'armado' && $request->boolean('incluye_armado');
+
+        return [
+            'tipo' => $esTienda ? 'armado_interno' : 'servicio_cliente',
+            'cliente_id' => $esTienda ? null : $validated['cliente_id'],
+            'motivo_ingreso' => $validated['motivo_ingreso'],
             'bici_marca_modelo' => $validated['bici_marca_modelo'],
             'categoria_bici' => $validated['categoria_bici'],
             'talla_rin' => $validated['talla_rin'] ?? '',
             'es_electrica' => $validated['es_electrica'] ?? false,
-            'tipo_servicio' => $esServicioCliente ? $validated['tipo_servicio'] : null,
+            'tipo_servicio' => $esTienda ? null : $validated['tipo_servicio'],
             'domicilio_direccion' => $esVip ? $validated['domicilio_direccion'] : null,
-            'monto_servicio' => $validated['monto_servicio'] ?? null,
-            'diagnostico' => $validated['diagnostico'] ?? [],
+            'monto_servicio' => $esTienda ? null : $validated['monto_servicio'],
+            'incluye_armado' => $conArmado,
+            'monto_armado' => $conArmado ? ($validated['monto_armado'] ?? null) : null,
             'mecanico_id' => $validated['mecanico_id'],
+            'diagnostico' => $validated['diagnostico'] ?? null,
+        ];
+    }
+
+    public function store(Request $request)
+    {
+        $esVip = ! $request->boolean('trabajo_tienda') && $request->input('tipo_servicio') === 'vip';
+
+        // VIP se agenda por telefono antes de que el mecanico vea la bici
+        // -- exigir foto en ese momento hace imposible registrar la cita.
+        // Para el resto de tipos se mantiene obligatoria al crear.
+        $datos = $this->datosTicket($request, [
+            'fotos_entrada' => [Rule::requiredIf(! $esVip), 'array', 'max:'.config('taller.max_fotos')],
+            'fotos_entrada.*' => ['image', 'max:5120'],
+        ], [
+            'fotos_entrada.required' => 'al menos 1 foto de entrada requerida',
+        ]);
+
+        $ticket = TicketTaller::create([
+            ...$datos,
+            'diagnostico' => $datos['diagnostico'] ?? [],
             'registrado_por' => $request->user()->id,
         ]);
 
@@ -413,14 +443,19 @@ class TallerController extends Controller
             'ticket' => [
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',
-                    'tipo_servicio', 'domicilio_direccion', 'monto_servicio', 'diagnostico', 'estado', 'mecanico_id', 'trabajo_realizado',
+                    'tipo_servicio', 'domicilio_direccion', 'monto_servicio', 'incluye_armado', 'monto_armado', 'diagnostico', 'estado', 'mecanico_id', 'trabajo_realizado',
                     'pagado_en_taller', 'movimiento_cuenta_id',
                 ]),
                 'cliente' => $ticket->cliente,
                 'mecanico' => $ticket->mecanico,
                 'registrado_por' => $ticket->registradoPor,
                 'created_at' => $ticket->created_at->format('Y-m-d'),
-                'repuestos' => $ticket->repuestos,
+                // trabajo de la tienda: los repuestos viajan sin cifras
+                'repuestos' => $ticket->esTrabajoTienda()
+                    ? $ticket->repuestos->map(fn ($r) => $r->only(['id', 'producto', 'cantidad']))->values()
+                    : $ticket->repuestos,
+                'total' => $ticket->totalVisible(),
+                'etiqueta_total' => $ticket->etiquetaTotal(),
                 'fotos_entrada' => $this->fotosUrls($ticket, 'entrada'),
                 'fotos_salida' => $this->fotosUrls($ticket, 'salida'),
                 'revision' => InformeRevision::tieneContenido($ticket->revision_tecnica) ? [
@@ -466,43 +501,22 @@ class TallerController extends Controller
 
     public function update(Request $request, TicketTaller $ticket)
     {
-        $esServicioCliente = $ticket->tipo === 'servicio_cliente';
+        $datos = $this->datosTicket($request);
 
-        $validated = $request->validate([
-            'cliente_id' => [Rule::requiredIf($esServicioCliente), 'nullable', 'exists:clientes,id'],
-            'motivo_ingreso' => [Rule::requiredIf($esServicioCliente), 'nullable', 'string', 'max:1000'],
-            'bici_marca_modelo' => ['required', 'string', 'max:255'],
-            'categoria_bici' => ['required', 'in:ruta,mtb,otro'],
-            'talla_rin' => ['nullable', 'string', 'max:255'],
-            'es_electrica' => ['nullable', 'boolean'],
-            'tipo_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'in:basico,full,vip,otro'],
-            'monto_servicio' => [Rule::requiredIf($esServicioCliente), 'nullable', 'numeric', 'min:0'],
-            'mecanico_id' => ['required', 'exists:users,id'],
-            'diagnostico' => ['nullable', 'array'],
-            'diagnostico.*.item' => ['required_with:diagnostico', 'string', 'max:255'],
-            'diagnostico.*.estado' => ['required_with:diagnostico', 'in:bien,atencion'],
-            'diagnostico.*.nota' => ['nullable', 'string', 'max:1000'],
-        ], [
-            'cliente_id.required' => 'cliente requerido',
-            'motivo_ingreso.required' => 'motivo de ingreso requerido',
-            'categoria_bici.required' => 'categoria de bici requerida',
-        ]);
+        // un ticket ya cargado a la cuenta de un cliente no puede quedarse sin cliente
+        abort_if($datos['cliente_id'] === null && $ticket->movimiento_cuenta_id !== null, 422, 'Este ticket ya esta en la cuenta de un cliente: no se le puede quitar el cliente.');
+
+        $diagnostico = $datos['diagnostico'];
+        unset($datos['diagnostico']);
 
         $ticket->update([
             // reasignar cliente_id conserva fotos/diagnostico/repuestos/historial --
-            // son todas relaciones/columnas distintas de este update, nada mas se toca
-            'cliente_id' => $validated['cliente_id'] ?? null,
-            'motivo_ingreso' => $esServicioCliente ? $validated['motivo_ingreso'] : null,
-            'bici_marca_modelo' => $validated['bici_marca_modelo'],
-            'categoria_bici' => $validated['categoria_bici'],
-            'talla_rin' => $validated['talla_rin'] ?? '',
-            'es_electrica' => $validated['es_electrica'] ?? false,
-            'tipo_servicio' => $esServicioCliente ? $validated['tipo_servicio'] : null,
-            'monto_servicio' => $validated['monto_servicio'] ?? null,
-            'mecanico_id' => $validated['mecanico_id'],
+            // son todas relaciones/columnas distintas de este update, nada mas se toca.
+            // Asignar cliente a un trabajo de la tienda lo convierte en servicio
+            ...$datos,
             // solo si la clave viene -- Show.vue ya no envia el checklist y
             // un ?? [] aqui borraria el diagnostico de los tickets viejos
-            ...($request->has('diagnostico') ? ['diagnostico' => $validated['diagnostico'] ?? []] : []),
+            ...($request->has('diagnostico') ? ['diagnostico' => $diagnostico ?? []] : []),
         ]);
 
         return redirect()->route('taller.show', $ticket->id);
@@ -650,10 +664,11 @@ class TallerController extends Controller
         $validated = $request->validate([
             'producto' => ['required', 'string', 'max:255'],
             'cantidad' => ['required', 'integer', 'min:1'],
-            'precio' => ['required', 'numeric', 'min:0'],
+            // en un trabajo de la tienda el repuesto se registra sin cifras
+            'precio' => [Rule::requiredIf(! $ticket->esTrabajoTienda()), 'nullable', 'numeric', 'min:0'],
         ]);
 
-        $ticket->repuestos()->create($validated);
+        $ticket->repuestos()->create([...$validated, 'precio' => $ticket->esTrabajoTienda() ? 0 : $validated['precio']]);
 
         return redirect()->route('taller.show', $ticket->id);
     }

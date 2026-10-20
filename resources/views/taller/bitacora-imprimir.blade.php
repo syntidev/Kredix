@@ -36,6 +36,17 @@
             font-size: 14px;
             text-transform: uppercase;
         }
+        .marca-armado {
+            background: #000;
+            color: #fff;
+            padding: 1px 6px;
+            font-size: 13px;
+            white-space: nowrap;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .total { font-size: 20px; display: block; }
+        .etiqueta-total { font-size: 11px; color: #555; letter-spacing: .5px; }
         .sin-tickets {
             padding: 16px;
             font-size: 14px;
@@ -62,6 +73,9 @@
     @else
         @php
             $categoriaLabel = config('taller.categorias');
+            // la columna de total solo existe si algun ticket tiene cliente; los
+            // trabajos de la tienda no llevan cifra ni encabezado de cifra
+            $hayTotales = $tickets->contains(fn ($t) => ! $t->esTrabajoTienda());
         @endphp
         <table>
             <thead>
@@ -71,6 +85,9 @@
                     <th>Bici</th>
                     <th>Mecanico</th>
                     <th>Estado</th>
+                    @if ($hayTotales)
+                        <th>Total</th>
+                    @endif
                     <th>Fecha de ingreso</th>
                 </tr>
             </thead>
@@ -78,7 +95,7 @@
                 @foreach ($tickets as $ticket)
                     <tr>
                         <td>{{ $ticket->id }}</td>
-                        <td>{{ $ticket->tipo_servicio === 'vip' ? '[VIP] ' : '' }}{{ $ticket->cliente->nombre ?? 'Armado interno' }}</td>
+                        <td>{{ $ticket->tipo_servicio === 'vip' ? '[VIP] ' : '' }}{{ $ticket->cliente->nombre ?? 'Trabajo de la tienda' }}{!! $ticket->incluye_armado ? ' <strong class="marca-armado">+ ARMADO</strong>' : '' !!}</td>
                         <td>
                             {{ $ticket->bici_marca_modelo }}
                             · {{ $categoriaLabel[$ticket->categoria_bici] ?? $ticket->categoria_bici }}
@@ -91,6 +108,15 @@
                         </td>
                         <td>{{ $ticket->mecanico->name ?? '-' }}</td>
                         <td>En proceso</td>
+                        @if ($hayTotales)
+                            <td>
+                                {{-- trabajo de la tienda: la celda queda vacia --}}
+                                @if ($ticket->totalVisible() !== null)
+                                    <strong class="total">${{ number_format($ticket->totalVisible(), 2) }}</strong>
+                                    <span class="etiqueta-total">{{ strtoupper(str_replace('_', ' ', $ticket->etiquetaTotal())) }}</span>
+                                @endif
+                            </td>
+                        @endif
                         <td>{{ $ticket->created_at->format('d/m/Y') }}</td>
                     </tr>
                 @endforeach

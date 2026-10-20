@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { Bike, Crown, Mountain, Printer, Route, Wrench, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import { formatFecha } from '../../lib/formatFecha';
+import { formatMoney } from '../../lib/formatMoney';
 
 defineOptions({ layout: AppLayout });
 
@@ -77,6 +78,7 @@ function labelEstado(estado) {
 }
 
 const TIPO_SERVICIO_LABEL = props.etiquetas.paquetes;
+const ETIQUETA_TOTAL = { acumulado: 'Acumulado', pagado: 'Pagado', a_cuenta: 'A cuenta' };
 
 const CATEGORIA_ICONO = { ruta: Route, mtb: Mountain, otro: Bike };
 const CATEGORIA_LABEL = props.etiquetas.categorias;
@@ -116,7 +118,7 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
                 :href="`/taller/${t.id}/revision`"
                 class="flex min-h-20 flex-col justify-center rounded-xl border-2 border-orange-500 bg-white p-4 shadow-card active:bg-orange-50"
             >
-                <p class="text-xl font-bold text-kredix-negro">{{ t.cliente ?? 'Armado interno' }}</p>
+                <p class="text-xl font-bold text-kredix-negro">{{ t.cliente ?? 'Trabajo de la tienda' }}<span v-if="t.incluye_armado" class="ml-2 rounded bg-black px-1.5 py-0.5 align-middle text-xs font-bold text-white">+ ARMADO</span></p>
                 <p class="text-base text-kredix-gris">
                     {{ t.bici_marca_modelo }}
                     <span v-if="t.tipo_servicio">· {{ TIPO_SERVICIO_LABEL[t.tipo_servicio] ?? t.tipo_servicio }}</span>
@@ -176,9 +178,10 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
                 <div class="flex min-w-0 items-center gap-3">
                     <span class="h-2.5 w-2.5 shrink-0 rounded-full" :class="colorEstado(t.estado)" :title="labelEstado(t.estado)"></span>
                     <div class="min-w-0">
-                        <p class="truncate font-medium text-kredix-negro">
-                            {{ t.cliente ?? 'Armado interno' }}
+                        <p class="flex flex-wrap items-center gap-x-1 font-medium text-kredix-negro">
+                            <span class="truncate">{{ t.cliente ?? 'Trabajo de la tienda' }}</span>
                             <span v-if="t.tipo_servicio" class="ml-1 text-sm font-normal text-kredix-gris">{{ TIPO_SERVICIO_LABEL[t.tipo_servicio] ?? t.tipo_servicio }}</span>
+                            <span v-if="t.incluye_armado" class="ml-1 inline-flex shrink-0 items-center rounded bg-black px-1.5 py-0.5 text-[10px] font-bold text-white">+ ARMADO</span>
                             <span v-if="t.tipo_servicio === 'vip'" class="ml-1 inline-flex shrink-0 items-center gap-0.5 rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700">
                                 <Crown :size="10" />
                                 VIP
@@ -201,7 +204,12 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
                         </p>
                     </div>
                 </div>
-                <div class="shrink-0 text-right">
+                <div class="flex shrink-0 flex-col items-end gap-1 text-right">
+                    <!-- total del ticket; los trabajos de la tienda (sin cliente) no llevan bloque -->
+                    <div v-if="t.total !== null" class="rounded-lg bg-gray-100 px-2.5 py-1 text-right">
+                        <p class="text-xl font-bold leading-tight text-kredix-negro tabular-nums">{{ formatMoney(t.total) }}</p>
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-kredix-gris">{{ ETIQUETA_TOTAL[t.etiqueta_total] }}</p>
+                    </div>
                     <p class="text-sm text-kredix-negro">{{ t.mecanico }}</p>
                     <p v-if="t.registrado_por" class="text-xs text-kredix-gris">Registro: {{ t.registrado_por }}</p>
                     <p class="text-xs font-medium" :class="t.estado === 'atendido' ? 'text-green-700' : 'text-orange-700'">{{ labelEstado(t.estado) }}</p>

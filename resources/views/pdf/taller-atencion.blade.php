@@ -87,7 +87,7 @@
         <table>
             <tr>
                 <td class="label">Cliente</td>
-                <td>{{ $ticket->tipo_servicio === 'vip' ? '[VIP] ' : '' }}{{ $ticket->cliente->nombre ?? 'Armado interno' }}</td>
+                <td>{{ $ticket->tipo_servicio === 'vip' ? '[VIP] ' : '' }}{{ $ticket->cliente->nombre ?? 'Trabajo de la tienda' }}</td>
                 <td class="label">Estado</td>
                 <td>{{ $ticket->estado === 'atendido' ? 'Atendido' : 'En proceso' }}</td>
             </tr>
@@ -103,7 +103,7 @@
             </tr>
             <tr>
                 <td class="label">Tipo de servicio</td>
-                <td>{{ $ticket->tipo_servicio ? ($tipoServicioLabel[$ticket->tipo_servicio] ?? $ticket->tipo_servicio) : ($ticket->cliente ? 'Armado' : 'Armado interno') }}</td>
+                <td>{{ $ticket->tipo_servicio ? ($tipoServicioLabel[$ticket->tipo_servicio] ?? $ticket->tipo_servicio) : ($ticket->esTrabajoTienda() ? 'Trabajo de la tienda' : 'Armado') }}{{ $ticket->incluye_armado ? ' + ARMADO' : '' }}</td>
                 <td class="label">Mecanico</td>
                 <td>{{ $ticket->mecanico->name ?? '-' }}</td>
             </tr>
@@ -134,6 +134,7 @@
         </table>
     </div>
 
+    @if (! $ticket->esTrabajoTienda())
     <table class="resumen-arriba">
         <tr>
             <td>
@@ -142,6 +143,7 @@
             </td>
         </tr>
     </table>
+    @endif
 
     @php
         // el servicio base (ej. "Full" $20) entraba en $totalTicket pero nunca
@@ -151,8 +153,27 @@
         // el ticket #13: $35 de repuesto + $20 de servicio = $55 de total,
         // pero el PDF solo mostraba el repuesto)
         $mostrarServicio = (float) $ticket->monto_servicio > 0;
+        $mostrarArmado = (float) $ticket->monto_armado > 0;
     @endphp
-    @if ($mostrarServicio || $ticket->repuestos->isNotEmpty())
+    @if ($ticket->esTrabajoTienda() && $ticket->repuestos->isNotEmpty())
+        <h2>Repuestos</h2>
+        <table class="repuestos">
+            <thead>
+                <tr>
+                    <th>Concepto</th>
+                    <th class="monto">Cant.</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($ticket->repuestos as $repuesto)
+                    <tr>
+                        <td>{{ $repuesto->producto }}</td>
+                        <td class="monto">{{ $repuesto->cantidad }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @elseif (! $ticket->esTrabajoTienda() && ($mostrarServicio || $mostrarArmado || $ticket->repuestos->isNotEmpty()))
         <h2>Desglose</h2>
         <table class="repuestos">
             <thead>
@@ -170,6 +191,14 @@
                         <td class="monto">1</td>
                         <td class="monto">{{ formatMoneyPdfTaller($ticket->monto_servicio) }}</td>
                         <td class="monto">{{ formatMoneyPdfTaller($ticket->monto_servicio) }}</td>
+                    </tr>
+                @endif
+                @if ($mostrarArmado)
+                    <tr>
+                        <td>Armado</td>
+                        <td class="monto">1</td>
+                        <td class="monto">{{ formatMoneyPdfTaller($ticket->monto_armado) }}</td>
+                        <td class="monto">{{ formatMoneyPdfTaller($ticket->monto_armado) }}</td>
                     </tr>
                 @endif
                 @foreach ($ticket->repuestos as $repuesto)
@@ -204,7 +233,7 @@
             @if ($empresa['logo_base64'])
                 <img src="{{ $empresa['logo_base64'] }}">
             @endif
-            <span>Ticket #{{ $ticket->id }} — {{ $ticket->cliente->nombre ?? 'Armado interno' }}</span>
+            <span>Ticket #{{ $ticket->id }} — {{ $ticket->cliente->nombre ?? 'Trabajo de la tienda' }}</span>
         </div>
     @endif
 

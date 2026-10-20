@@ -237,7 +237,7 @@ async function onFotoSalida(event) {
         <BackButton :href="`/taller/${ticket.id}`" :label="`Ticket #${ticket.id}`" />
 
         <div class="flex flex-col gap-1">
-            <h1 class="text-3xl font-bold leading-tight text-kredix-negro">{{ ticket.cliente ?? 'Armado interno' }}</h1>
+            <h1 class="text-3xl font-bold leading-tight text-kredix-negro">{{ ticket.cliente ?? 'Trabajo de la tienda' }}</h1>
             <p class="flex items-center gap-1 text-lg text-kredix-negro">
                 {{ ticket.bici_marca_modelo }}
                 <Zap v-if="ticket.es_electrica" :size="18" class="text-amber-500" />

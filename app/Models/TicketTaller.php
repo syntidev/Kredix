@@ -45,6 +45,8 @@ class TicketTaller extends Model implements HasMedia
         'tipo_servicio',
         'domicilio_direccion',
         'monto_servicio',
+        'incluye_armado',
+        'monto_armado',
         'diagnostico',
         'estado',
         'pagado_en_taller',
@@ -57,6 +59,8 @@ class TicketTaller extends Model implements HasMedia
 
     protected $casts = [
         'monto_servicio' => 'decimal:2',
+        'incluye_armado' => 'boolean',
+        'monto_armado' => 'decimal:2',
         'diagnostico' => 'array',
         'revision_tecnica' => 'array',
         'revisado_en' => 'datetime',
@@ -132,10 +136,37 @@ class TicketTaller extends Model implements HasMedia
         return (float) $this->repuestos->sum(fn (TicketRepuesto $r) => $r->cantidad * (float) $r->precio);
     }
 
-    // monto_servicio es null en armados sin monto (todos los anteriores): suma 0
+    // monto_servicio y monto_armado son null cuando no aplican: suman 0
     public function totalTicket(): float
     {
-        return $this->totalRepuestos() + (float) $this->monto_servicio;
+        return $this->totalRepuestos() + (float) $this->monto_servicio + (float) $this->monto_armado;
+    }
+
+    // Trabajo de la tienda = ticket sin cliente: no se muestra ni se registra
+    // ninguna cifra para ese ticket
+    public function esTrabajoTienda(): bool
+    {
+        return $this->cliente_id === null;
+    }
+
+    // Total para mostrar en lista, Show y etiquetas; null en trabajo de la tienda
+    public function totalVisible(): ?float
+    {
+        return $this->esTrabajoTienda() ? null : $this->totalTicket();
+    }
+
+    // Etiqueta del total: acumulado mientras esta en proceso; al atender, pagado
+    // en el taller o a cuenta (cargado al cliente). Un atendido sin cargo (anterior
+    // a la generacion automatica) sigue como acumulado. Null en trabajo de la tienda
+    public function etiquetaTotal(): ?string
+    {
+        return match (true) {
+            $this->esTrabajoTienda() => null,
+            $this->estado !== 'atendido' => 'acumulado',
+            (bool) $this->pagado_en_taller => 'pagado',
+            $this->movimiento_cuenta_id !== null => 'a_cuenta',
+            default => 'acumulado',
+        };
     }
 
     // ¿Cierra con cargo (o pago en el momento)? El servicio a cliente siempre;

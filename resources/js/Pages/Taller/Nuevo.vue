@@ -8,6 +8,7 @@ import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
 import FotosCasillas from '../../Components/FotosCasillas.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
+import { formatMoney } from '../../lib/formatMoney';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
 import { forzarVerticalSiEsNecesario, comprimirImagenSiEsNecesario } from '../../lib/forzarVertical';
 
@@ -23,8 +24,8 @@ const TALLAS_RIN_CORTAS = ['16', '20', '24', '26', '29'];
 const MONTOS_SERVICIO = { basico: 15, full: 20, vip: 25 };
 
 const form = useForm({
-    tipo: 'servicio_cliente',
     cliente_id: null,
+    trabajo_tienda: false,
     motivo_ingreso: '',
     bici_marca_modelo: '',
     categoria_bici: '',
@@ -33,18 +34,37 @@ const form = useForm({
     tipo_servicio: 'basico',
     domicilio_direccion: '',
     monto_servicio: MONTOS_SERVICIO.basico,
+    incluye_armado: false,
+    monto_armado: '',
     mecanico_id: '',
     fotos_entrada: [],
 });
 
-const esServicioCliente = computed(() => form.tipo === 'servicio_cliente');
-const esVip = computed(() => esServicioCliente.value && form.tipo_servicio === 'vip');
+// un solo flujo: con cliente es servicio; "Trabajo de la tienda" no lleva cliente,
+// tipo de servicio ni armado
+const esTienda = computed(() => form.trabajo_tienda);
+const esVip = computed(() => !esTienda.value && form.tipo_servicio === 'vip');
+const puedeIncluirArmado = computed(() => !esTienda.value && form.tipo_servicio !== 'armado');
+const esMontoFijo = computed(() => form.tipo_servicio in MONTOS_SERVICIO);
 
-// el monto arranca en el del paquete basico: en armado debe arrancar vacio
-// (sin monto ni cliente el armado cierra sin cargo)
-watch(() => form.tipo, (tipo) => {
-    form.monto_servicio = tipo === 'armado_interno' ? '' : (MONTOS_SERVICIO[form.tipo_servicio] ?? '');
+watch(() => form.trabajo_tienda, (marcado) => {
+    if (!marcado) return;
+    quitarCliente();
+    form.incluye_armado = false;
+    form.monto_armado = '';
 });
+
+// "Armado" como tipo de servicio ya es el armado: el check no aplica
+watch(() => form.tipo_servicio, (tipo) => {
+    if (tipo !== 'armado') return;
+    form.incluye_armado = false;
+    form.monto_armado = '';
+});
+
+// total en vivo: servicio + armado (el armado vacio no suma)
+const montoServicioNum = computed(() => Number(form.monto_servicio) || 0);
+const montoArmadoNum = computed(() => (form.incluye_armado ? Number(form.monto_armado) || 0 : 0));
+const totalEnVivo = computed(() => montoServicioNum.value + montoArmadoNum.value);
 
 // --- buscador de cliente (mismo patron que Home/Index.vue) ---
 const busquedaCliente = ref('');
@@ -137,7 +157,7 @@ function onTallaOtroInput() {
 
 // --- tipo de servicio: 3 montos fijos + "Otro" monto libre ---
 function onTipoServicioChange() {
-    if (form.tipo_servicio !== 'otro') {
+    if (form.tipo_servicio in MONTOS_SERVICIO) {
         form.monto_servicio = MONTOS_SERVICIO[form.tipo_servicio] ?? '';
     } else {
         form.monto_servicio = '';
@@ -203,12 +223,16 @@ function verFoto(indice) {
 // la razon del boton deshabilitado, como texto visible (no solo title)
 const razonNoGuardar = computed(() => {
     if (etapaFoto.value) return 'Espera a que termine de procesarse la foto.';
+    if (!esTienda.value && !form.cliente_id) return 'Elige un cliente o marca "Trabajo de la tienda".';
     if (!esVip.value && fotosLocales.value.length === 0) return 'Sube al menos 1 foto de entrada para guardar el ticket.';
     return '';
 });
 
 function submit() {
-    form.post('/taller');
+    // en trabajo de la tienda no viaja cliente, tipo de servicio ni cifras
+    form.transform((datos) => (datos.trabajo_tienda
+        ? { ...datos, cliente_id: null, tipo_servicio: null, monto_servicio: null, incluye_armado: false, monto_armado: null }
+        : datos)).post('/taller');
 }
 </script>
 
@@ -224,33 +248,8 @@ function submit() {
             class="flex flex-col gap-3 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]"
             @submit.prevent="submit"
         >
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Tipo de ticket</label>
-                <div class="flex gap-2">
-                    <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="esServicioCliente ? 'border-kredix-negro text-kredix-negro' : 'border-gray-300 text-kredix-negro'">
-                        <input v-model="form.tipo" type="radio" value="servicio_cliente" class="h-4 w-4" />
-                        Servicio a cliente
-                    </label>
-                    <label class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium" :class="!esServicioCliente ? 'border-kredix-negro text-kredix-negro' : 'border-gray-300 text-kredix-negro'">
-                        <input v-model="form.tipo" type="radio" value="armado_interno" class="h-4 w-4" />
-                        Armado interno
-                    </label>
-                </div>
-            </div>
-
-            <div v-if="esServicioCliente" class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Motivo de ingreso <span class="font-normal text-kredix-gris">(por que llego)</span></label>
-                <textarea
-                    v-model="form.motivo_ingreso"
-                    rows="2"
-                    placeholder="Ej: se cae la cadena, frena mal, ruido raro en el pedal..."
-                    class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
-                ></textarea>
-                <p v-if="form.errors.motivo_ingreso" class="text-sm text-kredix-rojo">{{ form.errors.motivo_ingreso }}</p>
-            </div>
-
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Cliente <span v-if="!esServicioCliente" class="font-normal text-kredix-gris">(opcional)</span></label>
+            <fieldset :disabled="esTienda" class="m-0 flex min-w-0 flex-col gap-1 border-0 p-0 disabled:opacity-50">
+                <label class="text-sm font-medium text-kredix-negro">Cliente</label>
                 <div v-if="clienteSeleccionado" class="flex items-center justify-between rounded-lg border border-gray-300 px-3 py-2">
                     <span class="text-sm text-kredix-negro">{{ clienteSeleccionado.nombre }}</span>
                     <button type="button" class="min-h-9 shrink-0 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="quitarCliente">Cambiar</button>
@@ -276,7 +275,7 @@ function submit() {
                     </div>
 
                     <button
-                        v-if="!creandoCliente && esServicioCliente"
+                        v-if="!creandoCliente"
                         type="button"
                         class="flex min-h-9 self-start shrink-0 items-center gap-1.5 rounded-lg bg-kredix-negro px-3 text-xs font-medium text-white active:opacity-80"
                         @click="abrirCrearCliente"
@@ -311,7 +310,12 @@ function submit() {
                     </div>
                 </template>
                 <p v-if="form.errors.cliente_id" class="text-sm text-kredix-rojo">{{ form.errors.cliente_id }}</p>
-            </div>
+            </fieldset>
+
+            <label class="flex min-h-11 items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro">
+                <input v-model="form.trabajo_tienda" type="checkbox" class="h-5 w-5" />
+                Trabajo de la tienda (sin cliente)
+            </label>
 
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Bicicleta (marca y modelo)</label>
@@ -352,7 +356,7 @@ function submit() {
                 ¿Es electrica / asistida (e-bike)?
             </label>
 
-            <div v-if="esServicioCliente" class="flex flex-col gap-1">
+            <div v-if="!esTienda" class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Tipo de servicio</label>
                 <select v-model="form.tipo_servicio" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @change="onTipoServicioChange">
                     <option v-for="(etiqueta, valor) in etiquetas.paquetes" :key="valor" :value="valor">
@@ -364,23 +368,53 @@ function submit() {
                     type="number"
                     step="0.01"
                     min="0"
-                    :readonly="form.tipo_servicio !== 'otro'"
+                    :readonly="esMontoFijo"
                     class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
-                    :class="form.tipo_servicio !== 'otro' ? 'bg-gray-50 text-kredix-gris' : ''"
+                    :class="esMontoFijo ? 'bg-gray-50 text-kredix-gris' : ''"
                 />
                 <p v-if="form.errors.monto_servicio" class="text-sm text-kredix-rojo">{{ form.errors.monto_servicio }}</p>
             </div>
 
-            <div v-else class="flex flex-col gap-1">
-                <label class="text-sm font-medium text-kredix-negro">Monto del servicio <span class="font-normal text-kredix-gris">(opcional; con cliente genera cargo al cerrar)</span></label>
-                <input
-                    v-model="form.monto_servicio"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
-                />
-                <p v-if="form.errors.monto_servicio" class="text-sm text-kredix-rojo">{{ form.errors.monto_servicio }}</p>
+            <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium text-kredix-negro">
+                    {{ esTienda ? 'Trabajo a realizar' : 'Motivo de ingreso' }}
+                    <span v-if="!esTienda" class="font-normal text-kredix-gris">(por que llego)</span>
+                </label>
+                <textarea
+                    v-model="form.motivo_ingreso"
+                    rows="2"
+                    :placeholder="esTienda ? 'Ej: armar bici nueva, preparar bici de exhibicion...' : 'Ej: se cae la cadena, frena mal, ruido raro en el pedal...'"
+                    class="rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                ></textarea>
+                <p v-if="form.errors.motivo_ingreso" class="text-sm text-kredix-rojo">{{ form.errors.motivo_ingreso }}</p>
+            </div>
+
+            <div v-if="puedeIncluirArmado" class="flex flex-col gap-2">
+                <label class="flex min-h-14 items-start gap-3 rounded-lg border-4 border-kredix-negro p-3 text-base font-bold text-kredix-negro">
+                    <input v-model="form.incluye_armado" type="checkbox" class="mt-0.5 h-6 w-6 shrink-0" />
+                    <span>
+                        Incluye armado
+                        <span class="block text-sm font-normal text-kredix-gris">Marca ARMADO en la etiqueta, en la lista y en la bitácora.</span>
+                    </span>
+                </label>
+                <div v-if="form.incluye_armado" class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Monto del armado <span class="font-normal text-kredix-gris">(opcional)</span></label>
+                    <input
+                        v-model="form.monto_armado"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                    />
+                    <p v-if="form.errors.monto_armado" class="text-sm text-kredix-rojo">{{ form.errors.monto_armado }}</p>
+                </div>
+            </div>
+
+            <div v-if="!esTienda" class="flex flex-col items-end gap-0.5 rounded-lg bg-gray-100 px-3 py-2 text-right">
+                <p class="text-sm text-kredix-gris">
+                    Servicio {{ formatMoney(montoServicioNum) }}<template v-if="form.incluye_armado"> + Armado {{ formatMoney(montoArmadoNum) }}</template>
+                </p>
+                <p class="text-3xl font-bold leading-tight text-kredix-negro tabular-nums">{{ formatMoney(totalEnVivo) }}</p>
             </div>
 
             <div v-if="esVip" class="flex flex-col gap-1">
