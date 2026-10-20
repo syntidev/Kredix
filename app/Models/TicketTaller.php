@@ -155,6 +155,18 @@ class TicketTaller extends Model implements HasMedia
         return $this->esTrabajoTienda() ? null : $this->totalTicket();
     }
 
+    // Nombres de los repuestos con precio 0 en un ticket con cliente que sigue en
+    // proceso, para avisar antes de cerrar. Vacio en trabajo de la tienda (ahi los
+    // repuestos van sin cifras) y en tickets atendidos
+    public function repuestosSinPrecio(): array
+    {
+        if ($this->esTrabajoTienda() || $this->estado !== 'en_proceso') {
+            return [];
+        }
+
+        return $this->repuestos->filter(fn (TicketRepuesto $r) => (float) $r->precio <= 0)->pluck('producto')->values()->all();
+    }
+
     // Etiqueta del total: acumulado mientras esta en proceso; al atender, pagado
     // en el taller o a cuenta (cargado al cliente). Un atendido sin cargo (anterior
     // a la generacion automatica) sigue como acumulado. Null en trabajo de la tienda

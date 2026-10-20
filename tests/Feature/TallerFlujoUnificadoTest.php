@@ -303,6 +303,81 @@ class TallerFlujoUnificadoTest extends TestCase
         $this->assertStringContainsString('Cadena', $pdf);
     }
 
+    // ---- KPI de Taller ----
+    private function montoServicioKpi(): float
+    {
+        $c = new \App\Http\Controllers\KpiController();
+        $m = new \ReflectionMethod($c, 'kpiTaller');
+        $m->setAccessible(true);
+
+        return (float) $m->invoke($c, \Illuminate\Http\Request::create('/kpi'))['totales']['monto_servicio'];
+    }
+
+    public function test_el_kpi_suma_servicio_y_armado_y_la_tienda_aporta_cero(): void
+    {
+        $this->ticket(['estado' => 'atendido', 'incluye_armado' => true, 'monto_armado' => 25]); // 15 + 25
+        $this->ticket(['estado' => 'atendido']); // 15, sin armado: no cambia
+        $this->tienda(['estado' => 'atendido']); // 0
+
+        $this->assertSame(55.0, $this->montoServicioKpi());
+    }
+
+    // ---- aviso de repuestos sin precio ----
+    private function repuestosSinPrecio(TicketTaller $t): array
+    {
+        $ticket = null;
+        $this->actingAs($this->usuario)->get("/taller/{$t->id}")
+            ->assertInertia(function ($pagina) use (&$ticket) {
+                $ticket = $pagina->toArray()['props']['ticket'];
+            });
+
+        return $ticket['repuestos_sin_precio'];
+    }
+
+    public function test_el_aviso_lista_los_repuestos_con_precio_cero_de_un_ticket_con_cliente_en_proceso(): void
+    {
+        $t = $this->ticket();
+        $t->repuestos()->create(['producto' => 'Cadena', 'cantidad' => 1, 'precio' => 0]);
+        $t->repuestos()->create(['producto' => 'Cauchos', 'cantidad' => 2, 'precio' => 12]);
+
+        $this->assertSame(['Cadena'], $this->repuestosSinPrecio($t));
+    }
+
+    public function test_el_aviso_no_aparece_con_precios_atendido_ni_en_la_tienda(): void
+    {
+        $conPrecio = $this->ticket();
+        $conPrecio->repuestos()->create(['producto' => 'Cadena', 'cantidad' => 1, 'precio' => 5]);
+        $atendido = $this->ticket(['estado' => 'atendido']);
+        $atendido->repuestos()->create(['producto' => 'Cadena', 'cantidad' => 1, 'precio' => 0]);
+        $tienda = $this->tienda();
+        $tienda->repuestos()->create(['producto' => 'Cadena', 'cantidad' => 1, 'precio' => 0]);
+
+        $this->assertSame([], $this->repuestosSinPrecio($conPrecio));
+        $this->assertSame([], $this->repuestosSinPrecio($atendido));
+        $this->assertSame([], $this->repuestosSinPrecio($tienda));
+    }
+
+    // ---- marca ARMADO impresa sin depender de fondos ----
+    public function test_la_marca_armado_impresa_no_depende_de_print_color_adjust(): void
+    {
+        $t = $this->ticket(['incluye_armado' => true, 'monto_armado' => 25]);
+
+        $datos = null;
+        View::composer('pdf.taller-atencion', function ($vista) use (&$datos) {
+            $datos = $vista->getData();
+        });
+        $this->actingAs($this->usuario)->get("/taller/{$t->id}/atencion-trek.pdf")->assertOk();
+        $pdf = view('pdf.taller-atencion', $datos)->render();
+        $bitacora = $this->actingAs($this->usuario)->get('/taller/bitacora/imprimir')->assertOk()->getContent();
+
+        foreach ([$pdf, $bitacora] as $html) {
+            $this->assertStringContainsString('marca-armado', $html);
+            $this->assertStringContainsString('border: 2px solid #000', $html);
+            $this->assertStringNotContainsString('print-color-adjust', $html);
+        }
+        $this->assertStringContainsString('+ ARMADO', $pdf);
+    }
+
     public function test_la_bitacora_con_cliente_muestra_total_y_marca_armado(): void
     {
         $this->ticket(['incluye_armado' => true, 'monto_armado' => 25]);

@@ -883,6 +883,14 @@ const itemsFaltantesParaCerrar = computed(() => {
         <div class="flex flex-col gap-3 rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
             <h2 class="font-medium text-kredix-negro">Repuestos</h2>
 
+            <!-- solo ticket con cliente en proceso (el servidor manda la lista vacia en los demas casos); no bloquea nada -->
+            <div v-if="ticket.repuestos_sin_precio?.length" class="flex flex-col gap-1 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+                <p class="font-semibold">Hay repuestos sin precio</p>
+                <ul class="list-disc pl-5">
+                    <li v-for="(nombre, i) in ticket.repuestos_sin_precio" :key="i">{{ nombre }}</li>
+                </ul>
+            </div>
+
             <p v-if="ticket.repuestos.length === 0" class="text-sm text-kredix-gris">Sin repuestos registrados.</p>
             <div v-for="r in ticket.repuestos" :key="r.id" class="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
                 <span class="text-kredix-negro">{{ r.producto }} × {{ r.cantidad }}</span>
@@ -1165,10 +1173,13 @@ poder perforar sin tapar texto, aun con @page margin en 0 */
     .ticket-print * {
         visibility: visible;
     }
-    /* la marca ARMADO lleva fondo negro: sin esto el navegador no imprime fondos */
+    /* la marca ARMADO se lee aunque la impresora no pinte fondos: borde negro y
+    texto negro en negrita, sin depender de print-color-adjust */
     .marca-armado {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+        background: transparent !important;
+        color: #000 !important;
+        border: 2px solid #000;
+        font-weight: 700;
     }
     .ticket-print {
         display: block !important;

@@ -12,6 +12,8 @@
         .ficha table { width: 100%; border-collapse: collapse; }
         .ficha td { padding: 2px 0; font-size: 10px; vertical-align: top; }
         .ficha .label { color: #666; width: 130px; }
+        /* marca ARMADO: borde y texto negros en negrita, no depende de fondos */
+        .marca-armado { border: 2px solid #000; color: #000; font-weight: bold; padding: 0 4px; }
         .rojo { color: #c00000; }
         .verde { color: #15803d; }
         .saldo-grande { font-size: 22px; font-weight: bold; }
@@ -103,7 +105,7 @@
             </tr>
             <tr>
                 <td class="label">Tipo de servicio</td>
-                <td>{{ $ticket->tipo_servicio ? ($tipoServicioLabel[$ticket->tipo_servicio] ?? $ticket->tipo_servicio) : ($ticket->esTrabajoTienda() ? 'Trabajo de la tienda' : 'Armado') }}{{ $ticket->incluye_armado ? ' + ARMADO' : '' }}</td>
+                <td>{{ $ticket->tipo_servicio ? ($tipoServicioLabel[$ticket->tipo_servicio] ?? $ticket->tipo_servicio) : ($ticket->esTrabajoTienda() ? 'Trabajo de la tienda' : 'Armado') }}@if ($ticket->incluye_armado) <span class="marca-armado">+ ARMADO</span>@endif</td>
                 <td class="label">Mecanico</td>
                 <td>{{ $ticket->mecanico->name ?? '-' }}</td>
             </tr>

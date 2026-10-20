@@ -42,8 +42,7 @@
             padding: 1px 6px;
             font-size: 13px;
             white-space: nowrap;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            border: 2px solid #000;
         }
         .total { font-size: 20px; display: block; }
         .etiqueta-total { font-size: 11px; color: #555; letter-spacing: .5px; }
@@ -60,6 +59,13 @@
             }
             body {
                 padding: 0;
+            }
+            /* la marca se lee aunque la impresora no pinte fondos: borde y texto
+            negros en negrita, sin depender de la opcion de imprimir fondos */
+            .marca-armado {
+                background: transparent;
+                color: #000;
+                font-weight: 700;
             }
         }
     </style>

@@ -456,6 +456,7 @@ class TallerController extends Controller
                     : $ticket->repuestos,
                 'total' => $ticket->totalVisible(),
                 'etiqueta_total' => $ticket->etiquetaTotal(),
+                'repuestos_sin_precio' => $ticket->repuestosSinPrecio(),
                 'fotos_entrada' => $this->fotosUrls($ticket, 'entrada'),
                 'fotos_salida' => $this->fotosUrls($ticket, 'salida'),
                 'revision' => InformeRevision::tieneContenido($ticket->revision_tecnica) ? [
