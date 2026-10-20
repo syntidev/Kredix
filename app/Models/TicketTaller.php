@@ -132,9 +132,17 @@ class TicketTaller extends Model implements HasMedia
         return (float) $this->repuestos->sum(fn (TicketRepuesto $r) => $r->cantidad * (float) $r->precio);
     }
 
+    // monto_servicio es null en armados sin monto (todos los anteriores): suma 0
     public function totalTicket(): float
     {
-        return $this->totalRepuestos() + ($this->tipo === 'servicio_cliente' ? (float) $this->monto_servicio : 0);
+        return $this->totalRepuestos() + (float) $this->monto_servicio;
+    }
+
+    // ¿Cierra con cargo (o pago en el momento)? El servicio a cliente siempre;
+    // el armado solo si lleva cliente y monto de servicio > 0
+    public function seCobra(): bool
+    {
+        return $this->tipo === 'servicio_cliente' || ($this->cliente_id !== null && (float) $this->monto_servicio > 0);
     }
 
     // Requiere `php artisan storage:link` corrido una vez en el servidor (ver

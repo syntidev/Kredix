@@ -341,7 +341,8 @@ class TallerController extends Controller
 
         $ticket = TicketTaller::create([
             'tipo' => $validated['tipo'],
-            'cliente_id' => $esServicioCliente ? $validated['cliente_id'] : null,
+            // el armado acepta cliente y monto de servicio, ambos opcionales
+            'cliente_id' => $validated['cliente_id'] ?? null,
             'motivo_ingreso' => $esServicioCliente ? $validated['motivo_ingreso'] : null,
             'bici_marca_modelo' => $validated['bici_marca_modelo'],
             'categoria_bici' => $validated['categoria_bici'],
@@ -349,7 +350,7 @@ class TallerController extends Controller
             'es_electrica' => $validated['es_electrica'] ?? false,
             'tipo_servicio' => $esServicioCliente ? $validated['tipo_servicio'] : null,
             'domicilio_direccion' => $esVip ? $validated['domicilio_direccion'] : null,
-            'monto_servicio' => $esServicioCliente ? $validated['monto_servicio'] : null,
+            'monto_servicio' => $validated['monto_servicio'] ?? null,
             'diagnostico' => $validated['diagnostico'] ?? [],
             'mecanico_id' => $validated['mecanico_id'],
             'registrado_por' => $request->user()->id,
@@ -361,6 +362,27 @@ class TallerController extends Controller
         }
 
         return redirect()->route('taller.show', $ticket->id);
+    }
+
+    // Aviso de "unidad lista": solo con el ticket atendido y un cliente con
+    // telefono; si no, null y la pantalla no ofrece el boton. {monto} es el
+    // total del ticket en USD, mismo formato que el resto de Taller
+    private function mensajeWhatsappListo(TicketTaller $ticket): ?string
+    {
+        if ($ticket->estado !== 'atendido' || blank($ticket->cliente?->telefono)) {
+            return null;
+        }
+
+        return str_replace(
+            ['{nombre}', '{bici}', '{monto}'],
+            [
+                // los nombres de cliente se guardan en mayusculas
+                mb_convert_case($ticket->cliente->nombre, MB_CASE_TITLE, 'UTF-8'),
+                $ticket->bici_marca_modelo,
+                '$'.number_format($ticket->totalTicket(), 2),
+            ],
+            config('taller.whatsapp_listo.'.($ticket->pagado_en_taller ? 'pagado' : 'por_cobrar'))
+        );
     }
 
     public function show(TicketTaller $ticket)
@@ -387,6 +409,7 @@ class TallerController extends Controller
 
         return Inertia::render('Taller/Show', [
             'siguienteTicketId' => $siguienteTicket?->id,
+            'mensajeWhatsapp' => $this->mensajeWhatsappListo($ticket),
             'ticket' => [
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',
@@ -468,14 +491,14 @@ class TallerController extends Controller
         $ticket->update([
             // reasignar cliente_id conserva fotos/diagnostico/repuestos/historial --
             // son todas relaciones/columnas distintas de este update, nada mas se toca
-            'cliente_id' => $esServicioCliente ? $validated['cliente_id'] : null,
+            'cliente_id' => $validated['cliente_id'] ?? null,
             'motivo_ingreso' => $esServicioCliente ? $validated['motivo_ingreso'] : null,
             'bici_marca_modelo' => $validated['bici_marca_modelo'],
             'categoria_bici' => $validated['categoria_bici'],
             'talla_rin' => $validated['talla_rin'] ?? '',
             'es_electrica' => $validated['es_electrica'] ?? false,
             'tipo_servicio' => $esServicioCliente ? $validated['tipo_servicio'] : null,
-            'monto_servicio' => $esServicioCliente ? $validated['monto_servicio'] : null,
+            'monto_servicio' => $validated['monto_servicio'] ?? null,
             'mecanico_id' => $validated['mecanico_id'],
             // solo si la clave viene -- Show.vue ya no envia el checklist y
             // un ?? [] aqui borraria el diagnostico de los tickets viejos
@@ -790,7 +813,7 @@ class TallerController extends Controller
 
     public function marcarAtendido(Request $request, TicketTaller $ticket)
     {
-        $esServicioCliente = $ticket->tipo === 'servicio_cliente';
+        $seCobra = $ticket->seCobra();
 
         $tieneRevision = InformeRevision::tieneContenido($ticket->revision_tecnica);
 
@@ -809,10 +832,10 @@ class TallerController extends Controller
             return back()->withErrors(['fotos_salida' => 'Falta al menos 1 foto de salida para poder marcar el ticket como atendido.']);
         }
 
-        // armado_interno no tiene cliente que pague, no aplica -- decision
-        // explicita solo se exige para servicio_cliente
+        // un armado sin cliente o sin monto no cobra nada, no aplica -- la
+        // decision explicita solo se exige si el ticket se cobra
         $validated = $request->validate([
-            'pagado_en_taller' => [Rule::requiredIf($esServicioCliente), 'boolean'],
+            'pagado_en_taller' => [Rule::requiredIf($seCobra), 'boolean'],
         ], [
             'pagado_en_taller.required' => 'indica si el ticket se pago en el momento',
         ]);
@@ -832,12 +855,12 @@ class TallerController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($ticket, $esServicioCliente, $validated, $textoPendiente, $confirmacion) {
-            $pagadoEnTaller = $esServicioCliente ? (bool) $validated['pagado_en_taller'] : false;
+        DB::transaction(function () use ($ticket, $seCobra, $validated, $textoPendiente, $confirmacion) {
+            $pagadoEnTaller = $seCobra ? (bool) $validated['pagado_en_taller'] : false;
 
             // si ya tiene movimiento_cuenta_id, el cargo ya se genero antes --
             // no duplicar si el ticket se vuelve a guardar/reabrir
-            if ($esServicioCliente && ! $pagadoEnTaller && ! $ticket->movimiento_cuenta_id) {
+            if ($seCobra && ! $pagadoEnTaller && ! $ticket->movimiento_cuenta_id) {
                 $monto = $ticket->totalTicket();
 
                 // cantidad/precio_unitario/modalidad_precio -- un cargo creado
@@ -876,7 +899,7 @@ class TallerController extends Controller
             // existia (se agrego en acc2463, 2026-09-29 16:32) -- este guard
             // no corrige esos retroactivamente, solo blinda el flujo de aqui
             // en adelante
-            abort_if($esServicioCliente && ! $pagadoEnTaller && ! $ticket->movimiento_cuenta_id, 500, 'No se pudo generar el cargo del servicio -- el ticket no se marco como atendido. Intenta de nuevo.');
+            abort_if($seCobra && ! $pagadoEnTaller && ! $ticket->movimiento_cuenta_id, 500, 'No se pudo generar el cargo del servicio -- el ticket no se marco como atendido. Intenta de nuevo.');
 
             // nunca escribe texto que se imprima sin que nadie lo vea: solo un borrador
             if (blank($ticket->trabajo_realizado)) {

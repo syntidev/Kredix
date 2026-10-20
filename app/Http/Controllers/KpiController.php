@@ -277,7 +277,7 @@ class KpiController extends Controller
                 return [
                     'mecanico' => $grupo->first()->mecanico?->name ?? 'Sin asignar',
                     'tickets_atendidos' => $grupo->count(),
-                    'monto_servicio' => (float) $grupo->sum(fn (TicketTaller $t) => $t->tipo === 'servicio_cliente' ? (float) $t->monto_servicio : 0),
+                    'monto_servicio' => (float) $grupo->sum(fn (TicketTaller $t) => (float) $t->monto_servicio),
                     'monto_repuestos' => (float) $grupo->sum(fn (TicketTaller $t) => $t->totalRepuestos()),
                 ];
             })
