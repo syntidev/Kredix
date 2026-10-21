@@ -28,7 +28,7 @@ const claseActivo = (esActivo, alto) => [
 </script>
 
 <template>
-    <aside class="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col gap-5 bg-primario px-3.5 py-6 text-lateral-texto lg:flex">
+    <aside class="fixed inset-y-0 left-0 z-barra hidden w-[248px] flex-col gap-5 bg-primario px-3.5 py-6 text-lateral-texto lg:flex">
         <Link :href="inicioHref" class="px-2.5" aria-label="Kredix" @click="click()">
             <img src="/logo_menu.png" alt="Kredix" class="h-11 w-auto" />
         </Link>

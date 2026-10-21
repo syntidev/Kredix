@@ -4,6 +4,13 @@
 
 :root {
     --k-ease: cubic-bezier(.2, .8, .2, 1);
+    /* altura de la barra inferior movil (solo existe bajo 1024px); los flotantes se apoyan en ella */
+    --nav-h: calc(4.5rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 1024px) {
+    :root {
+        --nav-h: 0px;
+    }
 }
 
 @layer components {

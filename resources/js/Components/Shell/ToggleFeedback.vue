@@ -8,9 +8,15 @@ defineProps({
 
 const { sonidos, vibracion, vibracionSoportada, click } = useFeedback();
 
-function alternar(refValor) {
-    refValor.value = !refValor.value;
-    // confirma el cambio con el propio feedback recien activado
+// en la plantilla los refs llegan desempaquetados: el cambio se hace aqui, sobre el ref
+// (el click() confirma solo si el ajuste quedo activado)
+function alternarSonidos() {
+    sonidos.value = !sonidos.value;
+    click();
+}
+
+function alternarVibracion() {
+    vibracion.value = !vibracion.value;
     click();
 }
 </script>
@@ -23,7 +29,7 @@ function alternar(refValor) {
             :aria-checked="sonidos"
             class="flex min-h-[44px] w-full items-center justify-between gap-3 px-4 text-left text-[15px] font-medium"
             :class="oscuro ? 'text-lateral-texto' : 'text-tinta'"
-            @click="alternar(sonidos)"
+            @click="alternarSonidos"
         >
             Sonidos
             <span class="relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150" :class="sonidos ? 'bg-activo' : (oscuro ? 'bg-white/25' : 'bg-nav-inactivo/40')">
@@ -37,7 +43,7 @@ function alternar(refValor) {
             :disabled="!vibracionSoportada"
             class="flex min-h-[44px] w-full items-center justify-between gap-3 px-4 text-left text-[15px] font-medium disabled:opacity-60"
             :class="oscuro ? 'text-lateral-texto' : 'text-tinta'"
-            @click="alternar(vibracion)"
+            @click="alternarVibracion"
         >
             <span class="flex flex-col">
                 Vibración

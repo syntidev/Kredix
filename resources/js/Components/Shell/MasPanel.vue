@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, watch } from 'vue';
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ChevronRight, LogOut } from '@lucide/vue';
 import UserAvatar from '../UserAvatar.vue';
@@ -17,8 +17,11 @@ const emit = defineEmits(['close']);
 
 const { click } = useFeedback();
 
-function cerrar() {
-    emit('close');
+const panel = ref(null);
+
+// devolverFoco: ESC devuelve el foco al tab "Mas" (lo hace BottomNav)
+function cerrar(devolverFoco = false) {
+    emit('close', devolverFoco);
 }
 
 function alNavegar() {
@@ -34,7 +37,7 @@ function salir() {
 
 function alTeclear(e) {
     if (e.key === 'Escape') {
-        cerrar();
+        cerrar(true);
     }
 }
 
@@ -45,6 +48,8 @@ watch(() => props.open, (abierta) => {
         document.addEventListener('keydown', alTeclear);
         overflowPrevio = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
+        // el foco entra al panel al abrir
+        nextTick(() => panel.value?.focus({ preventScroll: true }));
     } else {
         document.removeEventListener('keydown', alTeclear);
         document.body.style.overflow = overflowPrevio;
@@ -64,9 +69,11 @@ onBeforeUnmount(() => {
         <section
             v-if="open"
             id="pantalla-mas"
+            ref="panel"
+            tabindex="-1"
             aria-label="Más"
-            class="fixed inset-0 z-20 overflow-y-auto bg-fondo px-4 pt-6 lg:hidden"
-            style="padding-bottom: calc(6.5rem + env(safe-area-inset-bottom))"
+            class="fixed inset-0 z-mas overflow-y-auto bg-fondo px-4 pt-6 focus:outline-none lg:hidden"
+            style="padding-bottom: calc(var(--nav-h) + 2rem)"
         >
             <h2 class="mb-4 text-[28px] font-extrabold tracking-tight text-tinta">Más</h2>
 

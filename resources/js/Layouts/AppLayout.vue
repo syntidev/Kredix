@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import BottomNav from '../Components/Shell/BottomNav.vue';
 import Sidebar from '../Components/Shell/Sidebar.vue';
@@ -15,13 +15,16 @@ const nombre = computed(() => page.props.auth?.user?.name ?? '');
 // muertos, la seguridad real vive en el middleware
 const permisos = computed(() => permisosNav(page.props.auth?.user));
 const inicioHref = computed(() => (permisos.value.esTaller ? '/taller' : '/home'));
+
+// Mas o la hoja (+) abiertos: el contenido de fondo no recibe foco ni toques
+const fondoInerte = ref(false);
 </script>
 
 <template>
     <div class="min-h-screen bg-fondo text-tinta">
         <Sidebar :url="page.url" :permisos="permisos" :nombre="nombre" />
 
-        <div class="lg:pl-[248px]">
+        <div class="lg:pl-[248px]" :inert="fondoInerte ? '' : undefined">
             <header class="bg-primario lg:hidden">
                 <div class="flex h-14 items-center justify-between px-4 md:px-8">
                     <Link :href="inicioHref" class="shrink-0" aria-label="Kredix">
@@ -38,12 +41,12 @@ const inicioHref = computed(() => (permisos.value.esTaller ? '/taller' : '/home'
             <InstallPrompt />
 
             <Transition name="k-pagina" mode="out-in">
-                <main :key="page.component" class="px-4 py-6 pb-28 md:px-8 lg:pb-6 lg:pt-2">
+                <main :key="page.component" class="px-4 py-6 pb-[calc(var(--nav-h)+2.5rem)] md:px-8 lg:pb-6 lg:pt-2">
                     <slot />
                 </main>
             </Transition>
         </div>
 
-        <BottomNav :url="page.url" :permisos="permisos" :nombre="nombre" />
+        <BottomNav :url="page.url" :permisos="permisos" :nombre="nombre" @fondo-inerte="fondoInerte = $event" />
     </div>
 </template>

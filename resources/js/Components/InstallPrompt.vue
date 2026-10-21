@@ -58,7 +58,7 @@ onUnmounted(() => {
     <button
         v-if="showAndroidButton"
         type="button"
-        class="fixed bottom-20 right-4 z-20 rounded-full bg-kredix-negro px-4 py-2 text-sm font-medium text-white shadow-lg md:bottom-4"
+        class="fixed bottom-[calc(var(--nav-h)+1rem)] right-4 z-20 rounded-full bg-kredix-negro px-4 py-2 text-sm font-medium text-white shadow-lg lg:bottom-4"
         @click="installAndroid"
     >
         Instalar app

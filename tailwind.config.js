@@ -36,6 +36,13 @@ export default {
                 'nav-inactivo': '#4b5563',
                 lateral: { texto: '#e5e7eb', suave: '#9ca3af' },
             },
+            // escala de capas del shell: contenido < mas < barra < modales de pagina (z-30) < hoja (+)
+            zIndex: {
+                mas: '20',
+                barra: '25',
+                modal: '30',
+                hoja: '40',
+            },
             transitionTimingFunction: {
                 kredix: 'cubic-bezier(.2,.8,.2,1)',
             },

@@ -25,8 +25,9 @@ function guardar(clave, valor) {
 // por dispositivo, activados por defecto; compartidos por todos los componentes
 const sonidos = ref(leer(CLAVE_SONIDOS));
 const vibracion = ref(leer(CLAVE_VIBRACION));
-watch(sonidos, (v) => guardar(CLAVE_SONIDOS, v));
-watch(vibracion, (v) => guardar(CLAVE_VIBRACION, v));
+// sync: el ajuste queda guardado en el mismo instante, aunque la pagina se recargue enseguida
+watch(sonidos, (v) => guardar(CLAVE_SONIDOS, v), { flush: 'sync' });
+watch(vibracion, (v) => guardar(CLAVE_VIBRACION, v), { flush: 'sync' });
 
 const vibracionSoportada = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
 

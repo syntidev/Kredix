@@ -1229,7 +1229,7 @@ watch(algunModalAbierto, (abierto) => {
             </div>
         </div>
 
-        <div v-if="!formMode" class="fixed bottom-20 right-4 z-20 flex flex-col items-end gap-2 md:bottom-6 md:right-6">
+        <div v-if="!formMode" class="fixed bottom-[calc(var(--nav-h)+1rem)] right-4 z-20 flex flex-col items-end gap-2 lg:bottom-6 lg:right-6">
             <template v-if="fabAbierto">
                 <button type="button" class="flex min-h-11 items-center justify-center rounded-full bg-green-600 px-4 text-sm font-medium text-white shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)] active:opacity-80" @click="fabAbierto = false; abrirAbono()">
                     + Nuevo abono

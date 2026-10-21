@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ChevronUp, LogOut } from '@lucide/vue';
 import UserAvatar from '../UserAvatar.vue';
@@ -52,6 +52,10 @@ watch(abierto, (valor) => {
     } else {
         document.removeEventListener('keydown', alTeclear);
     }
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener('keydown', alTeclear);
 });
 </script>
 

@@ -140,13 +140,13 @@ onBeforeUnmount(() => {
 
 <template>
     <Transition name="k-hoja" :duration="240">
-        <div v-if="open" class="fixed inset-0 z-40 lg:hidden">
+        <div v-if="open" class="fixed inset-0 z-hoja lg:hidden">
             <div class="k-hoja-fondo absolute inset-0 bg-tinta/40" aria-hidden="true" @click="cerrar"></div>
 
             <div
                 ref="panel"
                 class="k-hoja-panel absolute inset-x-3 max-h-[calc(100dvh-7rem)] overflow-y-auto rounded-k22 bg-white p-4 shadow-e3"
-                style="bottom: calc(4.5rem + env(safe-area-inset-bottom))"
+                style="bottom: var(--nav-h)"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="hoja-titulo"
