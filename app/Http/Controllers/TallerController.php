@@ -394,25 +394,38 @@ class TallerController extends Controller
         return redirect()->route('taller.show', $ticket->id);
     }
 
-    // Aviso de "unidad lista": solo con el ticket atendido y un cliente con
-    // telefono; si no, null y la pantalla no ofrece el boton. {monto} es el
-    // total del ticket en USD, mismo formato que el resto de Taller
-    private function mensajeWhatsappListo(TicketTaller $ticket): ?string
+    // Mensajes rapidos de WhatsApp, en cualquier estado del ticket: solo con un
+    // cliente que tenga telefono (null = la pantalla no puede enviar; el trabajo de
+    // la tienda no lleva ninguno). La cifra va unicamente en "unidad_lista" ({monto}
+    // = total en USD, mismo formato que el resto de Taller): acumulado mientras
+    // sigue en proceso; "ya pagado" solo si pagado_en_taller (se fija al cerrar,
+    // nunca se afirma un pago antes); sin la frase del total si en proceso hay
+    // repuestos sin precio, porque el acumulado seria enganoso
+    private function mensajesWhatsapp(TicketTaller $ticket): ?array
     {
-        if ($ticket->estado !== 'atendido' || blank($ticket->cliente?->telefono)) {
+        if ($ticket->esTrabajoTienda() || blank($ticket->cliente?->telefono)) {
             return null;
         }
 
-        return str_replace(
-            ['{nombre}', '{bici}', '{monto}'],
-            [
-                // los nombres de cliente se guardan en mayusculas
-                mb_convert_case($ticket->cliente->nombre, MB_CASE_TITLE, 'UTF-8'),
-                $ticket->bici_marca_modelo,
-                '$'.number_format($ticket->totalTicket(), 2),
-            ],
-            config('taller.whatsapp_listo.'.($ticket->pagado_en_taller ? 'pagado' : 'por_cobrar'))
-        );
+        $variante = match (true) {
+            (bool) $ticket->pagado_en_taller => 'pagado',
+            $ticket->repuestosSinPrecio() !== [] => 'sin_total',
+            default => 'por_cobrar',
+        };
+
+        $reemplazos = [
+            // los nombres de cliente se guardan en mayusculas
+            '{nombre}' => mb_convert_case($ticket->cliente->nombre, MB_CASE_TITLE, 'UTF-8'),
+            '{bici}' => $ticket->bici_marca_modelo,
+            '{monto}' => '$'.number_format($ticket->totalTicket(), 2),
+        ];
+
+        return array_map(fn (string $plantilla) => strtr($plantilla, $reemplazos), [
+            'unidad_lista' => config("taller.whatsapp_listo.$variante"),
+            'repuesto' => config('taller.whatsapp_repuesto'),
+            'danos' => config('taller.whatsapp_danos'),
+            'libre' => config('taller.whatsapp_libre'),
+        ]);
     }
 
     public function show(TicketTaller $ticket)
@@ -439,7 +452,7 @@ class TallerController extends Controller
 
         return Inertia::render('Taller/Show', [
             'siguienteTicketId' => $siguienteTicket?->id,
-            'mensajeWhatsapp' => $this->mensajeWhatsappListo($ticket),
+            'mensajesWhatsapp' => $this->mensajesWhatsapp($ticket),
             'ticket' => [
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',

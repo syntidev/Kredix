@@ -1,5 +1,18 @@
+<script>
+// Atras/Adelante: Inertia restaura la pantalla guardada en el historial sin pedirla al
+// servidor, y puede estar vieja. Este aviso se arma al nivel del modulo para que lo vea
+// el Show que se monta justo despues de ese popstate (ver refresco mas abajo)
+let vieneDelHistorial = false;
+let primerMontaje = true;
+if (typeof window !== 'undefined') {
+    window.addEventListener('popstate', () => {
+        vieneDelHistorial = true;
+    });
+}
+</script>
+
 <script setup>
-import { computed, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import { ClipboardCheck, Crown, Download, Eye, FileText, MessageCircle, Pencil, Plus, Printer, Trash2, UserPlus, Zap } from '@lucide/vue';
@@ -18,8 +31,8 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
     ticket: { type: Object, required: true },
     siguienteTicketId: { type: Number, default: null },
-    // texto del aviso "unidad lista"; null = ticket sin atender o sin cliente con telefono
-    mensajeWhatsapp: { type: String, default: null },
+    // mensajes rapidos de WhatsApp (unidad_lista, repuesto, danos, libre); null = sin cliente con telefono
+    mensajesWhatsapp: { type: Object, default: null },
     mecanicos: { type: Array, required: true },
     empresaNombre: { type: String, default: 'Kredix' },
     ticketQrDataUri: { type: String, default: '' },
@@ -36,17 +49,29 @@ const seCobra = computed(() => props.ticket.tipo === 'servicio_cliente' || (tien
 const ETIQUETA_TOTAL = { acumulado: 'Acumulado', pagado: 'Pagado', a_cuenta: 'A cuenta' };
 const atendido = computed(() => props.ticket.estado === 'atendido');
 
-// --- aviso por WhatsApp: cuadro con el texto editable; lo que se edite es lo
-// que viaja en el enlace. cliente.telefono esta en E.164, basta quitar el "+" ---
+// --- WhatsApp en cualquier estado: plantilla + texto editable; lo que se edite es lo
+// que viaja en el enlace (telefono solo con digitos, texto codificado) ---
+const PLANTILLAS_WHATSAPP = [
+    { clave: 'unidad_lista', etiqueta: 'Unidad lista para retirar' },
+    { clave: 'repuesto', etiqueta: 'Falta un repuesto / autorización' },
+    { clave: 'danos', etiqueta: 'Detalle en la revisión' },
+    { clave: 'libre', etiqueta: 'Mensaje libre' },
+];
 const avisandoWhatsapp = ref(false);
+const plantillaWhatsapp = ref('unidad_lista');
 const textoWhatsapp = ref('');
 
+function elegirPlantillaWhatsapp(clave) {
+    plantillaWhatsapp.value = clave;
+    textoWhatsapp.value = props.mensajesWhatsapp[clave];
+}
+
 function abrirAvisoWhatsapp() {
-    textoWhatsapp.value = props.mensajeWhatsapp;
+    elegirPlantillaWhatsapp('unidad_lista');
     avisandoWhatsapp.value = true;
 }
 
-const waLink = computed(() => `https://wa.me/${props.ticket.cliente.telefono.replace('+', '')}?text=${encodeURIComponent(textoWhatsapp.value)}`);
+const waLink = computed(() => `https://wa.me/${(props.ticket.cliente?.telefono ?? '').replace(/\D/g, '')}?text=${encodeURIComponent(textoWhatsapp.value)}`);
 
 // window.print() inline en el template (@click="window.print()") resolvia
 // mal el global en el codigo compilado -> "Cannot read properties of
@@ -404,6 +429,76 @@ watch(() => textoCliente.value.ia?.estado, (estado) => {
 }, { immediate: true });
 onUnmounted(() => clearInterval(recargaInforme));
 
+// --- refresco de los datos del ticket en el celular: al volver con Atras/Adelante y al
+// volver la app o la pestana tras >= 20 s oculta. Solo las props necesarias; nunca con
+// cambios sin guardar (se avisa con una linea) ni con una peticion en curso ---
+const OCULTA_MIN_MS = 20000;
+const PROPS_REFRESCO = ['ticket', 'mensajesWhatsapp', 'siguienteTicketId'];
+const hayNovedad = ref(false);
+let recargando = false;
+let visitasEnCurso = 0;
+let ocultaDesde = null;
+let quitarInicio = null;
+let quitarFin = null;
+
+const hayCambiosSinGuardar = computed(() => textoForm.trabajo_realizado !== (props.ticket.trabajo_realizado ?? '')
+    || editando.value
+    || repuestoForm.isDirty
+    || motivoEliminacionTicket.value !== ''
+    || (avisandoWhatsapp.value && textoWhatsapp.value !== (props.mensajesWhatsapp?.[plantillaWhatsapp.value] ?? '')));
+
+function recargarDatos() {
+    if (recargando) return;
+    recargando = true;
+    hayNovedad.value = false;
+    router.reload({ only: PROPS_REFRESCO, preserveScroll: true, onFinish: () => { recargando = false; } });
+}
+
+function refrescar() {
+    if (recargando || visitasEnCurso > 0 || procesandoTexto.value || repuestoForm.processing || editForm.processing) return;
+    if (hayCambiosSinGuardar.value) {
+        hayNovedad.value = true;
+        return;
+    }
+    recargarDatos();
+}
+
+// al terminar de guardar o descartar, si quedo una novedad pendiente se aplica
+watch(hayCambiosSinGuardar, (sucio) => {
+    if (!sucio && hayNovedad.value) refrescar();
+});
+
+function alCambiarVisibilidad() {
+    if (document.visibilityState === 'hidden') {
+        ocultaDesde = Date.now();
+        return;
+    }
+    if (ocultaDesde !== null && Date.now() - ocultaDesde >= OCULTA_MIN_MS) refrescar();
+    ocultaDesde = null;
+}
+
+function alMostrarPagina(evento) {
+    if (evento.persisted) refrescar();
+}
+
+onMounted(() => {
+    const navegacion = performance.getEntriesByType('navigation')[0];
+    if (vieneDelHistorial || (primerMontaje && navegacion?.type === 'back_forward')) refrescar();
+    vieneDelHistorial = false;
+    primerMontaje = false;
+
+    document.addEventListener('visibilitychange', alCambiarVisibilidad);
+    window.addEventListener('pageshow', alMostrarPagina);
+    quitarInicio = router.on('start', () => { visitasEnCurso++; });
+    quitarFin = router.on('finish', () => { visitasEnCurso = Math.max(0, visitasEnCurso - 1); });
+});
+onUnmounted(() => {
+    document.removeEventListener('visibilitychange', alCambiarVisibilidad);
+    window.removeEventListener('pageshow', alMostrarPagina);
+    quitarInicio?.();
+    quitarFin?.();
+});
+
 // --- fotos: casillas con tope por coleccion (entrada / salida) ---
 // etapa no vacia = bloqueado desde el primer toque, antes de la conversion: un
 // segundo toque durante ella subia otra foto
@@ -613,17 +708,35 @@ const itemsFaltantesParaCerrar = computed(() => {
         </div>
         <p v-if="errorAtendido" class="text-sm text-kredix-rojo">{{ errorAtendido }}</p>
 
-        <button
-            v-if="mensajeWhatsapp && !avisandoWhatsapp"
-            type="button"
-            class="flex min-h-11 w-fit items-center gap-1.5 rounded-lg border border-green-600 px-4 text-sm font-medium text-green-700 active:bg-green-50"
-            @click="abrirAvisoWhatsapp"
-        >
-            <MessageCircle :size="16" />
-            Avisar por WhatsApp
-        </button>
-        <div v-if="mensajeWhatsapp && avisandoWhatsapp" class="flex flex-col gap-2 rounded-xl border border-green-600 bg-white p-3">
-            <label for="texto-whatsapp" class="text-sm font-medium text-kredix-negro">Mensaje para {{ ticket.cliente.nombre }} <span class="font-normal text-kredix-gris">(puedes editarlo antes de enviar)</span></label>
+        <p v-if="hayNovedad" class="text-xs text-kredix-gris">
+            Hay cambios nuevos en este ticket.
+            <button type="button" class="font-medium underline" @click="recargarDatos">Actualizar</button>
+        </p>
+
+        <!-- WhatsApp en cualquier estado; el trabajo de la tienda (sin cliente) no lleva boton -->
+        <div v-if="tieneCliente && !avisandoWhatsapp" class="flex flex-col gap-1">
+            <button
+                type="button"
+                class="flex min-h-11 w-fit items-center gap-1.5 rounded-lg border border-green-600 px-4 text-sm font-medium text-green-700 active:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
+                :disabled="!mensajesWhatsapp"
+                @click="abrirAvisoWhatsapp"
+            >
+                <MessageCircle :size="16" />
+                Avisar por WhatsApp
+            </button>
+            <p v-if="!mensajesWhatsapp" class="text-sm text-kredix-gris">El cliente no tiene teléfono registrado</p>
+        </div>
+        <div v-if="mensajesWhatsapp && avisandoWhatsapp" class="flex flex-col gap-2 rounded-xl border border-green-600 bg-white p-3">
+            <label for="plantilla-whatsapp" class="text-sm font-medium text-kredix-negro">Mensaje para {{ ticket.cliente.nombre }}</label>
+            <select
+                id="plantilla-whatsapp"
+                :value="plantillaWhatsapp"
+                class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                @change="elegirPlantillaWhatsapp($event.target.value)"
+            >
+                <option v-for="p in PLANTILLAS_WHATSAPP" :key="p.clave" :value="p.clave">{{ p.etiqueta }}</option>
+            </select>
+            <label for="texto-whatsapp" class="text-sm text-kredix-gris">Puedes editar el texto antes de enviar</label>
             <textarea
                 id="texto-whatsapp"
                 v-model="textoWhatsapp"

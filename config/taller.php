@@ -170,6 +170,14 @@ return [
     'whatsapp_listo' => [
         'por_cobrar' => "Hola {nombre} 👋 Te saludamos del taller. Tu {bici} ya está lista para retirar 🚲\nEl total es {monto}.\nTe esperamos.",
         'pagado' => "Hola {nombre} 👋 Te saludamos del taller. Tu {bici} ya está lista para retirar 🚲\nEl servicio ya está pagado.\nTe esperamos.",
+        // en proceso con repuestos sin precio el total acumulado seria enganoso: no se menciona
+        'sin_total' => "Hola {nombre} 👋 Te saludamos del taller. Tu {bici} ya está lista para retirar 🚲\nTe esperamos.",
     ],
+
+    // otros mensajes rapidos de WhatsApp: sin montos ni cifras. "danos" es generico a
+    // proposito (no describe la falla por escrito); "libre" arranca solo con el saludo
+    'whatsapp_repuesto' => 'Hola {nombre} 👋 Sobre tu {bici}: para seguir con el trabajo necesitamos un repuesto adicional. ¿Nos autorizas a conseguirlo? Te confirmamos el detalle por aquí.',
+    'whatsapp_danos' => 'Hola {nombre} 👋 Revisando tu {bici} encontramos un detalle adicional que conviene atender. ¿Podemos comentártelo por aquí?',
+    'whatsapp_libre' => 'Hola {nombre} 👋 ',
 
 ];
