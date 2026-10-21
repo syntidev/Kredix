@@ -167,11 +167,13 @@ return [
     // aviso por WhatsApp de "unidad lista" (GUIA_VOZ_ONBIKE: tuteo, emojis solo
     // en WhatsApp). Marcadores: {nombre} {bici} {monto}. Si el ticket ya se pago
     // en el taller no hay monto que pedir. El operador lo edita antes de enviar
+    // Son los textos ORIGINALES: el operador los edita en Configuracion > WhatsApp > Taller
+    // (PlantillasWhatsapp usa el texto guardado y, si no hay, estos). En proceso con
+    // repuestos sin precio se elimina la linea que lleva {monto}: el total acumulado
+    // seria enganoso
     'whatsapp_listo' => [
-        'por_cobrar' => "Hola {nombre} 👋 Te saludamos del taller. Tu {bici} ya está lista para retirar 🚲\nEl total es {monto}.\nTe esperamos.",
-        'pagado' => "Hola {nombre} 👋 Te saludamos del taller. Tu {bici} ya está lista para retirar 🚲\nEl servicio ya está pagado.\nTe esperamos.",
-        // en proceso con repuestos sin precio el total acumulado seria enganoso: no se menciona
-        'sin_total' => "Hola {nombre} 👋 Te saludamos del taller. Tu {bici} ya está lista para retirar 🚲\nTe esperamos.",
+        'por_cobrar' => "Hola {nombre} 👋 Te saludamos de parte del equipo de OnBike Margarita. Tu {bici} ya está lista para retirar 🚲\nEl total es {monto}.\nTe esperamos.",
+        'pagado' => "Hola {nombre} 👋 Te saludamos de parte del equipo de OnBike Margarita. Tu {bici} ya está lista para retirar 🚲\nEl servicio ya está pagado.\nTe esperamos.",
     ],
 
     // otros mensajes rapidos de WhatsApp: sin montos ni cifras. "danos" es generico a

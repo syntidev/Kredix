@@ -192,6 +192,75 @@ class TallerWhatsappTest extends TestCase
         }
     }
 
+    // ---- textos editables desde Configuracion ----
+    private function guardar(string $clave, ?string $valor): void
+    {
+        \App\Models\Configuracion::updateOrCreate(['clave' => $clave], ['valor' => $valor]);
+    }
+
+    public function test_sin_nada_guardado_el_mensaje_dice_onbike_margarita_y_no_del_taller(): void
+    {
+        foreach ([['estado' => 'atendido', 'pagado_en_taller' => false], ['estado' => 'atendido', 'pagado_en_taller' => true]] as $datos) {
+            $mensaje = $this->mensaje($this->ticket($datos));
+
+            $this->assertStringContainsString('Te saludamos de parte del equipo de OnBike Margarita', $mensaje);
+            $this->assertStringNotContainsString('del taller', $mensaje);
+        }
+    }
+
+    public function test_el_texto_guardado_se_usa_en_cada_plantilla(): void
+    {
+        $this->guardar('whatsapp_taller_listo_por_cobrar', "Buenas {nombre}, tu {bici} esta lista.\nTotal: {monto}");
+        $this->guardar('whatsapp_taller_listo_pagado', 'Buenas {nombre}, tu {bici} esta lista y pagada.');
+        $this->guardar('whatsapp_taller_repuesto', 'Repuesto para {bici}, {nombre}');
+        $this->guardar('whatsapp_taller_danos', 'Detalle en {bici}, {nombre}');
+        $this->guardar('whatsapp_taller_libre', 'Hola {nombre}');
+
+        $porCobrar = $this->mensajes($this->ticket(['pagado_en_taller' => false], '+584141234567', 'MUÑOZ PÉREZ'));
+        $this->assertSame("Buenas Muñoz Pérez, tu Trek Marlin 7 esta lista.\nTotal: \$25.00", $porCobrar['unidad_lista']);
+        $this->assertSame('Repuesto para Trek Marlin 7, Muñoz Pérez', $porCobrar['repuesto']);
+        $this->assertSame('Detalle en Trek Marlin 7, Muñoz Pérez', $porCobrar['danos']);
+        $this->assertSame('Hola Muñoz Pérez', $porCobrar['libre']);
+
+        $this->assertSame('Buenas Ana Perez, tu Trek Marlin 7 esta lista y pagada.', $this->mensaje($this->ticket(['pagado_en_taller' => true])));
+    }
+
+    public function test_un_valor_vacio_en_la_base_cae_al_original(): void
+    {
+        $this->guardar('whatsapp_taller_repuesto', null);
+        $this->guardar('whatsapp_taller_danos', '');
+
+        $mensajes = $this->mensajes($this->ticket());
+
+        $this->assertStringContainsString('repuesto adicional', $mensajes['repuesto']);
+        $this->assertStringContainsString('detalle adicional', $mensajes['danos']);
+    }
+
+    public function test_con_repuestos_sin_precio_se_elimina_la_linea_completa_con_monto_aunque_el_texto_sea_personalizado(): void
+    {
+        $this->guardar('whatsapp_taller_listo_por_cobrar', "Hola {nombre}, tu {bici} esta lista.\nEl total acumulado es {monto} hasta ahora.\nTe esperamos.");
+        $t = $this->ticket(['estado' => 'en_proceso']);
+        $t->repuestos()->create(['producto' => 'Cauchos', 'cantidad' => 1, 'precio' => 0]);
+
+        $this->assertSame("Hola Ana Perez, tu Trek Marlin 7 esta lista.\nTe esperamos.", $this->mensaje($t));
+    }
+
+    public function test_un_texto_personalizado_sin_monto_no_pierde_ninguna_linea(): void
+    {
+        $this->guardar('whatsapp_taller_listo_por_cobrar', "Hola {nombre}.\nTu {bici} esta lista.");
+        $t = $this->ticket(['estado' => 'en_proceso']);
+        $t->repuestos()->create(['producto' => 'Cauchos', 'cantidad' => 1, 'precio' => 0]);
+
+        $this->assertSame("Hola Ana Perez.\nTu Trek Marlin 7 esta lista.", $this->mensaje($t));
+    }
+
+    public function test_el_total_se_afirma_en_proceso_con_texto_personalizado_si_todos_los_repuestos_tienen_precio(): void
+    {
+        $this->guardar('whatsapp_taller_listo_por_cobrar', 'Total {monto}');
+
+        $this->assertSame('Total $25.00', $this->mensaje($this->ticket(['estado' => 'en_proceso'])));
+    }
+
     public function test_un_armado_con_cliente_telefono_y_monto_avisa_el_total_servicio_mas_repuestos(): void
     {
         // 30 de servicio de armado + 2 x 5 de repuestos

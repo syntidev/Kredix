@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Configuracion;
 use App\Models\ConfiguracionPdf;
 use App\Services\ImagenUploadService;
+use App\Services\Taller\PlantillasWhatsapp;
+use Closure;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -25,6 +27,14 @@ class ConfiguracionController extends Controller
             'whatsappIntro2' => Configuracion::valorDe('whatsapp_intro_2'),
             'whatsappIntro3' => Configuracion::valorDe('whatsapp_intro_3'),
             'whatsappPlantillaActiva' => Configuracion::valorDe('whatsapp_plantilla_activa', '1'),
+            // bloque "Taller" de la pestana WhatsApp: texto vigente (guardado u original) y el original
+            'plantillasTaller' => collect(PlantillasWhatsapp::CAMPOS)->map(fn (array $c, string $campo) => [
+                'campo' => $campo,
+                'etiqueta' => $c['etiqueta'],
+                'variables' => $c['variables'],
+                'texto' => PlantillasWhatsapp::texto($campo),
+                'defecto' => PlantillasWhatsapp::defecto($campo),
+            ])->values(),
             'tasaBcvActual' => Configuracion::valorDe('tasa_bcv_actual'),
             'pdfMensajeGlobal' => Configuracion::valorDe('pdf_mensaje_global'),
             'bannerSuperiorUrl' => ConfiguracionPdf::instancia()->getFirstMediaUrl('banner_superior', 'pdf') ?: null,
@@ -61,6 +71,38 @@ class ConfiguracionController extends Controller
         }
 
         Configuracion::updateOrCreate(['clave' => 'whatsapp_plantilla_activa'], ['valor' => $validated['whatsapp_plantilla_activa']]);
+
+        return redirect()->route('configuracion.index');
+    }
+
+    // Bloque "Taller" de la pestana WhatsApp: endpoint propio, asi guardarlo nunca
+    // valida ni escribe las plantillas 1-3 ni el radio de la activa. Todas las del
+    // taller estan disponibles a la vez (el operador elige al enviar): sin radio.
+    // Vacio no se acepta (para volver al original esta "Restablecer"); un texto igual
+    // al original se guarda como null y asi sigue al original si algun dia cambia
+    public function updateWhatsappTaller(Request $request)
+    {
+        $reglas = [];
+        $mensajes = [];
+        foreach (array_keys(PlantillasWhatsapp::CAMPOS) as $campo) {
+            $reglas[$campo] = ['required', 'string', 'max:1000', function (string $atributo, mixed $valor, Closure $fallar) use ($campo) {
+                if ($error = PlantillasWhatsapp::errorDeVariables($campo, $valor)) {
+                    $fallar($error);
+                }
+            }];
+            $mensajes["$campo.required"] = 'El texto no puede quedar vacío; usa «Restablecer al texto original».';
+        }
+
+        $validated = $request->validate($reglas, $mensajes);
+
+        foreach (PlantillasWhatsapp::CAMPOS as $campo => $definicion) {
+            $texto = trim($validated[$campo]);
+
+            Configuracion::updateOrCreate(
+                ['clave' => $definicion['clave']],
+                ['valor' => $texto === trim(PlantillasWhatsapp::defecto($campo)) ? null : $texto]
+            );
+        }
 
         return redirect()->route('configuracion.index');
     }

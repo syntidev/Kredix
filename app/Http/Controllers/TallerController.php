@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Jobs\RedactarInforme;
 use App\Services\ImagenUploadService;
 use App\Services\Taller\InformeRevision;
+use App\Services\Taller\PlantillasWhatsapp;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -407,11 +408,13 @@ class TallerController extends Controller
             return null;
         }
 
-        $variante = match (true) {
-            (bool) $ticket->pagado_en_taller => 'pagado',
-            $ticket->repuestosSinPrecio() !== [] => 'sin_total',
-            default => 'por_cobrar',
-        };
+        // texto guardado en Configuracion o, si no hay, el original de config/taller.php
+        $listo = PlantillasWhatsapp::texto($ticket->pagado_en_taller ? 'listo_pagado' : 'listo_por_cobrar');
+        // en proceso con repuestos sin precio el total no puede afirmarse: sale la linea
+        // completa que lleva {monto} (tambien en un texto personalizado)
+        if (! $ticket->pagado_en_taller && $ticket->repuestosSinPrecio() !== []) {
+            $listo = PlantillasWhatsapp::sinLineasConMonto($listo);
+        }
 
         $reemplazos = [
             // los nombres de cliente se guardan en mayusculas
@@ -421,10 +424,10 @@ class TallerController extends Controller
         ];
 
         return array_map(fn (string $plantilla) => strtr($plantilla, $reemplazos), [
-            'unidad_lista' => config("taller.whatsapp_listo.$variante"),
-            'repuesto' => config('taller.whatsapp_repuesto'),
-            'danos' => config('taller.whatsapp_danos'),
-            'libre' => config('taller.whatsapp_libre'),
+            'unidad_lista' => $listo,
+            'repuesto' => PlantillasWhatsapp::texto('repuesto'),
+            'danos' => PlantillasWhatsapp::texto('danos'),
+            'libre' => PlantillasWhatsapp::texto('libre'),
         ]);
     }
 

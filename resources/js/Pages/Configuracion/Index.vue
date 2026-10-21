@@ -13,6 +13,8 @@ const props = defineProps({
     whatsappIntro2: { type: String, default: '' },
     whatsappIntro3: { type: String, default: '' },
     whatsappPlantillaActiva: { type: String, default: '1' },
+    // bloque "Taller": [{ campo, etiqueta, variables, texto (vigente), defecto (original) }]
+    plantillasTaller: { type: Array, default: () => [] },
     pdfMensajeGlobal: { type: String, default: null },
     bannerSuperiorUrl: { type: String, default: null },
     bannerInferiorUrl: { type: String, default: null },
@@ -64,6 +66,26 @@ const PLANTILLAS_WHATSAPP = [
 
 function guardarWhatsapp() {
     whatsappForm.transform((data) => ({ ...data, _method: 'put' })).post('/configuracion/whatsapp', {
+        preserveScroll: true,
+    });
+}
+
+// tab 1, bloque Taller: 5 textos disponibles a la vez (sin radio) con su propio Guardar,
+// independiente del de las plantillas 1-3
+const tallerForm = useForm(Object.fromEntries(props.plantillasTaller.map((p) => [p.campo, p.texto])));
+
+// "{nombre}, {bici}": se arma aqui porque un "}}" dentro de {{ }} rompe la plantilla de Vue
+function variablesTexto(p) {
+    return p.variables.map((v) => '{' + v + '}').join(', ');
+}
+
+function restablecerTaller(p) {
+    tallerForm[p.campo] = p.defecto;
+    tallerForm.clearErrors(p.campo);
+}
+
+function guardarTaller() {
+    tallerForm.transform((data) => ({ ...data, _method: 'put' })).post('/configuracion/whatsapp-taller', {
         preserveScroll: true,
     });
 }
@@ -204,6 +226,38 @@ function onLogoChange(event) {
             <p v-if="whatsappForm.errors.whatsapp_plantilla_activa" class="text-sm text-kredix-rojo">{{ whatsappForm.errors.whatsapp_plantilla_activa }}</p>
 
             <button type="submit" class="min-h-11 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="whatsappForm.processing">
+                Guardar
+            </button>
+        </form>
+
+        <form
+            v-if="tabActivo === 'whatsapp'"
+            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-card bg-white p-4 shadow-card"
+            @submit.prevent="guardarTaller"
+        >
+            <h2 class="text-base font-semibold text-kredix-negro">Taller</h2>
+            <p class="text-sm text-kredix-gris">Mensajes rápidos de WhatsApp del Taller. Están todos disponibles a la vez: quien los envía elige cuál usar en cada ticket.</p>
+
+            <div v-for="p in plantillasTaller" :key="p.campo" class="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+                <label :for="`taller-${p.campo}`" class="text-sm font-medium text-kredix-negro">{{ p.etiqueta }}</label>
+                <textarea
+                    :id="`taller-${p.campo}`"
+                    v-model="tallerForm[p.campo]"
+                    rows="4"
+                    class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                ></textarea>
+                <p v-if="tallerForm.errors[p.campo]" class="text-sm text-kredix-rojo">{{ tallerForm.errors[p.campo] }}</p>
+                <p class="text-xs leading-snug text-kredix-gris">Variables disponibles: {{ variablesTexto(p) }}.</p>
+                <button
+                    type="button"
+                    class="min-h-9 self-start rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"
+                    @click="restablecerTaller(p)"
+                >
+                    Restablecer al texto original
+                </button>
+            </div>
+
+            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="tallerForm.processing">
                 Guardar
             </button>
         </form>
