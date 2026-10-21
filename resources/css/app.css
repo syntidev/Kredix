@@ -1,3 +1,155 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+    --k-ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+@layer components {
+    /* presion: translateY(1px) + scale(.98) en <=100ms; solo transform/box-shadow */
+    .k-presion {
+        transition: transform 100ms var(--k-ease), box-shadow 100ms var(--k-ease);
+    }
+    .k-presion:active {
+        transform: translateY(1px) scale(.98);
+    }
+
+    .k-btn-primario {
+        @apply bg-primario text-white shadow-primario;
+        transition: transform 100ms var(--k-ease), box-shadow 100ms var(--k-ease), opacity 100ms var(--k-ease);
+    }
+    .k-btn-primario:active {
+        @apply shadow-primario-presionado;
+        transform: translateY(1px) scale(.98);
+    }
+
+    .k-card {
+        @apply shadow-e1;
+        transition: transform 160ms var(--k-ease), box-shadow 160ms var(--k-ease);
+    }
+    @media (hover: hover) and (pointer: fine) {
+        .k-card:hover {
+            @apply shadow-e2;
+            transform: translateY(-2px);
+        }
+    }
+
+    /* tab inferior: color + el icono sube 2px al activarse (160ms) */
+    .k-tab {
+        transition: color 160ms var(--k-ease);
+    }
+    .k-tab-icono {
+        transition: transform 160ms var(--k-ease);
+    }
+    .k-tab[aria-current='page'] .k-tab-icono {
+        transform: translateY(-2px);
+    }
+
+    /* boton (+): gira 45 grados en 200ms al abrir la hoja */
+    .k-mas-icono {
+        transition: transform 200ms var(--k-ease);
+    }
+    .k-mas-abierto .k-mas-icono {
+        transform: rotate(45deg);
+    }
+
+    /* hoja de acciones: el fondo aparece (160ms), el panel sube (240ms), opciones escalonadas (30ms, max 5) */
+    .k-hoja-enter-active .k-hoja-fondo,
+    .k-hoja-leave-active .k-hoja-fondo {
+        transition: opacity 160ms var(--k-ease);
+    }
+    .k-hoja-enter-active .k-hoja-panel,
+    .k-hoja-leave-active .k-hoja-panel {
+        transition: transform 240ms var(--k-ease), opacity 240ms var(--k-ease);
+    }
+    .k-hoja-enter-from .k-hoja-fondo,
+    .k-hoja-leave-to .k-hoja-fondo {
+        opacity: 0;
+    }
+    .k-hoja-enter-from .k-hoja-panel,
+    .k-hoja-leave-to .k-hoja-panel {
+        transform: translateY(100%);
+    }
+    /* el escalonado (30ms por opcion, maximo 5) solo aplica mientras entra; luego manda la presion */
+    .k-hoja-enter-active .k-hoja-item {
+        transition: transform 200ms var(--k-ease), opacity 200ms var(--k-ease);
+        transition-delay: calc(var(--i, 0) * 30ms);
+    }
+    .k-hoja-enter-from .k-hoja-item {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    .k-perilla {
+        transition: transform 150ms var(--k-ease);
+    }
+
+    /* pantalla "Mas" */
+    .k-fade-enter-active,
+    .k-fade-leave-active {
+        transition: opacity 160ms var(--k-ease), transform 160ms var(--k-ease);
+    }
+    .k-fade-enter-from,
+    .k-fade-leave-to {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    /* menu de usuario de escritorio */
+    .k-menu-enter-active,
+    .k-menu-leave-active {
+        transition: opacity 140ms var(--k-ease), transform 140ms var(--k-ease);
+    }
+    .k-menu-enter-from,
+    .k-menu-leave-to {
+        opacity: 0;
+        transform: scale(.96);
+    }
+
+    /* transicion de pagina: solo entra (120ms), la anterior sale al instante */
+    .k-pagina-enter-active {
+        transition: opacity 120ms var(--k-ease);
+    }
+    .k-pagina-leave-active {
+        transition: none;
+    }
+    .k-pagina-enter-from {
+        opacity: 0;
+    }
+}
+
+/* reduced-motion: sin transforms ni escalonado, solo color/opacidad */
+@media (prefers-reduced-motion: reduce) {
+    .k-presion:active,
+    .k-btn-primario:active {
+        transform: none;
+    }
+    .k-card:hover {
+        transform: none;
+    }
+    .k-tab[aria-current='page'] .k-tab-icono,
+    .k-mas-abierto .k-mas-icono {
+        transform: none;
+    }
+    .k-hoja-enter-from .k-hoja-panel,
+    .k-hoja-leave-to .k-hoja-panel,
+    .k-hoja-enter-from .k-hoja-item,
+    .k-fade-enter-from,
+    .k-fade-leave-to,
+    .k-menu-enter-from,
+    .k-menu-leave-to {
+        transform: none;
+    }
+    .k-hoja-enter-from .k-hoja-panel,
+    .k-hoja-leave-to .k-hoja-panel {
+        opacity: 0;
+    }
+    .k-hoja-enter-active .k-hoja-item {
+        transition-delay: 0ms;
+    }
+    /* interruptores de ToggleFeedback: solo color, la perilla no se desliza */
+    .k-perilla {
+        transition: none;
+    }
+}

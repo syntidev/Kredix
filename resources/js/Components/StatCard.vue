@@ -27,7 +27,7 @@ const mostrarAyuda = ref(false);
 </script>
 
 <template>
-    <div class="relative rounded-card bg-white p-4 shadow-card">
+    <div class="k-card relative rounded-k14 bg-white p-4">
         <div class="flex items-center gap-1">
             <p class="text-xs uppercase text-kredix-gris">{{ label }}</p>
             <button

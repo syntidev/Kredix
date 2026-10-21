@@ -12,7 +12,7 @@ const GRADIENTES = {
 </script>
 
 <template>
-    <div class="rounded-card p-3.5 shadow-card" :style="{ background: GRADIENTES[variant] }">
+    <div class="k-card rounded-k14 p-3.5" :style="{ background: GRADIENTES[variant] }">
         <p class="mb-0.5 text-[11px]" :class="variant === 'mora' ? 'text-mora-text/80' : 'text-abono-text/80'">{{ label }}</p>
         <p class="tabular-nums text-xl font-medium" :class="variant === 'mora' ? 'text-mora-text' : 'text-abono-text'">{{ value }}</p>
     </div>

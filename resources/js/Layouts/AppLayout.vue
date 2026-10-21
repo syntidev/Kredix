@@ -1,284 +1,49 @@
 <script setup>
-import { computed, ref } from 'vue';
-import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { BarChart3, Bell, ChevronDown, Home, LogOut, MoreHorizontal, Settings, Users, Wallet, Wrench } from '@lucide/vue';
+import { computed } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import BottomNav from '../Components/Shell/BottomNav.vue';
+import Sidebar from '../Components/Shell/Sidebar.vue';
+import TasaBcvChip from '../Components/Shell/TasaBcvChip.vue';
 import InstallPrompt from '../Components/InstallPrompt.vue';
-import UserAvatar from '../Components/UserAvatar.vue';
+import { permisosNav } from '../lib/navegacion';
 
 const page = usePage();
 
-const usuarioMobileAbierto = ref(false);
-
-const esAdmin = computed(() => !!page.props.auth?.user?.es_admin);
-const puedeVerConciliacion = computed(() => esAdmin.value || !!page.props.auth?.user?.acceso_conciliacion);
+const nombre = computed(() => page.props.auth?.user?.name ?? '');
 // rol_taller es una DMZ: el backend (RestringeRolTaller) ya bloquea el acceso
 // real a cualquier ruta fuera de /taller -- esto solo evita mostrar links
 // muertos, la seguridad real vive en el middleware
-const esTaller = computed(() => !!page.props.auth?.user?.rol_taller);
-
-const tasaBadgeAbierto = ref(false);
-const tasaForm = useForm({ rate: '' });
-
-function abrirEdicionTasa() {
-    tasaForm.clearErrors();
-    tasaForm.rate = page.props.tasaBcv;
-    tasaBadgeAbierto.value = true;
-}
-
-function guardarTasa() {
-    tasaForm.patch('/tasa-bcv', {
-        preserveScroll: true,
-        onSuccess: () => {
-            tasaBadgeAbierto.value = false;
-        },
-    });
-}
-
-// nav desktop: 6 primarios (5 + KPI si admin) + dropdown "Ajustes" -- rol_taller
-// colapsa todo esto a un unico link "Taller", ver esTaller arriba
-const links = computed(() => {
-    if (esTaller.value) {
-        return [{ href: '/taller', label: 'Taller' }];
-    }
-
-    return [
-        { href: '/home', label: 'Inicio' },
-        { href: '/clientes', label: 'Clientes' },
-        { href: '/cartera', label: 'Cartera' },
-        { href: '/cartelera', label: 'Cartelera' },
-        { href: '/prospectos', label: 'Prospectos' },
-        { href: '/taller', label: 'Taller' },
-        ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
-        ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
-    ];
-});
-
-const ajustesItems = computed(() => {
-    if (esTaller.value) {
-        return [];
-    }
-
-    return [
-        { href: '/configuracion', label: 'Configuracion' },
-        ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),
-        { href: '/profile', label: 'Mi Perfil' },
-    ];
-});
-
-const ajustesAbierto = ref(false);
-
-// nav mobile: 4 tabs fijos + "Mas" (5 iconos maximo) -- Taller, KPI,
-// Configuracion, Usuarios y Perfil viven todos dentro de "Mas" para no romper
-// el limite de 5 (verificado: un 6to icono no cabe en 360-375px de ancho).
-// rol_taller colapsa a un unico tab "Taller", sin "Mas" (nada que mostrar ahi)
-const tabsCore = computed(() => {
-    if (esTaller.value) {
-        return [{ href: '/taller', label: 'Taller', icon: Wrench }];
-    }
-
-    return [
-        { href: '/home', label: 'Inicio', icon: Home },
-        { href: '/clientes', label: 'Clientes', icon: Users },
-        { href: '/cartera', label: 'Cartera', icon: Wallet },
-        { href: '/cartelera', label: 'Cartelera', icon: Bell },
-    ];
-});
-
-const masItems = computed(() => {
-    if (esTaller.value) {
-        return [];
-    }
-
-    return [
-        // Taller primero: uso diario en el local, no ocasional como el resto de
-        // "Mas" -- no entra en tabsCore (ver comentario arriba, 5 iconos maximo)
-        // sin romper el layout en moviles chicos (360-375px)
-        { href: '/taller', label: 'Taller' },
-        { href: '/prospectos', label: 'Prospectos' },
-        ...(puedeVerConciliacion.value ? [{ href: '/conciliacion', label: 'Conciliacion' }] : []),
-        ...(esAdmin.value ? [{ href: '/kpi', label: 'KPI' }] : []),
-        // Herramienta de triage retirada el 2026-10-01 tras decision de negocio
-        // sobre cartera en revision
-        { href: '/configuracion', label: 'Configuracion' },
-        ...(esAdmin.value ? [{ href: '/usuarios', label: 'Usuarios' }] : []),
-        { href: '/profile', label: 'Mi Perfil' },
-    ];
-});
-
-const masAbierto = ref(false);
-
-function isActive(href) {
-    return page.url.startsWith(href);
-}
-
-const ajustesActivo = computed(() => ajustesItems.value.some((i) => isActive(i.href)));
-const masActivo = computed(() => masItems.value.some((i) => isActive(i.href)));
-
-function logout() {
-    router.post('/logout');
-}
+const permisos = computed(() => permisosNav(page.props.auth?.user));
+const inicioHref = computed(() => (permisos.value.esTaller ? '/taller' : '/home'));
 </script>
 
 <template>
-    <div class="min-h-screen bg-crema">
-        <header class="bg-kredix-negro">
-            <div class="mx-auto flex h-14 max-w-3xl items-center justify-between px-4 md:px-8">
-                <Link href="/home" class="shrink-0">
-                    <img src="/logo_menu.png" alt="Kredix" class="h-11 w-auto" />
-                </Link>
+    <div class="min-h-screen bg-fondo text-tinta">
+        <Sidebar :url="page.url" :permisos="permisos" :nombre="nombre" />
 
-                <div class="flex items-center">
-                    <nav class="hidden items-center gap-4 md:flex">
-                        <Link
-                            v-for="link in links"
-                            :key="link.href"
-                            :href="link.href"
-                            class="text-sm font-medium"
-                            :class="isActive(link.href) ? 'text-kredix-rojo' : 'text-white/80 hover:text-white'"
-                        >
-                            {{ link.label }}
-                        </Link>
-
-                        <div v-if="ajustesItems.length > 0" class="relative">
-                            <button
-                                type="button"
-                                class="flex items-center gap-1 text-sm font-medium"
-                                :class="ajustesActivo || ajustesAbierto ? 'text-kredix-rojo' : 'text-white/80 hover:text-white'"
-                                @click="ajustesAbierto = !ajustesAbierto"
-                            >
-                                <Settings :size="16" />
-                                Ajustes
-                                <ChevronDown :size="14" />
-                            </button>
-                            <div v-if="ajustesAbierto" class="fixed inset-0 z-10" @click="ajustesAbierto = false"></div>
-                            <div v-if="ajustesAbierto" class="absolute right-0 top-full z-20 mt-2 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                                <Link
-                                    v-for="item in ajustesItems"
-                                    :key="item.href"
-                                    :href="item.href"
-                                    class="block px-4 py-2 text-sm text-kredix-negro hover:bg-gray-50"
-                                    @click="ajustesAbierto = false"
-                                >
-                                    {{ item.label }}
-                                </Link>
-                            </div>
-                        </div>
-                    </nav>
-
-                    <div class="ml-4 hidden items-center gap-3 border-l border-white/20 pl-4 md:flex">
-                        <div class="relative">
-                            <button
-                                type="button"
-                                class="rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white/80"
-                                :class="esAdmin ? 'hover:bg-white/20' : 'cursor-default'"
-                                @click="esAdmin && (tasaBadgeAbierto ? (tasaBadgeAbierto = false) : abrirEdicionTasa())"
-                            >
-                                BCV {{ page.props.tasaBcv }}
-                            </button>
-                            <div v-if="tasaBadgeAbierto" class="fixed inset-0 z-10" @click="tasaBadgeAbierto = false"></div>
-                            <div v-if="tasaBadgeAbierto" class="absolute right-0 top-full z-20 mt-2 w-48 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                                <label class="text-xs font-medium text-kredix-negro">Tasa BCV (manual)</label>
-                                <input
-                                    v-model="tasaForm.rate"
-                                    type="number"
-                                    step="0.0001"
-                                    min="0.0001"
-                                    class="mt-1 min-h-9 w-full rounded-lg border border-gray-300 px-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none"
-                                />
-                                <p v-if="tasaForm.errors.rate" class="mt-1 text-xs text-kredix-rojo">{{ tasaForm.errors.rate }}</p>
-                                <button
-                                    type="button"
-                                    class="mt-2 w-full rounded-lg bg-kredix-rojo py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                                    :disabled="tasaForm.processing"
-                                    @click="guardarTasa"
-                                >
-                                    Guardar
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-2 rounded-full bg-white/10 py-1 pl-1 pr-3">
-                            <UserAvatar :nombre="page.props.auth?.user?.name ?? ''" size="sm" />
-                            <span class="text-sm font-medium text-white">{{ page.props.auth?.user?.name }}</span>
-                        </div>
-                        <button type="button" class="text-sm font-medium text-white/80 hover:text-white" @click="logout">
-                            Salir
-                        </button>
-                    </div>
+        <div class="lg:pl-[248px]">
+            <header class="bg-primario lg:hidden">
+                <div class="flex h-14 items-center justify-between px-4 md:px-8">
+                    <Link :href="inicioHref" class="shrink-0" aria-label="Kredix">
+                        <img src="/logo_menu.png" alt="Kredix" class="h-11 w-auto" />
+                    </Link>
+                    <TasaBcvChip sobre-oscuro />
                 </div>
+            </header>
 
-                <div class="relative md:hidden">
-                    <button type="button" aria-label="Cuenta" @click="usuarioMobileAbierto = !usuarioMobileAbierto">
-                        <UserAvatar :nombre="page.props.auth?.user?.name ?? ''" size="sm" />
-                    </button>
-                    <div v-if="usuarioMobileAbierto" class="fixed inset-0 z-10" @click="usuarioMobileAbierto = false"></div>
-                    <div v-if="usuarioMobileAbierto" class="absolute right-0 top-full z-20 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
-                        <p class="px-4 py-1 text-sm font-medium text-kredix-negro">{{ page.props.auth?.user?.name }}</p>
-                        <button type="button" class="block w-full px-4 py-2 text-left text-sm text-kredix-rojo active:bg-gray-50" @click="logout">
-                            Salir
-                        </button>
-                    </div>
-                </div>
+            <div class="hidden h-14 items-center justify-end px-8 lg:flex">
+                <TasaBcvChip />
             </div>
-        </header>
 
-        <InstallPrompt />
+            <InstallPrompt />
 
-        <main class="px-4 py-6 pb-24 md:px-8 md:pb-6">
-            <slot />
-        </main>
-
-        <nav
-            class="fixed inset-x-4 z-20 flex items-center justify-between rounded-[22px] bg-white px-2 py-2 shadow-card-float md:hidden"
-            style="bottom: max(1rem, calc(0.5rem + env(safe-area-inset-bottom)))"
-        >
-            <Link
-                v-for="tab in tabsCore"
-                :key="tab.href"
-                :href="tab.href"
-                :aria-label="tab.label"
-                class="flex items-center justify-center gap-1.5 rounded-full"
-                :class="isActive(tab.href) ? 'bg-indigo-50 px-4 py-2.5 text-indigo-600' : 'h-11 w-11 text-kredix-gris'"
-            >
-                <component :is="tab.icon" :size="20" />
-                <span v-if="isActive(tab.href)" class="text-xs font-semibold">{{ tab.label }}</span>
-            </Link>
-            <button
-                v-if="masItems.length > 0"
-                type="button"
-                aria-label="Mas"
-                class="flex items-center justify-center gap-1.5 rounded-full"
-                :class="masActivo || masAbierto ? 'bg-indigo-50 px-4 py-2.5 text-indigo-600' : 'h-11 w-11 text-kredix-gris'"
-                @click="masAbierto = !masAbierto"
-            >
-                <MoreHorizontal :size="20" />
-                <span v-if="masActivo || masAbierto" class="text-xs font-semibold">Mas</span>
-            </button>
-        </nav>
-
-        <div v-if="masAbierto" class="fixed inset-0 z-30 md:hidden" @click="masAbierto = false"></div>
-        <div
-            v-if="masAbierto"
-            class="fixed inset-x-4 z-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg md:hidden"
-            style="bottom: calc(5.5rem + env(safe-area-inset-bottom))"
-        >
-            <Link
-                v-for="item in masItems"
-                :key="item.href"
-                :href="item.href"
-                class="block px-4 py-3 text-sm text-kredix-negro active:bg-gray-50"
-                @click="masAbierto = false"
-            >
-                {{ item.label }}
-            </Link>
-            <button
-                type="button"
-                class="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-3 text-left text-sm font-medium text-kredix-rojo active:bg-gray-50"
-                @click="masAbierto = false; logout()"
-            >
-                <LogOut :size="16" />
-                Salir
-            </button>
+            <Transition name="k-pagina" mode="out-in">
+                <main :key="page.component" class="px-4 py-6 pb-28 md:px-8 lg:pb-6 lg:pt-2">
+                    <slot />
+                </main>
+            </Transition>
         </div>
+
+        <BottomNav :url="page.url" :permisos="permisos" :nombre="nombre" />
     </div>
 </template>
