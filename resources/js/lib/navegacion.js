@@ -6,6 +6,7 @@ import {
     Megaphone,
     NotebookPen,
     Settings,
+    ShoppingBag,
     Target,
     UserCog,
     UserPlus,
@@ -75,7 +76,7 @@ export function gruposMas(permisos) {
             items: [
                 { href: '/cartera', label: 'Cartera', icon: Wallet },
                 ...(permisos.conciliacion ? [{ href: '/conciliacion', label: 'Conciliación', icon: Landmark }] : []),
-                ...(permisos.esAdmin ? [{ href: '/kpi', label: 'KPI', icon: BarChart3 }] : []),
+                ...(permisos.esAdmin ? [{ href: '/ventas', label: 'Ventas', icon: ShoppingBag }, { href: '/kpi', label: 'KPI', icon: BarChart3 }] : []),
             ],
         },
         {
@@ -118,7 +119,7 @@ export function gruposSidebar(permisos) {
                     { href: '/clientes', label: 'Clientes' },
                     { href: '/cartera', label: 'Cartera' },
                     ...(permisos.conciliacion ? [{ href: '/conciliacion', label: 'Conciliación' }] : []),
-                    ...(permisos.esAdmin ? [{ href: '/kpi', label: 'KPI' }] : []),
+                    ...(permisos.esAdmin ? [{ href: '/ventas', label: 'Ventas' }, { href: '/kpi', label: 'KPI' }] : []),
                 ],
             },
             taller,

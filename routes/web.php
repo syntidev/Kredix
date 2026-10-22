@@ -14,6 +14,7 @@ use App\Http\Controllers\ProspectoController;
 use App\Http\Controllers\TallerController;
 use App\Http\Controllers\TasaBcvController;
 use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\VentasController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -94,6 +95,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('es_admin')->group(function () {
         Route::get('/kpi', [KpiController::class, 'index'])->name('kpi');
+        Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
         Route::get('/cartera/exportar', [ClienteController::class, 'carteraExportar'])->name('cartera.exportar');
         // Herramienta de triage retirada el 2026-10-01 tras decision de negocio
         // sobre cartera en revision -- controlador (ClienteController::
