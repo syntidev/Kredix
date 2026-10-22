@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -15,6 +17,7 @@ class TicketTaller extends Model implements HasMedia
 {
     use SoftDeletes;
     use InteractsWithMedia;
+    use LogsActivity;
 
     protected $table = 'tickets_taller';
 
@@ -49,6 +52,7 @@ class TicketTaller extends Model implements HasMedia
         'monto_armado',
         'diagnostico',
         'estado',
+        'fecha_compromiso',
         'pagado_en_taller',
         'movimiento_cuenta_id',
         'mecanico_id',
@@ -72,7 +76,21 @@ class TicketTaller extends Model implements HasMedia
         'pagado_en_taller' => 'boolean',
         'atendido_en' => 'datetime',
         'atendido_en_aprox' => 'boolean',
+        'fecha_compromiso' => 'date',
     ];
+
+    // solo la fecha de compromiso deja huella (valor anterior y nuevo) y solo al editarla; el
+    // resto del ticket sigue sin registro de cambios, como hasta ahora
+    protected static $recordEvents = ['updated'];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('taller')
+            ->logOnly(['fecha_compromiso'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
     public function cliente(): BelongsTo
     {
