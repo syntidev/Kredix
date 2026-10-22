@@ -19,6 +19,8 @@ import { ClipboardCheck, Crown, Download, Eye, FileText, MessageCircle, Pencil, 
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
+import EtiquetaCompromiso from '../../Components/EtiquetaCompromiso.vue';
+import FechaCompromiso from '../../Components/FechaCompromiso.vue';
 import FotosCasillas from '../../Components/FotosCasillas.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import { formatFecha } from '../../lib/formatFecha';
@@ -39,6 +41,8 @@ const props = defineProps({
     // etiquetas de paquete y categoria desde config('taller') (fuente unica)
     etiquetas: { type: Object, required: true },
     maxFotos: { type: Number, required: true },
+    // defecto, atajos y dias cerrados calculados en el servidor (config/taller.php)
+    compromisoConfig: { type: Object, required: true },
 });
 
 // "Trabajo de la tienda" = ticket sin cliente: ahi no se muestra ni se registra ninguna cifra
@@ -148,6 +152,7 @@ const editForm = useForm({
     incluye_armado: props.ticket.incluye_armado,
     monto_armado: props.ticket.monto_armado,
     mecanico_id: props.ticket.mecanico_id,
+    fecha_compromiso: props.ticket.fecha_compromiso,
 });
 const puedeIncluirArmado = computed(() => !editForm.trabajo_tienda && editForm.tipo_servicio !== 'armado');
 
@@ -832,6 +837,11 @@ const itemsFaltantesParaCerrar = computed(() => {
                     <span class="font-medium">Domicilio:</span> {{ ticket.domicilio_direccion }}
                 </p>
                 <p class="text-sm text-kredix-gris">Mecanico: {{ ticket.mecanico?.name }} · Registrado por: {{ ticket.registrado_por?.name }}</p>
+                <p class="flex flex-wrap items-center gap-2 text-sm text-kredix-negro">
+                    <span class="font-medium">Entrega:</span>
+                    <EtiquetaCompromiso :compromiso="ticket.compromiso" />
+                    <span v-if="ticket.fecha_compromiso" class="text-kredix-gris">{{ formatFecha(ticket.fecha_compromiso) }}</span>
+                </p>
 
                 <div v-if="ticket.revision" class="flex flex-col gap-2">
                     <p class="text-sm font-medium text-kredix-negro">Revision tecnica</p>
@@ -984,6 +994,8 @@ const itemsFaltantesParaCerrar = computed(() => {
                         <option v-for="m in mecanicos" :key="m.id" :value="m.id">{{ m.name }}</option>
                     </select>
                 </div>
+
+                <FechaCompromiso v-model="editForm.fecha_compromiso" :config="compromisoConfig" :error="editForm.errors.fecha_compromiso" />
 
                 <div class="flex gap-2">
                     <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="editando = false">Cancelar</button>
@@ -1258,6 +1270,7 @@ const itemsFaltantesParaCerrar = computed(() => {
             </template>
 
             <p class="text-xs">{{ formatFecha(ticket.created_at) }}</p>
+            <p v-if="ticket.fecha_compromiso" class="text-sm font-bold">Entrega: {{ formatFecha(ticket.fecha_compromiso).slice(0, 5) }}</p>
             <p class="text-sm">{{ ticket.bici_marca_modelo }}</p>
             <p v-if="ticket.mecanico" class="text-xs">Mecanico: {{ ticket.mecanico.name }}</p>
             <p v-if="ticket.motivo_ingreso" class="truncate text-xs" :title="ticket.motivo_ingreso">{{ tieneCliente ? 'Motivo' : 'Trabajo' }}: {{ ticket.motivo_ingreso }}</p>

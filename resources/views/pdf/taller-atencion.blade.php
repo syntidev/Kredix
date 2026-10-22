@@ -133,6 +133,12 @@
                 <td class="label">Fecha de ingreso</td>
                 <td colspan="3">{{ $ticket->created_at->format('d/m/Y') }}</td>
             </tr>
+            @if ($ticket->fecha_compromiso)
+                <tr>
+                    <td class="label">Entrega estimada</td>
+                    <td colspan="3">{{ $ticket->fecha_compromiso->format('d/m') }}</td>
+                </tr>
+            @endif
         </table>
     </div>
 

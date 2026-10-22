@@ -70,8 +70,8 @@ class ConfiguracionWhatsappTallerTest extends TestCase
         $this->assertSame('listo_por_cobrar', $props[0]['campo']);
         $this->assertSame('Hola {nombre}, tu {bici}: {monto}', $props[0]['texto']);
         $this->assertSame(PlantillasWhatsapp::defecto('listo_por_cobrar'), $props[0]['defecto']);
-        $this->assertSame(['nombre', 'bici', 'monto'], $props[0]['variables']);
-        $this->assertSame(['nombre', 'bici'], $props[2]['variables']);
+        $this->assertSame(['nombre', 'bici', 'monto', 'fecha_entrega'], $props[0]['variables']);
+        $this->assertSame(['nombre', 'bici', 'fecha_entrega'], $props[2]['variables']);
     }
 
     public function test_sin_nada_guardado_la_pantalla_muestra_el_original_con_onbike_margarita(): void
@@ -106,10 +106,10 @@ class ConfiguracionWhatsappTallerTest extends TestCase
     public function test_una_variable_desconocida_se_rechaza_y_dice_cuales_son_las_validas(): void
     {
         $this->guardar(['repuesto' => 'Hola {apodo}'])
-            ->assertSessionHasErrors(['repuesto' => 'La variable {apodo} no es válida en «Falta un repuesto». Las válidas son: {nombre}, {bici}.']);
+            ->assertSessionHasErrors(['repuesto' => 'La variable {apodo} no es válida en «Falta un repuesto». Las válidas son: {nombre}, {bici}, {fecha_entrega}.']);
 
         $this->guardar(['listo_por_cobrar' => 'Hola {cliente}'])
-            ->assertSessionHasErrors(['listo_por_cobrar' => 'La variable {cliente} no es válida en «Unidad lista — por cobrar». Las válidas son: {nombre}, {bici}, {monto}.']);
+            ->assertSessionHasErrors(['listo_por_cobrar' => 'La variable {cliente} no es válida en «Unidad lista — por cobrar». Las válidas son: {nombre}, {bici}, {monto}, {fecha_entrega}.']);
     }
 
     public function test_el_texto_vacio_no_se_acepta(): void

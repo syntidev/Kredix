@@ -6,6 +6,7 @@ import { UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
+import FechaCompromiso from '../../Components/FechaCompromiso.vue';
 import FotosCasillas from '../../Components/FotosCasillas.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import { formatMoney } from '../../lib/formatMoney';
@@ -19,6 +20,8 @@ const props = defineProps({
     // etiquetas de paquete y categoria desde config('taller') (fuente unica)
     etiquetas: { type: Object, required: true },
     maxFotos: { type: Number, required: true },
+    // defecto, atajos y dias cerrados calculados en el servidor (config/taller.php)
+    compromisoConfig: { type: Object, required: true },
 });
 const TALLAS_RIN_CORTAS = ['16', '20', '24', '26', '29'];
 const MONTOS_SERVICIO = { basico: 15, full: 20, vip: 25 };
@@ -37,6 +40,7 @@ const form = useForm({
     incluye_armado: false,
     monto_armado: '',
     mecanico_id: '',
+    fecha_compromiso: props.compromisoConfig.defecto,
     fotos_entrada: [],
 });
 
@@ -436,6 +440,8 @@ function submit() {
                 </select>
                 <p v-if="form.errors.mecanico_id" class="text-sm text-kredix-rojo">{{ form.errors.mecanico_id }}</p>
             </div>
+
+            <FechaCompromiso v-model="form.fecha_compromiso" :config="compromisoConfig" :error="form.errors.fecha_compromiso" />
 
             <div class="flex flex-col gap-1">
                 <p v-if="esVip" class="text-sm text-kredix-gris">Opcional en VIP: se suben en la visita al domicilio.</p>

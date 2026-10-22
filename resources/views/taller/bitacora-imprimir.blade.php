@@ -46,6 +46,22 @@
         }
         .total { font-size: 20px; display: block; }
         .etiqueta-total { font-size: 11px; color: #555; letter-spacing: .5px; }
+        .grupo td {
+            background: #ddd;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            padding: 6px 12px;
+        }
+        .entrega-detalle { display: block; font-size: 13px; color: #555; }
+        .casilla-ok {
+            display: inline-block;
+            width: 26px;
+            height: 26px;
+            border: 2px solid #000;
+        }
+        .col-ok { width: 48px; text-align: center; }
         .sin-tickets {
             padding: 16px;
             font-size: 14px;
@@ -82,6 +98,8 @@
             // la columna de total solo existe si algun ticket tiene cliente; los
             // trabajos de la tienda no llevan cifra ni encabezado de cifra
             $hayTotales = $tickets->contains(fn ($t) => ! $t->esTrabajoTienda());
+            $columnas = 8 + ($hayTotales ? 1 : 0);
+            $grupoActual = null;
         @endphp
         <table>
             <thead>
@@ -95,10 +113,17 @@
                         <th>Total</th>
                     @endif
                     <th>Fecha de ingreso</th>
+                    <th>Entrega</th>
+                    <th class="col-ok">OK</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($tickets as $ticket)
+                    @php($grupo = \App\Services\Taller\FechaCompromiso::grupo($ticket->fecha_compromiso, $ticket->estado))
+                    @if ($grupo !== $grupoActual)
+                        @php($grupoActual = $grupo)
+                        <tr class="grupo"><td colspan="{{ $columnas }}">{{ $grupos[$grupo] }}</td></tr>
+                    @endif
                     <tr>
                         <td>{{ $ticket->id }}</td>
                         <td>{{ $ticket->tipo_servicio === 'vip' ? '[VIP] ' : '' }}{{ $ticket->cliente->nombre ?? 'Trabajo de la tienda' }}{!! $ticket->incluye_armado ? ' <strong class="marca-armado">+ ARMADO</strong>' : '' !!}</td>
@@ -124,6 +149,13 @@
                             </td>
                         @endif
                         <td>{{ $ticket->created_at->format('d/m/Y') }}</td>
+                        <td>
+                            <strong>{{ \App\Services\Taller\FechaCompromiso::etiqueta($ticket->fecha_compromiso, $ticket->estado) }}</strong>
+                            @if ($ticket->fecha_compromiso)
+                                <span class="entrega-detalle">{{ $ticket->fecha_compromiso->format('d/m') }}</span>
+                            @endif
+                        </td>
+                        <td class="col-ok"><span class="casilla-ok"></span></td>
                     </tr>
                 @endforeach
             </tbody>

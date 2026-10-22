@@ -11,12 +11,13 @@ use App\Models\Configuracion;
 class PlantillasWhatsapp
 {
     // campo => clave en configuraciones, clave del texto original en config, variables validas
+    // ({fecha_entrega} = fecha de compromiso del ticket, o "por confirmar" si no tiene)
     public const CAMPOS = [
-        'listo_por_cobrar' => ['clave' => 'whatsapp_taller_listo_por_cobrar', 'defecto' => 'taller.whatsapp_listo.por_cobrar', 'etiqueta' => 'Unidad lista — por cobrar', 'variables' => ['nombre', 'bici', 'monto']],
-        'listo_pagado' => ['clave' => 'whatsapp_taller_listo_pagado', 'defecto' => 'taller.whatsapp_listo.pagado', 'etiqueta' => 'Unidad lista — ya pagado', 'variables' => ['nombre', 'bici', 'monto']],
-        'repuesto' => ['clave' => 'whatsapp_taller_repuesto', 'defecto' => 'taller.whatsapp_repuesto', 'etiqueta' => 'Falta un repuesto', 'variables' => ['nombre', 'bici']],
-        'danos' => ['clave' => 'whatsapp_taller_danos', 'defecto' => 'taller.whatsapp_danos', 'etiqueta' => 'Detalle en la revisión', 'variables' => ['nombre', 'bici']],
-        'libre' => ['clave' => 'whatsapp_taller_libre', 'defecto' => 'taller.whatsapp_libre', 'etiqueta' => 'Mensaje libre', 'variables' => ['nombre', 'bici']],
+        'listo_por_cobrar' => ['clave' => 'whatsapp_taller_listo_por_cobrar', 'defecto' => 'taller.whatsapp_listo.por_cobrar', 'etiqueta' => 'Unidad lista — por cobrar', 'variables' => ['nombre', 'bici', 'monto', 'fecha_entrega']],
+        'listo_pagado' => ['clave' => 'whatsapp_taller_listo_pagado', 'defecto' => 'taller.whatsapp_listo.pagado', 'etiqueta' => 'Unidad lista — ya pagado', 'variables' => ['nombre', 'bici', 'monto', 'fecha_entrega']],
+        'repuesto' => ['clave' => 'whatsapp_taller_repuesto', 'defecto' => 'taller.whatsapp_repuesto', 'etiqueta' => 'Falta un repuesto', 'variables' => ['nombre', 'bici', 'fecha_entrega']],
+        'danos' => ['clave' => 'whatsapp_taller_danos', 'defecto' => 'taller.whatsapp_danos', 'etiqueta' => 'Detalle en la revisión', 'variables' => ['nombre', 'bici', 'fecha_entrega']],
+        'libre' => ['clave' => 'whatsapp_taller_libre', 'defecto' => 'taller.whatsapp_libre', 'etiqueta' => 'Mensaje libre', 'variables' => ['nombre', 'bici', 'fecha_entrega']],
     ];
 
     public static function defecto(string $campo): string

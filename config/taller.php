@@ -164,6 +164,11 @@ return [
     // tope de fotos por coleccion (entrada / salida), pantalla y servidor
     'max_fotos' => 3,
 
+    // dias en que el taller no abre (0 = domingo ... 6 = sabado, como Carbon::dayOfWeek).
+    // La fecha de compromiso por defecto (mañana) salta estos dias; elegir uno a mano solo
+    // muestra un aviso. Supuesto: el taller cierra los domingos
+    'dias_cerrados' => [0],
+
     // aviso por WhatsApp de "unidad lista" (GUIA_VOZ_ONBIKE: tuteo, emojis solo
     // en WhatsApp). Marcadores: {nombre} {bici} {monto}. Si el ticket ya se pago
     // en el taller no hay monto que pedir. El operador lo edita antes de enviar

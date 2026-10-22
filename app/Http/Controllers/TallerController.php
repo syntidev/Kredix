@@ -10,6 +10,7 @@ use App\Models\TicketTaller;
 use App\Models\User;
 use App\Jobs\RedactarInforme;
 use App\Services\ImagenUploadService;
+use App\Services\Taller\FechaCompromiso;
 use App\Services\Taller\InformeRevision;
 use App\Services\Taller\PlantillasWhatsapp;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -52,6 +53,8 @@ class TallerController extends Controller
             'registrado_por' => $ticket->registradoPor?->name,
             'estado' => $ticket->estado,
             'incluye_armado' => $ticket->incluye_armado,
+            // etiqueta y grupo se calculan al mostrar (nunca se guardan)
+            'compromiso' => FechaCompromiso::datos($ticket->fecha_compromiso, $ticket->estado),
             // null en trabajo de la tienda: para esos tickets no viaja ninguna cifra
             'total' => $ticket->totalVisible(),
             'etiqueta_total' => $ticket->etiquetaTotal(),
@@ -88,12 +91,11 @@ class TallerController extends Controller
             ->when($rango === 'este_mes', fn ($query) => $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]))
             ->when($tipoServicio === 'vip', fn ($query) => $query->where('tipo_servicio', 'vip'))
             ->when($tipoServicio === 'normal', fn ($query) => $query->where(fn ($q) => $q->whereNull('tipo_servicio')->orWhere('tipo_servicio', '!=', 'vip')))
-            // desempate por id -- tickets reales comparten el mismo
-            // created_at exacto (al segundo), sin este desempate el orden
-            // entre ellos queda indefinido y "Siguiente" en show() no puede
-            // navegarlos de forma consistente con lo que ve el usuario aqui
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
+            // en proceso arriba por fecha de compromiso (sin fecha al final); los atendidos
+            // conservan su orden, con desempate por id -- tickets reales comparten el mismo
+            // created_at exacto (al segundo), sin este desempate el orden entre ellos queda
+            // indefinido y "Siguiente" en show() no puede navegarlos de forma consistente
+            ->tap(fn ($query) => FechaCompromiso::ordenarListado($query))
             ->paginate(20)
             ->withQueryString();
 
@@ -103,7 +105,7 @@ class TallerController extends Controller
             ? TicketTaller::with(['cliente:id,nombre', 'mecanico:id,name', 'registradoPor:id,name', 'repuestos'])
                 ->where('mecanico_id', $request->user()->id)
                 ->where('estado', 'en_proceso')
-                ->orderByDesc('created_at')
+                ->tap(fn ($query) => FechaCompromiso::ordenarEnProceso($query))
                 ->get()
                 ->map(fn ($ticket) => $this->ticketResumen($ticket))
             : null;
@@ -115,6 +117,8 @@ class TallerController extends Controller
             'estado' => $estado,
             'rango' => $rango,
             'tipoServicio' => $tipoServicio,
+            'contadoresCompromiso' => FechaCompromiso::contadores(),
+            'gruposCompromiso' => FechaCompromiso::GRUPOS,
         ]);
     }
 
@@ -131,11 +135,12 @@ class TallerController extends Controller
             ->when($rango === 'hoy', fn ($query) => $query->whereDate('created_at', today()))
             ->when($rango === 'esta_semana', fn ($query) => $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]))
             ->when($rango === 'este_mes', fn ($query) => $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]))
-            ->orderByDesc('created_at')
+            ->tap(fn ($query) => FechaCompromiso::ordenarEnProceso($query))
             ->get();
 
         return view('taller.bitacora-imprimir', [
             'tickets' => $tickets,
+            'grupos' => FechaCompromiso::GRUPOS,
             'fechaImpresion' => now()->format('d/m/Y H:i'),
         ]);
     }
@@ -307,6 +312,7 @@ class TallerController extends Controller
             'etiquetas' => $this->etiquetas(),
             'maxFotos' => config('taller.max_fotos'),
             'mecanicos' => $this->mecanicosOpciones(),
+            'compromisoConfig' => FechaCompromiso::configuracion(),
         ]);
     }
 
@@ -333,6 +339,8 @@ class TallerController extends Controller
             'incluye_armado' => ['nullable', 'boolean'],
             'monto_armado' => ['nullable', 'numeric', 'min:0'],
             'mecanico_id' => ['required', 'exists:users,id'],
+            // un dia cerrado solo avisa en pantalla, no se bloquea
+            'fecha_compromiso' => ['nullable', 'date_format:Y-m-d'],
             'diagnostico' => ['nullable', 'array'],
             'diagnostico.*.item' => ['required_with:diagnostico', 'string', 'max:255'],
             'diagnostico.*.estado' => ['required_with:diagnostico', 'in:bien,atencion'],
@@ -364,6 +372,8 @@ class TallerController extends Controller
             'monto_armado' => $conArmado ? ($validated['monto_armado'] ?? null) : null,
             'mecanico_id' => $validated['mecanico_id'],
             'diagnostico' => $validated['diagnostico'] ?? null,
+            // solo si la clave viene: editar sin ella no toca la fecha
+            ...($request->has('fecha_compromiso') ? ['fecha_compromiso' => $validated['fecha_compromiso'] ?? null] : []),
         ];
     }
 
@@ -383,6 +393,8 @@ class TallerController extends Controller
 
         $ticket = TicketTaller::create([
             ...$datos,
+            // al crear: la que eligieron o, si no hay, mañana saltando los dias cerrados
+            'fecha_compromiso' => $datos['fecha_compromiso'] ?? FechaCompromiso::porDefecto()->toDateString(),
             'diagnostico' => $datos['diagnostico'] ?? [],
             'registrado_por' => $request->user()->id,
         ]);
@@ -421,6 +433,7 @@ class TallerController extends Controller
             '{nombre}' => mb_convert_case($ticket->cliente->nombre, MB_CASE_TITLE, 'UTF-8'),
             '{bici}' => $ticket->bici_marca_modelo,
             '{monto}' => '$'.number_format($ticket->totalTicket(), 2),
+            '{fecha_entrega}' => FechaCompromiso::textoEntrega($ticket->fecha_compromiso),
         ];
 
         return array_map(fn (string $plantilla) => strtr($plantilla, $reemplazos), [
@@ -456,12 +469,15 @@ class TallerController extends Controller
         return Inertia::render('Taller/Show', [
             'siguienteTicketId' => $siguienteTicket?->id,
             'mensajesWhatsapp' => $this->mensajesWhatsapp($ticket),
+            'compromisoConfig' => FechaCompromiso::configuracion(),
             'ticket' => [
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',
                     'tipo_servicio', 'domicilio_direccion', 'monto_servicio', 'incluye_armado', 'monto_armado', 'diagnostico', 'estado', 'mecanico_id', 'trabajo_realizado',
                     'pagado_en_taller', 'movimiento_cuenta_id',
                 ]),
+                'fecha_compromiso' => $ticket->fecha_compromiso?->toDateString(),
+                'compromiso' => FechaCompromiso::datos($ticket->fecha_compromiso, $ticket->estado),
                 'cliente' => $ticket->cliente,
                 'mecanico' => $ticket->mecanico,
                 'registrado_por' => $ticket->registradoPor,

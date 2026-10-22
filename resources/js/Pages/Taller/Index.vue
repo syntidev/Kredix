@@ -1,7 +1,9 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Bike, Crown, Mountain, Printer, Route, Wrench, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
+import EtiquetaCompromiso from '../../Components/EtiquetaCompromiso.vue';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
 
@@ -15,6 +17,31 @@ const props = defineProps({
     estado: { type: String, default: null },
     rango: { type: String, default: null },
     tipoServicio: { type: String, default: null },
+    // {atrasados, hoy, manana} de TODOS los tickets en proceso (no solo de esta pagina)
+    contadoresCompromiso: { type: Object, required: true },
+    gruposCompromiso: { type: Object, required: true },
+});
+
+const CONTADORES = [
+    { clave: 'atrasados', etiqueta: 'Atrasados' },
+    { clave: 'hoy', etiqueta: 'Vencen hoy' },
+    { clave: 'manana', etiqueta: 'Mañana' },
+];
+
+// encabezado de grupo (Atrasados, Hoy, ...) sobre el primer ticket en proceso de cada grupo;
+// los atendidos van despues, sin encabezado
+const encabezadoDe = computed(() => {
+    const mapa = {};
+    let previo = null;
+    for (const t of props.tickets.data) {
+        if (t.estado !== 'en_proceso') continue;
+        if (t.compromiso.grupo !== previo) {
+            mapa[t.id] = props.gruposCompromiso[t.compromiso.grupo];
+            previo = t.compromiso.grupo;
+        }
+    }
+
+    return mapa;
 });
 
 // activo: color propio de cada estado (negro=neutral, naranja/verde=semaforo).
@@ -109,6 +136,13 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
             </div>
         </div>
 
+        <div class="grid grid-cols-3 gap-2">
+            <div v-for="c in CONTADORES" :key="c.clave" class="k-card rounded-k14 bg-white p-3 text-center">
+                <p class="text-2xl font-extrabold tabular-nums" :class="c.clave === 'atrasados' && contadoresCompromiso[c.clave] > 0 ? 'text-peligro' : 'text-tinta'">{{ contadoresCompromiso[c.clave] }}</p>
+                <p class="text-xs font-semibold text-suave">{{ c.etiqueta }}</p>
+            </div>
+        </div>
+
         <div v-if="misTickets" class="flex flex-col gap-2">
             <h2 class="text-lg font-semibold text-kredix-negro">Mis tickets en proceso</h2>
             <p v-if="misTickets.length === 0" class="text-sm text-kredix-gris">No tienes tickets en proceso.</p>
@@ -124,6 +158,7 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
                     <span v-if="t.tipo_servicio">· {{ TIPO_SERVICIO_LABEL[t.tipo_servicio] ?? t.tipo_servicio }}</span>
                     · #{{ t.id }}
                 </p>
+                <EtiquetaCompromiso :compromiso="t.compromiso" class="mt-1 self-start" />
             </Link>
         </div>
 
@@ -169,9 +204,9 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
         <p v-if="tickets.data.length === 0" class="text-sm text-kredix-gris">No hay tickets todavia.</p>
 
         <div v-else class="flex flex-col gap-2">
+            <template v-for="t in tickets.data" :key="t.id">
+            <h3 v-if="encabezadoDe[t.id]" class="px-1 pt-2 text-xs font-bold uppercase tracking-wider text-suave">{{ encabezadoDe[t.id] }}</h3>
             <Link
-                v-for="t in tickets.data"
-                :key="t.id"
                 :href="`/taller/${t.id}`"
                 class="flex items-center justify-between gap-3 rounded-xl border border-[#e3e8ee] bg-white p-3 shadow-[0_1px_3px_rgba(0,55,112,0.08)] active:bg-gray-50"
             >
@@ -205,6 +240,7 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
                     </div>
                 </div>
                 <div class="flex shrink-0 flex-col items-end gap-1 text-right">
+                    <EtiquetaCompromiso v-if="t.estado === 'en_proceso'" :compromiso="t.compromiso" />
                     <!-- total del ticket; los trabajos de la tienda (sin cliente) no llevan bloque -->
                     <div v-if="t.total !== null" class="rounded-lg bg-gray-100 px-2.5 py-1 text-right">
                         <p class="text-xl font-bold leading-tight text-kredix-negro tabular-nums">{{ formatMoney(t.total) }}</p>
@@ -215,6 +251,7 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
                     <p class="text-xs font-medium" :class="t.estado === 'atendido' ? 'text-green-700' : 'text-orange-700'">{{ labelEstado(t.estado) }}</p>
                 </div>
             </Link>
+            </template>
         </div>
 
         <div v-if="tickets.last_page > 1" class="flex items-center justify-between rounded-xl bg-white p-3 shadow-[0_1px_3px_rgba(0,55,112,0.08)]">
