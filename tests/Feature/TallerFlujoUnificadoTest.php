@@ -32,7 +32,7 @@ class TallerFlujoUnificadoTest extends TestCase
         Artisan::call('migrate', ['--path' => $migraciones, '--realpath' => true]);
 
         Storage::fake('public');
-        config(['ia.activa' => false]);
+        config(['ia.activa' => false, 'taller.revision_tecnica_activa' => true, 'taller.trabajo_tienda_activo' => true]);
         $this->usuario = User::factory()->create(['name' => 'Kleiver', 'rol_taller' => true]);
         $this->cliente = Cliente::create(['nombre' => 'Ana Perez', 'telefono' => '+584141234567']);
     }

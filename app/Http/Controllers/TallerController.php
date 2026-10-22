@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Jobs\RedactarInforme;
 use App\Services\ImagenUploadService;
 use App\Services\Taller\FechaCompromiso;
+use App\Services\Taller\Funciones;
 use App\Services\Taller\InformeRevision;
 use App\Services\Taller\PlantillasWhatsapp;
 use App\Services\Taller\PresupuestoWhatsapp;
@@ -102,7 +103,8 @@ class TallerController extends Controller
 
         $tickets->getCollection()->transform(fn ($ticket) => $this->ticketResumen($ticket));
 
-        $misTickets = $request->user()->rol_taller
+        // la lista "Mis tickets" del tecnico existe para llegar a la Revision: apagada, no hay lista aparte
+        $misTickets = $request->user()->rol_taller && Funciones::revisionTecnica()
             ? TicketTaller::with(['cliente:id,nombre', 'mecanico:id,name', 'registradoPor:id,name', 'repuestos'])
                 ->where('mecanico_id', $request->user()->id)
                 ->where('estado', 'en_proceso')
@@ -254,7 +256,8 @@ class TallerController extends Controller
             'vistaPrevia' => $vistaPrevia,
             'paquetesEtiqueta' => config('taller.paquetes_etiqueta'),
             'categorias' => config('taller.categorias'),
-            'revision' => InformeRevision::tieneContenido($ticket->revision_tecnica) ? InformeRevision::resumen($ticket->revision_tecnica) : null,
+            // revision apagada: el PDF sale sin "Revision tecnica", "Recomendaciones" ni "Revisado por"
+            'revision' => Funciones::revisionTecnica() && InformeRevision::tieneContenido($ticket->revision_tecnica) ? InformeRevision::resumen($ticket->revision_tecnica) : null,
             'fotosEntrada' => $fotosEntrada,
             'fotosSalida' => $fotosSalida,
             'columnasEntrada' => $columnasEntrada,
@@ -311,6 +314,7 @@ class TallerController extends Controller
     {
         return Inertia::render('Taller/Nuevo', [
             'etiquetas' => $this->etiquetas(),
+            'funciones' => Funciones::paraPantalla(),
             'maxFotos' => config('taller.max_fotos'),
             'mecanicos' => $this->mecanicosOpciones(),
             'compromisoConfig' => FechaCompromiso::configuracion(),
@@ -380,6 +384,12 @@ class TallerController extends Controller
 
     public function store(Request $request)
     {
+        // trabajo de la tienda apagado: crear exige cliente (editar tickets existentes sin cliente no pasa por aqui)
+        $sinTienda = ! Funciones::trabajoTienda();
+        if ($sinTienda) {
+            $request->merge(['trabajo_tienda' => false]);
+        }
+
         $esVip = ! $request->boolean('trabajo_tienda') && $request->input('tipo_servicio') === 'vip';
 
         // VIP se agenda por telefono antes de que el mecanico vea la bici
@@ -390,6 +400,7 @@ class TallerController extends Controller
             'fotos_entrada.*' => ['image', 'max:5120'],
         ], [
             'fotos_entrada.required' => 'al menos 1 foto de entrada requerida',
+            ...($sinTienda ? ['cliente_id.required' => 'indica el cliente: crear trabajos de la tienda (sin cliente) está desactivado'] : []),
         ]);
 
         $ticket = TicketTaller::create([
@@ -502,7 +513,7 @@ class TallerController extends Controller
                 'repuestos_sin_precio' => $ticket->repuestosSinPrecio(),
                 'fotos_entrada' => $this->fotosUrls($ticket, 'entrada'),
                 'fotos_salida' => $this->fotosUrls($ticket, 'salida'),
-                'revision' => InformeRevision::tieneContenido($ticket->revision_tecnica) ? [
+                'revision' => Funciones::revisionTecnica() && InformeRevision::tieneContenido($ticket->revision_tecnica) ? [
                     ...InformeRevision::resumen($ticket->revision_tecnica),
                     'revisado_por' => $ticket->revisadoPor?->name,
                     'revisado_en' => $ticket->revisado_en?->format('d/m/Y H:i'),
@@ -520,13 +531,14 @@ class TallerController extends Controller
                     'aprobado_por' => $ticket->textoClienteAprobadoPor?->name,
                     'aprobado_en' => $ticket->texto_cliente_aprobado_en?->format('d/m/Y H:i'),
                     // IA apagada: nada de IA en pantalla
-                    'ia' => config('ia.activa') && InformeRevision::tieneContenido($ticket->revision_tecnica) ? [
+                    'ia' => Funciones::revisionTecnica() && config('ia.activa') && InformeRevision::tieneContenido($ticket->revision_tecnica) ? [
                         'estado' => $ticket->informe_ia_estado,
                         'texto' => in_array($ticket->informe_ia_estado, ['listo', 'requiere_revision'], true) ? $ticket->informe_ia : null,
                     ] : null,
                 ],
             ],
             'etiquetas' => $this->etiquetas(),
+            'funciones' => Funciones::paraPantalla(),
             'maxFotos' => config('taller.max_fotos'),
             'mecanicos' => $this->mecanicosOpciones($ticket->mecanico_id),
             // mismo valor ya usado como razon_social en el PDF de estado de

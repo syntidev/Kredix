@@ -34,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'es_admin' => \App\Http\Middleware\EsAdmin::class,
             'acceso_conciliacion' => \App\Http\Middleware\AccesoConciliacion::class,
+            'taller.revision' => \App\Http\Middleware\RevisionTecnicaActiva::class,
         ]);
 
         $middleware->web(append: [

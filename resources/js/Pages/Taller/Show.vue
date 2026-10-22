@@ -43,6 +43,8 @@ const props = defineProps({
     maxFotos: { type: Number, required: true },
     // defecto, atajos y dias cerrados calculados en el servidor (config/taller.php)
     compromisoConfig: { type: Object, required: true },
+    // interruptores de config/taller.php: { revision_tecnica, trabajo_tienda }
+    funciones: { type: Object, required: true },
 });
 
 // "Trabajo de la tienda" = ticket sin cliente: ahi no se muestra ni se registra ninguna cifra
@@ -768,6 +770,7 @@ const itemsFaltantesParaCerrar = computed(() => {
         </div>
 
         <Link
+            v-if="funciones.revision_tecnica"
             :href="`/taller/${ticket.id}/revision`"
             class="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-base font-semibold text-white shadow-card active:opacity-80"
         >

@@ -22,6 +22,8 @@ const props = defineProps({
     maxFotos: { type: Number, required: true },
     // defecto, atajos y dias cerrados calculados en el servidor (config/taller.php)
     compromisoConfig: { type: Object, required: true },
+    // interruptores de config/taller.php: { revision_tecnica, trabajo_tienda }
+    funciones: { type: Object, required: true },
 });
 const TALLAS_RIN_CORTAS = ['16', '20', '24', '26', '29'];
 const MONTOS_SERVICIO = { basico: 15, full: 20, vip: 25 };
@@ -227,7 +229,7 @@ function verFoto(indice) {
 // la razon del boton deshabilitado, como texto visible (no solo title)
 const razonNoGuardar = computed(() => {
     if (etapaFoto.value) return 'Espera a que termine de procesarse la foto.';
-    if (!esTienda.value && !form.cliente_id) return 'Elige un cliente o marca "Trabajo de la tienda".';
+    if (!esTienda.value && !form.cliente_id) return props.funciones.trabajo_tienda ? 'Elige un cliente o marca "Trabajo de la tienda".' : 'Elige un cliente.';
     if (!esVip.value && fotosLocales.value.length === 0) return 'Sube al menos 1 foto de entrada para guardar el ticket.';
     return '';
 });
@@ -316,7 +318,7 @@ function submit() {
                 <p v-if="form.errors.cliente_id" class="text-sm text-kredix-rojo">{{ form.errors.cliente_id }}</p>
             </fieldset>
 
-            <label class="flex min-h-11 items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro">
+            <label v-if="funciones.trabajo_tienda" class="flex min-h-11 items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro">
                 <input v-model="form.trabajo_tienda" type="checkbox" class="h-5 w-5" />
                 Trabajo de la tienda (sin cliente)
             </label>

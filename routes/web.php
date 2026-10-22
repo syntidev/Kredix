@@ -71,11 +71,14 @@ Route::middleware('auth')->group(function () {
     Route::put('/taller/{ticket}', [TallerController::class, 'update'])->name('taller.update');
     Route::delete('/taller/{ticket}', [TallerController::class, 'destroy'])->name('taller.destroy');
     Route::patch('/taller/{ticket}/marcar-atendido', [TallerController::class, 'marcarAtendido'])->name('taller.marcar-atendido');
-    Route::get('/taller/{ticket}/revision', [TallerController::class, 'revision'])->name('taller.revision');
-    Route::patch('/taller/{ticket}/revision', [TallerController::class, 'guardarRevision'])->name('taller.revision.update');
-    Route::post('/taller/{ticket}/sugerencias/{clave}/descartar', [TallerController::class, 'descartarSugerencia'])->name('taller.sugerencias.descartar');
-    Route::post('/taller/{ticket}/texto-cliente/generar', [TallerController::class, 'generarTextoCliente'])->name('taller.texto-cliente.generar');
-    Route::post('/taller/{ticket}/informe/reintentar', [TallerController::class, 'reintentarInforme'])->name('taller.informe.reintentar');
+    // Revision tecnica: 404 con el interruptor taller.revision_tecnica_activa apagado
+    Route::middleware('taller.revision')->group(function () {
+        Route::get('/taller/{ticket}/revision', [TallerController::class, 'revision'])->name('taller.revision');
+        Route::patch('/taller/{ticket}/revision', [TallerController::class, 'guardarRevision'])->name('taller.revision.update');
+        Route::post('/taller/{ticket}/sugerencias/{clave}/descartar', [TallerController::class, 'descartarSugerencia'])->name('taller.sugerencias.descartar');
+        Route::post('/taller/{ticket}/texto-cliente/generar', [TallerController::class, 'generarTextoCliente'])->name('taller.texto-cliente.generar');
+        Route::post('/taller/{ticket}/informe/reintentar', [TallerController::class, 'reintentarInforme'])->name('taller.informe.reintentar');
+    });
     Route::patch('/taller/{ticket}/trabajo-realizado', [TallerController::class, 'guardarTrabajoRealizado'])->name('taller.trabajo-realizado');
     Route::post('/taller/{ticket}/fotos/{coleccion}', [TallerController::class, 'subirFotos'])->name('taller.fotos.store');
     Route::delete('/taller/{ticket}/fotos/{coleccion}/{media}', [TallerController::class, 'eliminarFoto'])->name('taller.fotos.destroy');

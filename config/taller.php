@@ -164,6 +164,15 @@ return [
     // tope de fotos por coleccion (entrada / salida), pantalla y servidor
     'max_fotos' => 3,
 
+    // Interruptores de funciones del Taller (valor fijo aqui, sin .env). false = apagada: no se borra
+    // nada (codigo, columnas, datos), solo se oculta o se bloquea. Reactivar: poner true y correr
+    // php artisan config:clear. Se leen unicamente desde App\Services\Taller\Funciones.
+    // - revision_tecnica_activa: pantalla de Revision, su guardado, el armado de texto desde la revision,
+    //   la IA de la revision y las secciones de revision del PDF
+    // - trabajo_tienda_activo: solo la opcion de CREAR un ticket sin cliente ("Trabajo de la tienda")
+    'revision_tecnica_activa' => false,
+    'trabajo_tienda_activo' => false,
+
     // dias en que el taller no abre (0 = domingo ... 6 = sabado, como Carbon::dayOfWeek).
     // La fecha de compromiso por defecto (mañana) salta estos dias; elegir uno a mano solo
     // muestra un aviso. Supuesto: el taller cierra los domingos

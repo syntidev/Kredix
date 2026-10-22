@@ -57,7 +57,7 @@ class IaTallerTest extends TestCase
         $storage = sys_get_temp_dir().'/kredix-ia-test';
         @mkdir($storage.'/logs', 0777, true);
         $this->app->useStoragePath($storage);
-        config(['ia.api_key' => 'test', 'ia.modelo_texto' => 'modelo-test']);
+        config(['ia.api_key' => 'test', 'ia.modelo_texto' => 'modelo-test', 'taller.revision_tecnica_activa' => true]);
     }
 
     private function fakeIa(string $contenido): void

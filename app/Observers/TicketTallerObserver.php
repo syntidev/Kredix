@@ -5,21 +5,23 @@ namespace App\Observers;
 use App\Jobs\RedactarInforme;
 use App\Jobs\SugerirRevision;
 use App\Models\TicketTaller;
+use App\Services\Taller\Funciones;
 use App\Services\Taller\InformeRevision;
 
-// Enganche de la IA del taller sin tocar controladores. Con IA_ACTIVA=false no se encola nada.
+// Enganche de la IA del taller sin tocar controladores. Con IA_ACTIVA=false o la Revision tecnica
+// apagada (config/taller.php) no se encola nada.
 class TicketTallerObserver
 {
     public function created(TicketTaller $t): void
     {
-        if (config('ia.activa') && filled($t->motivo_ingreso)) {
+        if (Funciones::revisionTecnica() && config('ia.activa') && filled($t->motivo_ingreso)) {
             SugerirRevision::dispatch($t);
         }
     }
 
     public function updated(TicketTaller $t): void
     {
-        if (! $t->wasChanged('revision_tecnica') || ! InformeRevision::tieneContenido($t->revision_tecnica)) {
+        if (! Funciones::revisionTecnica() || ! $t->wasChanged('revision_tecnica') || ! InformeRevision::tieneContenido($t->revision_tecnica)) {
             return;
         }
         $distinta = $t->informe_ia_hash !== RedactarInforme::hash($t->revision_tecnica);
