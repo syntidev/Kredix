@@ -1249,7 +1249,7 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="formMode === 'cargo'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto grid max-h-[90vh] overflow-x-hidden w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" @submit.prevent="submitCargo">
+        <form class="mx-auto grid k-modal-card w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" @submit.prevent="submitCargo">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nueva compra</h2>
                 <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
@@ -1403,7 +1403,7 @@ watch(algunModalAbierto, (abierto) => {
                 </div>
             </template>
 
-            <div class="mt-1 flex gap-2 md:col-span-2">
+            <div class="k-modal-pie mt-1 flex gap-2 md:col-span-2">
                 <button type="button" class="min-h-11 flex-1 rounded-2xl border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
                 <button type="submit" class="min-h-11 flex-1 rounded-2xl bg-cargo-bg text-sm font-semibold text-cargo-text disabled:opacity-60" :disabled="cargoForm.processing">Guardar compra</button>
             </div>
@@ -1411,7 +1411,7 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="formMode === 'abono'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto grid max-h-[90vh] overflow-x-hidden w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
+        <form class="mx-auto grid k-modal-card w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nuevo abono</h2>
                 <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
@@ -1486,7 +1486,7 @@ watch(algunModalAbierto, (abierto) => {
                 <p v-if="abonoForm.errors.comprobante" class="text-sm text-kredix-rojo">{{ abonoForm.errors.comprobante }}</p>
             </div>
 
-            <div class="mt-1 flex gap-2 md:col-span-2">
+            <div class="k-modal-pie mt-1 flex gap-2 md:col-span-2">
                 <button type="button" class="min-h-11 flex-1 rounded-2xl border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
                 <button type="submit" class="min-h-11 flex-1 rounded-2xl bg-abono-bg text-sm font-semibold text-abono-text disabled:opacity-60" :disabled="abonoForm.processing || verificandoDuplicado">{{ verificandoDuplicado ? 'Verificando...' : 'Guardar abono' }}</button>
             </div>
@@ -1494,7 +1494,7 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="formMode === 'gestion'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto flex max-h-[90vh] overflow-x-hidden w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitGestion">
+        <form class="mx-auto flex k-modal-card w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitGestion">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Anotar gestión</h2>
                 <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
@@ -1530,7 +1530,7 @@ watch(algunModalAbierto, (abierto) => {
                 <p v-if="gestionForm.errors.fecha_prometida" class="text-sm text-kredix-rojo">{{ gestionForm.errors.fecha_prometida }}</p>
             </div>
 
-            <div class="mt-1 flex gap-2">
+            <div class="k-modal-pie mt-1 flex gap-2">
                 <button type="button" class="min-h-11 flex-1 rounded-2xl border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
                 <button type="submit" class="min-h-11 flex-1 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="gestionForm.processing">Guardar</button>
             </div>
@@ -1538,7 +1538,7 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="formMode === 'editar'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto flex max-h-[90vh] overflow-x-hidden w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitEditMov">
+        <form class="mx-auto flex k-modal-card w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitEditMov">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'compra' : (editTipo === 'gestion' ? 'gestión' : 'abono/ajuste') }}</h2>
                 <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
@@ -1715,7 +1715,7 @@ watch(algunModalAbierto, (abierto) => {
                 <p v-if="editForm.errors.motivo_edicion" class="text-sm text-kredix-rojo">{{ editForm.errors.motivo_edicion }}</p>
             </div>
 
-            <div class="mt-1 flex gap-2">
+            <div class="k-modal-pie mt-1 flex gap-2">
                 <button type="button" class="min-h-11 flex-1 rounded-2xl border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="intentarCerrar">Cancelar</button>
                 <button
                     type="submit"
@@ -1952,7 +1952,7 @@ watch(algunModalAbierto, (abierto) => {
 
         <div v-if="editandoCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
             <form
-                class="flex max-h-[90vh] overflow-x-hidden w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]"
+                class="flex k-modal-card w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]"
                 @submit.prevent="submitEditarCliente"
             >
                 <h2 class="font-medium text-kredix-negro">Editar cliente</h2>
@@ -2001,7 +2001,7 @@ watch(algunModalAbierto, (abierto) => {
                     <p v-if="editClienteForm.errors.notas" class="text-sm text-kredix-rojo">{{ editClienteForm.errors.notas }}</p>
                 </div>
 
-                <div class="mt-1 flex gap-2">
+                <div class="k-modal-pie mt-1 flex gap-2">
                     <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="cancelarEditarCliente">Cancelar</button>
                     <button type="submit" class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="editClienteForm.processing">Guardar cambios</button>
                 </div>
@@ -2009,7 +2009,7 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="eventosAbierto" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
-            <div class="flex max-h-[90vh] overflow-x-hidden w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+            <div class="flex k-modal-card w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
                 <h2 class="font-medium text-kredix-negro">Buscar en Eventos</h2>
 
                 <p v-if="eventosSinMatch" class="text-sm text-kredix-gris">Sin coincidencias.</p>
@@ -2050,7 +2050,7 @@ watch(algunModalAbierto, (abierto) => {
                     No es el mismo cliente
                 </button>
 
-                <div class="mt-1 flex gap-2">
+                <div class="k-modal-pie mt-1 flex gap-2">
                     <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="cerrarEventosModal">
                         {{ prospectoEncontrado ? 'Cancelar' : 'Cerrar' }}
                     </button>

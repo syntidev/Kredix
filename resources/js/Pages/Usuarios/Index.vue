@@ -155,7 +155,7 @@ function confirmarYResetear() {
                     </p>
                     <p class="text-sm text-kredix-gris">{{ usuario.email }}</p>
                 </div>
-                <div class="flex gap-1 sm:shrink-0">
+                <div class="flex flex-wrap gap-1 sm:shrink-0">
                     <button
                         v-if="!usuario.es_admin"
                         type="button"
