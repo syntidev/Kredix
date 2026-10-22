@@ -80,12 +80,13 @@ class TallerWhatsappTest extends TestCase
     {
         $mensajes = $this->mensajes($this->ticket(['estado' => 'en_proceso']));
 
-        $this->assertSame(['unidad_lista', 'repuesto', 'danos', 'libre'], array_keys($mensajes));
+        // las cuatro de siempre y, como este ticket tiene un repuesto, tambien el presupuesto
+        $this->assertSame(['unidad_lista', 'repuesto', 'danos', 'libre', 'presupuesto'], array_keys($mensajes));
     }
 
     public function test_tambien_hay_plantillas_con_el_ticket_atendido(): void
     {
-        $this->assertCount(4, $this->mensajes($this->ticket(['estado' => 'atendido'])));
+        $this->assertCount(5, $this->mensajes($this->ticket(['estado' => 'atendido'])));
     }
 
     public function test_un_trabajo_de_la_tienda_no_tiene_plantillas(): void

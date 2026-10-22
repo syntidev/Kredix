@@ -13,6 +13,7 @@ use App\Services\ImagenUploadService;
 use App\Services\Taller\FechaCompromiso;
 use App\Services\Taller\InformeRevision;
 use App\Services\Taller\PlantillasWhatsapp;
+use App\Services\Taller\PresupuestoWhatsapp;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -436,12 +437,22 @@ class TallerController extends Controller
             '{fecha_entrega}' => FechaCompromiso::textoEntrega($ticket->fecha_compromiso),
         ];
 
-        return array_map(fn (string $plantilla) => strtr($plantilla, $reemplazos), [
+        $mensajes = array_map(fn (string $plantilla) => strtr($plantilla, $reemplazos), [
             'unidad_lista' => $listo,
             'repuesto' => PlantillasWhatsapp::texto('repuesto'),
             'danos' => PlantillasWhatsapp::texto('danos'),
             'libre' => PlantillasWhatsapp::texto('libre'),
         ]);
+
+        // presupuesto de repuestos: solo si el ticket tiene repuestos (con la lista, los totales y el
+        // recorte por largo del enlace; ver PresupuestoWhatsapp)
+        $presupuesto = PresupuestoWhatsapp::mensaje($ticket, PlantillasWhatsapp::texto('presupuesto'), [
+            '{nombre}' => $reemplazos['{nombre}'],
+            '{bici}' => $reemplazos['{bici}'],
+            '{fecha_entrega}' => $reemplazos['{fecha_entrega}'],
+        ]);
+
+        return $presupuesto === null ? $mensajes : [...$mensajes, 'presupuesto' => $presupuesto];
     }
 
     public function show(TicketTaller $ticket)

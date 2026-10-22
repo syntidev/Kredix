@@ -18,6 +18,8 @@ class PlantillasWhatsapp
         'repuesto' => ['clave' => 'whatsapp_taller_repuesto', 'defecto' => 'taller.whatsapp_repuesto', 'etiqueta' => 'Falta un repuesto', 'variables' => ['nombre', 'bici', 'fecha_entrega']],
         'danos' => ['clave' => 'whatsapp_taller_danos', 'defecto' => 'taller.whatsapp_danos', 'etiqueta' => 'Detalle en la revisión', 'variables' => ['nombre', 'bici', 'fecha_entrega']],
         'libre' => ['clave' => 'whatsapp_taller_libre', 'defecto' => 'taller.whatsapp_libre', 'etiqueta' => 'Mensaje libre', 'variables' => ['nombre', 'bici', 'fecha_entrega']],
+        // las cifras del presupuesto ({monto}, {lista_repuestos}, {total_repuestos}, {monto_servicio}) solo existen aqui
+        'presupuesto' => ['clave' => 'whatsapp_taller_presupuesto', 'defecto' => 'taller.whatsapp_presupuesto', 'etiqueta' => 'Presupuesto de repuestos', 'variables' => ['nombre', 'bici', 'fecha_entrega', 'monto', 'lista_repuestos', 'total_repuestos', 'monto_servicio']],
     ];
 
     public static function defecto(string $campo): string
@@ -56,9 +58,16 @@ class PlantillasWhatsapp
     // si el total no se puede afirmar se elimina la linea COMPLETA que lleva {monto}
     public static function sinLineasConMonto(string $texto): string
     {
+        return self::sinLineasCon($texto, ['{monto}']);
+    }
+
+    // elimina cada linea COMPLETA que lleve alguno de los marcadores (coincidencia exacta:
+    // {monto} no toca {monto_servicio})
+    public static function sinLineasCon(string $texto, array $marcadores): string
+    {
         return implode("\n", array_filter(
             preg_split('/\R/', $texto),
-            fn (string $linea) => ! str_contains($linea, '{monto}'),
+            fn (string $linea) => collect($marcadores)->every(fn (string $m) => ! str_contains($linea, $m)),
         ));
     }
 }

@@ -60,7 +60,10 @@ const PLANTILLAS_WHATSAPP = [
     { clave: 'repuesto', etiqueta: 'Falta un repuesto / autorización' },
     { clave: 'danos', etiqueta: 'Detalle en la revisión' },
     { clave: 'libre', etiqueta: 'Mensaje libre' },
+    // solo llega si el ticket tiene repuestos (el servidor no la manda sin ellos)
+    { clave: 'presupuesto', etiqueta: 'Presupuesto de repuestos' },
 ];
+const plantillasWhatsappDisponibles = computed(() => PLANTILLAS_WHATSAPP.filter((p) => props.mensajesWhatsapp?.[p.clave] !== undefined));
 const avisandoWhatsapp = ref(false);
 const plantillaWhatsapp = ref('unidad_lista');
 const textoWhatsapp = ref('');
@@ -739,7 +742,7 @@ const itemsFaltantesParaCerrar = computed(() => {
                 class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                 @change="elegirPlantillaWhatsapp($event.target.value)"
             >
-                <option v-for="p in PLANTILLAS_WHATSAPP" :key="p.clave" :value="p.clave">{{ p.etiqueta }}</option>
+                <option v-for="p in plantillasWhatsappDisponibles" :key="p.clave" :value="p.clave">{{ p.etiqueta }}</option>
             </select>
             <label for="texto-whatsapp" class="text-sm text-kredix-gris">Puedes editar el texto antes de enviar</label>
             <textarea

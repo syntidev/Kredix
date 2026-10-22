@@ -187,4 +187,10 @@ return [
     'whatsapp_danos' => 'Hola {nombre} 👋 Revisando tu {bici} encontramos un detalle adicional que conviene atender. ¿Podemos comentártelo por aquí?',
     'whatsapp_libre' => 'Hola {nombre} 👋 ',
 
+    // presupuesto de repuestos: {lista_repuestos} = una linea por repuesto con el TOTAL de la linea
+    // (cantidad x precio), {total_repuestos} = suma de las lineas, {monto_servicio} = el "servicio"
+    // del ticket (sin armado), {monto} = total del ticket. Si algun repuesto no tiene precio se
+    // quitan las lineas con {total_repuestos} o {monto}
+    'whatsapp_presupuesto' => "Hola {nombre} 👋 Te saludamos de parte del equipo de OnBike Margarita. Revisando tu {bici} encontramos piezas a reemplazar:\n{lista_repuestos}\nRepuestos: {total_repuestos}\nServicio: {monto_servicio}\nTotal del presupuesto: {monto}\n¿Nos autorizas a continuar?",
+
 ];

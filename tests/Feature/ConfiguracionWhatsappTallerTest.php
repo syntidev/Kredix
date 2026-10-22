@@ -66,7 +66,7 @@ class ConfiguracionWhatsappTallerTest extends TestCase
         $this->actingAs($this->usuario)->get('/configuracion')->assertInertia(function ($pagina) use (&$props) {
             $props = $pagina->toArray()['props']['plantillasTaller'];
         });
-        $this->assertCount(5, $props);
+        $this->assertCount(6, $props);
         $this->assertSame('listo_por_cobrar', $props[0]['campo']);
         $this->assertSame('Hola {nombre}, tu {bici}: {monto}', $props[0]['texto']);
         $this->assertSame(PlantillasWhatsapp::defecto('listo_por_cobrar'), $props[0]['defecto']);
