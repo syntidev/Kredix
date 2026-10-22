@@ -63,14 +63,14 @@ watch(pais, () => {
 
 <template>
     <div class="flex gap-2">
-        <select v-model="pais" class="min-h-11 rounded-lg border border-gray-300 px-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+        <select v-model="pais" class="min-h-11 shrink-0 rounded-lg border border-gray-300 px-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
             <option v-for="p in paises" :key="p.iso" :value="p.iso">{{ p.bandera }} +{{ p.codigo }}</option>
         </select>
         <input
             :value="texto"
             type="tel"
             :placeholder="placeholder"
-            class="min-h-11 flex-1 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+            class="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
             @input="onInput"
         />
     </div>

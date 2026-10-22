@@ -681,7 +681,7 @@ const itemsFaltantesParaCerrar = computed(() => {
                     {{ atendido ? 'Atendido' : 'En proceso' }}
                 </span>
             </h1>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 <button
                     v-if="!atendido"
                     type="button"

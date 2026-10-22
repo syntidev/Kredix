@@ -987,11 +987,11 @@ watch(algunModalAbierto, (abierto) => {
                         <p v-if="cliente.direccion" class="text-sm text-kredix-gris">{{ cliente.direccion }}</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                     <label class="text-xs text-kredix-gris">Atendido por</label>
                     <select
                         :value="cliente.usuario_responsable_id ?? ''"
-                        class="min-h-9 rounded-lg border border-gray-300 px-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                        class="min-h-9 min-w-0 rounded-lg border border-gray-300 px-2 text-sm text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                         @change="cambiarResponsable"
                     >
                         <option value="">Sin asignar</option>
@@ -1249,7 +1249,7 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="formMode === 'cargo'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" @submit.prevent="submitCargo">
+        <form class="mx-auto grid max-h-[90vh] overflow-x-hidden w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" @submit.prevent="submitCargo">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nueva compra</h2>
                 <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
@@ -1411,7 +1411,7 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="formMode === 'abono'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto grid max-h-[90vh] w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
+        <form class="mx-auto grid max-h-[90vh] overflow-x-hidden w-full max-w-lg grid-cols-1 gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg md:grid-cols-2" enctype="multipart/form-data" @submit.prevent="submitAbono">
             <div class="flex items-center justify-between md:col-span-2">
                 <h2 class="font-medium text-kredix-negro">Nuevo abono</h2>
                 <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
@@ -1494,7 +1494,7 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="formMode === 'gestion'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitGestion">
+        <form class="mx-auto flex max-h-[90vh] overflow-x-hidden w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitGestion">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Anotar gestión</h2>
                 <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
@@ -1538,7 +1538,7 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="formMode === 'editar'" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4" @click.self="intentarCerrar">
-        <form class="mx-auto flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitEditMov">
+        <form class="mx-auto flex max-h-[90vh] overflow-x-hidden w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card bg-white p-4 shadow-card-lg" @submit.prevent="submitEditMov">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-kredix-negro">Editando {{ editTipo === 'cargo' ? 'compra' : (editTipo === 'gestion' ? 'gestión' : 'abono/ajuste') }}</h2>
                 <button type="button" aria-label="Cerrar" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-kredix-gris active:bg-gray-100" @click="intentarCerrar">
@@ -1582,26 +1582,26 @@ watch(algunModalAbierto, (abierto) => {
 
             <template v-else-if="editTipo === 'cargo'">
                 <div class="flex gap-2">
-                    <div class="flex flex-1 flex-col gap-1">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
                         <label class="text-sm font-medium text-kredix-negro">Cantidad</label>
-                        <input v-model="editForm.cantidad" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        <input v-model="editForm.cantidad" type="number" step="0.01" min="0" class="min-h-11 w-full min-w-0 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                         <p v-if="editForm.errors.cantidad" class="text-sm text-kredix-rojo">{{ editForm.errors.cantidad }}</p>
                     </div>
-                    <div class="flex flex-1 flex-col gap-1">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
                         <label class="text-sm font-medium text-kredix-negro">Precio unit.</label>
-                        <input v-model="editForm.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        <input v-model="editForm.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 w-full min-w-0 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                         <p v-if="editForm.errors.precio_unitario" class="text-sm text-kredix-rojo">{{ editForm.errors.precio_unitario }}</p>
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <div class="flex flex-1 flex-col gap-1">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
                         <label class="text-sm font-medium text-kredix-negro">Plazo (meses)</label>
-                        <input v-model="editForm.plazo_meses" type="number" min="1" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        <input v-model="editForm.plazo_meses" type="number" min="1" class="min-h-11 w-full min-w-0 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                         <p v-if="editForm.errors.plazo_meses" class="text-sm text-kredix-rojo">{{ editForm.errors.plazo_meses }}</p>
                     </div>
-                    <div class="flex flex-1 flex-col gap-1">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
                         <label class="text-sm font-medium text-kredix-negro">Frecuencia</label>
-                        <select v-model="editForm.frecuencia_pago" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                        <select v-model="editForm.frecuencia_pago" class="min-h-11 w-full min-w-0 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
                             <option value="semanal">Semanal</option>
                             <option value="quincenal">Quincenal</option>
                             <option value="mensual">Mensual</option>
@@ -1638,12 +1638,12 @@ watch(algunModalAbierto, (abierto) => {
             <template v-else>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Monto</label>
-                    <input v-model="editForm.monto" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <input v-model="editForm.monto" type="number" step="0.01" min="0" class="min-h-11 w-full min-w-0 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                     <p v-if="editForm.errors.monto" class="text-sm text-kredix-rojo">{{ editForm.errors.monto }}</p>
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Metodo de pago</label>
-                    <select v-model="editForm.metodo_pago" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                    <select v-model="editForm.metodo_pago" class="min-h-11 w-full min-w-0 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
                         <option value="efectivo">Efectivo</option>
                         <option value="zelle">Zelle</option>
                         <option value="binance">Binance</option>
@@ -1657,7 +1657,7 @@ watch(algunModalAbierto, (abierto) => {
                 </div>
                 <div v-if="editForm.metodo_pago !== 'efectivo'" class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Referencia</label>
-                    <input v-model="editForm.referencia" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <input v-model="editForm.referencia" type="text" class="min-h-11 w-full min-w-0 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                     <p v-if="editForm.errors.referencia" class="text-sm text-kredix-rojo">{{ editForm.errors.referencia }}</p>
                 </div>
                 <div class="flex flex-col gap-1">
@@ -1695,16 +1695,16 @@ watch(algunModalAbierto, (abierto) => {
             </template>
 
             <div v-if="editTipo !== 'gestion'" class="flex gap-2">
-                <div class="flex flex-1 flex-col gap-1">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Moneda</label>
-                    <select v-model="editForm.moneda" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                    <select v-model="editForm.moneda" class="min-h-11 w-full min-w-0 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
                         <option value="usd">USD</option>
                         <option value="ves">VES</option>
                     </select>
                 </div>
-                <div class="flex flex-1 flex-col gap-1">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Tasa cambio <span class="font-normal text-kredix-gris">(opcional)</span></label>
-                    <input v-model="editForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <input v-model="editForm.tasa_cambio" type="number" step="0.0001" min="0" class="min-h-11 w-full min-w-0 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 </div>
             </div>
             <p v-if="editTipo !== 'gestion' && editForm.errors.tasa_cambio" class="text-sm text-kredix-rojo">{{ editForm.errors.tasa_cambio }}</p>
@@ -1952,7 +1952,7 @@ watch(algunModalAbierto, (abierto) => {
 
         <div v-if="editandoCliente" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
             <form
-                class="flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]"
+                class="flex max-h-[90vh] overflow-x-hidden w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]"
                 @submit.prevent="submitEditarCliente"
             >
                 <h2 class="font-medium text-kredix-negro">Editar cliente</h2>
@@ -2009,7 +2009,7 @@ watch(algunModalAbierto, (abierto) => {
         </div>
 
         <div v-if="eventosAbierto" class="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
-            <div class="flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
+            <div class="flex max-h-[90vh] overflow-x-hidden w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4 shadow-[0_8px_24px_rgba(0,55,112,0.08),0_2px_6px_rgba(0,55,112,0.04)]">
                 <h2 class="font-medium text-kredix-negro">Buscar en Eventos</h2>
 
                 <p v-if="eventosSinMatch" class="text-sm text-kredix-gris">Sin coincidencias.</p>
