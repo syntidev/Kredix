@@ -947,6 +947,7 @@ class TallerController extends Controller
                 ]);
             }
             $ticket->estado = 'atendido';
+            $ticket->atendido_en = now();
             $ticket->pagado_en_taller = $pagadoEnTaller;
             $ticket->save();
         });

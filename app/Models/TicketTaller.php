@@ -70,6 +70,8 @@ class TicketTaller extends Model implements HasMedia
         'texto_cliente_aprobado_en' => 'datetime',
         'es_electrica' => 'boolean',
         'pagado_en_taller' => 'boolean',
+        'atendido_en' => 'datetime',
+        'atendido_en_aprox' => 'boolean',
     ];
 
     public function cliente(): BelongsTo
