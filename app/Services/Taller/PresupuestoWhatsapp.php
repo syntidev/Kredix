@@ -39,8 +39,8 @@ class PresupuestoWhatsapp
 
         $cifras = [
             '{total_repuestos}' => self::dinero($ticket->totalRepuestos()),
-            // el "servicio" de la pantalla del ticket: monto_servicio, sin el armado (que va aparte)
-            '{monto_servicio}' => self::dinero((float) $ticket->monto_servicio),
+            // servicio = monto_servicio + monto_armado (como el KPI de taller), para que Servicio + Repuestos = Total
+            '{monto_servicio}' => self::dinero((float) $ticket->monto_servicio + (float) $ticket->monto_armado),
             '{monto}' => self::dinero($ticket->totalTicket()),
         ];
         $telefono = preg_replace('/\D/', '', (string) $ticket->cliente?->telefono);

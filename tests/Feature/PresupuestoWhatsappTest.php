@@ -115,17 +115,27 @@ class PresupuestoWhatsappTest extends TestCase
         $this->assertStringNotContainsString('— $5.00', $presupuesto);
     }
 
-    public function test_los_totales_son_los_de_la_pantalla_el_servicio_sin_armado_y_el_total_con_armado(): void
+    public function test_el_servicio_del_presupuesto_incluye_el_armado_y_la_suma_cuadra(): void
     {
-        // pantalla: "Total del ticket" = repuestos + servicio + armado; "servicio" = monto_servicio
-        $ticket = $this->ticket(['incluye_armado' => true, 'monto_armado' => 20], [['CADENA KMC9', 1, 25]]);
+        // servicio = monto_servicio + monto_armado (como el KPI de taller): 15 + 25 = 40
+        $ticket = $this->ticket(['incluye_armado' => true, 'monto_armado' => 25], [['A', 1, 18], ['B', 1, 25], ['C', 1, 10]]);
 
         $presupuesto = $this->mensajes($ticket)['presupuesto'];
 
-        $this->assertStringContainsString('Repuestos: $25.00', $presupuesto);
+        $this->assertStringContainsString('Repuestos: $53.00', $presupuesto);
+        $this->assertStringContainsString('Servicio: $40.00', $presupuesto);
+        $this->assertStringContainsString('Total del presupuesto: $93.00', $presupuesto);
+        $this->assertSame(93.0, $ticket->refresh()->totalTicket());
+    }
+
+    public function test_sin_armado_el_servicio_es_solo_el_monto_del_servicio(): void
+    {
+        $ticket = $this->ticket([], [['CADENA KMC9', 1, 25]]);
+
+        $presupuesto = $this->mensajes($ticket)['presupuesto'];
+
         $this->assertStringContainsString('Servicio: $15.00', $presupuesto);
-        $this->assertStringContainsString('Total del presupuesto: $60.00', $presupuesto);
-        $this->assertSame(60.0, $ticket->refresh()->totalTicket());
+        $this->assertStringContainsString('Total del presupuesto: $40.00', $presupuesto);
     }
 
     // ---- criterio 2: repuesto sin precio ----
