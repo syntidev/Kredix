@@ -37,9 +37,8 @@ class PlanFinanciamientoController extends Controller
 
         $plan->loadMissing('cargo');
         // sobre el total del carrito, no sobre el cargo que sostiene el plan --
-        // con compra_id suma todas las lineas (incluidas las anuladas: el
-        // contrato pactado no cambia por un soft-delete); sin compra_id devuelve
-        // el monto del cargo, identico al comportamiento anterior
+        // con compra_id suma las lineas VIVAS (una linea anulada ya no cuenta);
+        // sin compra_id devuelve el monto del cargo, identico al comportamiento anterior
         $montoMora = round($plan->montoTotalCompra() * ((float) $plan->porcentaje_mora / 100), 2);
 
         DB::transaction(function () use ($plan, $montoMora) {

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 
 class PlanFinanciamiento extends Model
 {
@@ -36,23 +37,78 @@ class PlanFinanciamiento extends Model
         return $this->belongsTo(MovimientoCuenta::class, 'movimiento_cuenta_id')->withTrashed();
     }
 
-    // Total pactado de la compra que este plan financia.
-    // Con compra_id: la suma de TODAS las lineas del carrito, incluidas las
-    // anuladas -- el contrato no cambia porque se anule una linea despues de
-    // firmarlo; lo que baja es el saldo del cliente (SoftDeletes ya las excluye
-    // de ahi). Renegociar es un acto explicito, no el efecto de un soft-delete.
-    // Sin compra_id (compras anteriores al hotfix): el monto del unico cargo,
-    // identico al comportamiento previo.
+    // Total pactado de la compra que este plan financia: la suma de las lineas VIVAS
+    // del carrito (compra_id). Una linea anulada o editada cambia el total y el plan se
+    // recalcula (ver SincronizaPlanConCargos); el saldo del cliente ya la excluia.
+    // Sin compra_id (compras anteriores al hotfix): el monto del unico cargo.
     public static function montoTotalDeCompra(MovimientoCuenta $cargo): float
     {
         if (blank($cargo->compra_id)) {
             return (float) $cargo->monto;
         }
 
-        return (float) MovimientoCuenta::withTrashed()
-            ->where('compra_id', $cargo->compra_id)
+        return (float) MovimientoCuenta::where('compra_id', $cargo->compra_id)
             ->where('tipo', 'cargo')
             ->sum('monto');
+    }
+
+    // El plan activo que financia la compra de este cargo (con compra_id, el plan anclado a
+    // cualquiera de sus lineas, vivas o anuladas; sin compra_id, el anclado a este cargo).
+    // Los cargos de mora no llevan compra_id ni plan: devuelven null.
+    public static function deCargo(MovimientoCuenta $cargo): ?self
+    {
+        $anclas = blank($cargo->compra_id)
+            ? [$cargo->id]
+            : MovimientoCuenta::withTrashed()->where('compra_id', $cargo->compra_id)->where('tipo', 'cargo')->pluck('id')->all();
+
+        return self::whereIn('movimiento_cuenta_id', $anclas)->first();
+    }
+
+    // Maximo UN plan activo por compra: si ya hay uno (de cualquier linea del carrito) no se crea otro.
+    // Un plan anulado (soft-delete) no cuenta.
+    public static function crearParaCargo(MovimientoCuenta $cargo, array $datos): self
+    {
+        if (self::deCargo($cargo)) {
+            throw ValidationException::withMessages(['plan' => 'Esta compra ya tiene un plan de financiamiento activo']);
+        }
+
+        return self::create(['movimiento_cuenta_id' => $cargo->id, ...$datos]);
+    }
+
+    // Reparto de un monto en N cuotas: piso a centavos y la ultima absorbe el resto.
+    // Mismo calculo para crear el plan y para recalcularlo.
+    /** @return list<float> */
+    public static function repartirCuotas(float $montoAFinanciar, int $numeroCuotas): array
+    {
+        $base = floor(($montoAFinanciar / $numeroCuotas) * 100) / 100;
+        $acumulado = 0;
+        $montos = [];
+
+        for ($numero = 1; $numero <= $numeroCuotas; $numero++) {
+            $montoPactado = $numero === $numeroCuotas ? round($montoAFinanciar - $acumulado, 2) : $base;
+            $acumulado += $montoPactado;
+            $montos[] = $montoPactado;
+        }
+
+        return $montos;
+    }
+
+    // Suma de abonos vigentes del plan sin la inicial: filas nuevas (plan_financiamiento_id) y
+    // viejas partidas por cuota (cuota_id), una sola vez cada una
+    public function totalAbonado(): float
+    {
+        return round((float) MovimientoCuenta::where('tipo', 'abono')
+            ->where('es_inicial', false)
+            ->where(fn ($q) => $q->where('plan_financiamiento_id', $this->id)->orWhereIn('cuota_id', $this->cuotas()->pluck('id')))
+            ->sum('monto'), 2);
+    }
+
+    // Todo abono vigente ligado al plan, inicial incluida: con alguno, el plan no se puede anular
+    public function tieneAbonos(): bool
+    {
+        return MovimientoCuenta::where('tipo', 'abono')
+            ->where(fn ($q) => $q->where('plan_financiamiento_id', $this->id)->orWhereIn('cuota_id', $this->cuotas()->pluck('id')))
+            ->exists();
     }
 
     public function montoTotalCompra(): float

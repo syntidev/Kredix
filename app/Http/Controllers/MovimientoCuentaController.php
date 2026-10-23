@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cuota;
 use App\Models\MovimientoCuenta;
 use App\Models\PlanFinanciamiento;
+use App\Services\SincronizaPlanConCargos;
 use App\Models\Producto;
 use App\Services\ImagenUploadService;
 use Illuminate\Http\Request;
@@ -281,8 +282,7 @@ class MovimientoCuentaController extends Controller
         $numeroCuotas = (int) $validated['numero_cuotas_financiamiento'];
         $montoAFinanciar = round($montoTotal - $montoInicial, 2);
 
-        $plan = PlanFinanciamiento::create([
-            'movimiento_cuenta_id' => $cargo->id,
+        $plan = PlanFinanciamiento::crearParaCargo($cargo, [
             'monto_inicial' => $montoInicial,
             'porcentaje_mora' => $validated['porcentaje_mora'],
             'frecuencia_pago' => $validated['frecuencia_pago'],
@@ -307,13 +307,8 @@ class MovimientoCuentaController extends Controller
         }
 
         $dias = self::DIAS_POR_FRECUENCIA[$validated['frecuencia_pago']] ?? 30;
-        $base = floor(($montoAFinanciar / $numeroCuotas) * 100) / 100;
-        $acumulado = 0;
-
-        for ($numero = 1; $numero <= $numeroCuotas; $numero++) {
-            $esUltima = $numero === $numeroCuotas;
-            $montoPactado = $esUltima ? round($montoAFinanciar - $acumulado, 2) : $base;
-            $acumulado += $montoPactado;
+        foreach (PlanFinanciamiento::repartirCuotas($montoAFinanciar, $numeroCuotas) as $i => $montoPactado) {
+            $numero = $i + 1;
 
             $plan->cuotas()->create([
                 'numero' => $numero,
@@ -341,7 +336,7 @@ class MovimientoCuentaController extends Controller
         return $fila;
     }
 
-    public function update(Request $request, MovimientoCuenta $movimiento)
+    public function update(Request $request, MovimientoCuenta $movimiento, SincronizaPlanConCargos $sincronizaPlan)
     {
         $esCargo = $movimiento->tipo === 'cargo';
         $esGestion = $movimiento->tipo === 'gestion';
@@ -388,23 +383,33 @@ class MovimientoCuentaController extends Controller
             'metodo_pago', 'referencia', 'comentario',
         ]);
 
-        $movimiento->update([
-            'fecha' => $validated['fecha'],
-            'descripcion' => $validated['descripcion'],
-            'tipo_contacto' => $esGestion ? $validated['tipo_contacto'] : $movimiento->tipo_contacto,
-            'fecha_prometida' => $esGestion ? ($validated['fecha_prometida'] ?? null) : $movimiento->fecha_prometida,
-            'cantidad' => $esCargo ? $validated['cantidad'] : null,
-            'precio_unitario' => $esCargo ? $validated['precio_unitario'] : null,
-            'modalidad_precio' => $esCargo ? $validated['modalidad_precio'] : null,
-            'plazo_meses' => $esCargo ? $validated['plazo_meses'] : null,
-            'frecuencia_pago' => $esCargo ? $validated['frecuencia_pago'] : null,
-            'monto' => $monto,
-            'moneda' => $validated['moneda'],
-            'tasa_cambio' => $validated['tasa_cambio'] ?? null,
-            'metodo_pago' => $validated['metodo_pago'] ?? null,
-            'referencia' => ($validated['metodo_pago'] ?? null) !== 'efectivo' ? ($validated['referencia'] ?? null) : null,
-            'comentario' => $validated['comentario'] ?? null,
-        ]);
+        // el plan de financiamiento solo se toca si cambia el monto de la linea; un 422 del
+        // recalculo (p. ej. nuevo total menor a lo abonado) deshace tambien la edicion
+        $cambiaMonto = $esCargo && round((float) $monto, 2) !== round((float) $movimiento->monto, 2);
+
+        DB::transaction(function () use ($movimiento, $validated, $esCargo, $esGestion, $monto, $cambiaMonto, $sincronizaPlan) {
+            $movimiento->update([
+                'fecha' => $validated['fecha'],
+                'descripcion' => $validated['descripcion'],
+                'tipo_contacto' => $esGestion ? $validated['tipo_contacto'] : $movimiento->tipo_contacto,
+                'fecha_prometida' => $esGestion ? ($validated['fecha_prometida'] ?? null) : $movimiento->fecha_prometida,
+                'cantidad' => $esCargo ? $validated['cantidad'] : null,
+                'precio_unitario' => $esCargo ? $validated['precio_unitario'] : null,
+                'modalidad_precio' => $esCargo ? $validated['modalidad_precio'] : null,
+                'plazo_meses' => $esCargo ? $validated['plazo_meses'] : null,
+                'frecuencia_pago' => $esCargo ? $validated['frecuencia_pago'] : null,
+                'monto' => $monto,
+                'moneda' => $validated['moneda'],
+                'tasa_cambio' => $validated['tasa_cambio'] ?? null,
+                'metodo_pago' => $validated['metodo_pago'] ?? null,
+                'referencia' => ($validated['metodo_pago'] ?? null) !== 'efectivo' ? ($validated['referencia'] ?? null) : null,
+                'comentario' => $validated['comentario'] ?? null,
+            ]);
+
+            if ($cambiaMonto) {
+                $sincronizaPlan->alCambiarMonto($movimiento);
+            }
+        });
 
         // editar el monto de un abono de plan reparte de nuevo la cascada
         $movimiento->planDeAbono()?->recalcularCascada();
@@ -457,7 +462,7 @@ class MovimientoCuentaController extends Controller
         return redirect()->back();
     }
 
-    public function destroy(Request $request, MovimientoCuenta $movimiento)
+    public function destroy(Request $request, MovimientoCuenta $movimiento, SincronizaPlanConCargos $sincronizaPlan)
     {
         $validated = $request->validate([
             'motivo' => ['required', 'string', 'max:1000'],
@@ -472,11 +477,19 @@ class MovimientoCuentaController extends Controller
         // Resumen del dia, Cartelera y KPI todos usan Eloquent, nunca SQL crudo
         // sobre movimientos_cuenta) -- el registro sigue en la BD para auditoria,
         // nunca forceDelete
-        $movimiento->update([
-            'motivo_eliminacion' => $validated['motivo'],
-            'eliminado_por' => auth()->id(),
-        ]);
-        $movimiento->delete();
+        // anular una linea del carrito recalcula o anula su plan; si el plan tiene abonos y era
+        // la ultima linea (o el nuevo total no alcanza), el 422 deshace tambien el borrado
+        DB::transaction(function () use ($movimiento, $validated, $sincronizaPlan) {
+            $movimiento->update([
+                'motivo_eliminacion' => $validated['motivo'],
+                'eliminado_por' => auth()->id(),
+            ]);
+            $movimiento->delete();
+
+            if ($movimiento->tipo === 'cargo') {
+                $sincronizaPlan->alAnularLinea($movimiento);
+            }
+        });
 
         // anular un abono de plan libera lo que habia cubierto en las cuotas
         $movimiento->planDeAbono()?->recalcularCascada();

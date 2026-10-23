@@ -287,10 +287,9 @@ class CompraFinanciadaTest extends TestCase
 
         $plan = PlanFinanciamiento::with('cuotas')->firstOrFail();
 
-        // el total pactado NO cambia por un soft-delete (decision c2)
-        $this->assertSame(670.0, $plan->montoTotalCompra());
-        $this->assertSame(670.0, $this->sumaCuotas($plan));
-        // el saldo del cliente SI la excluye
+        // el total del plan sigue las lineas VIVAS: sin la linea anulada, 650
+        $this->assertSame(650.0, $plan->montoTotalCompra());
+        $this->assertSame(650.0, $this->sumaCuotas($plan));
         $this->assertSame(650.0, $this->saldoDelCliente());
     }
 
@@ -311,22 +310,23 @@ class CompraFinanciadaTest extends TestCase
 
         $plan->refresh();
 
-        // el plan sigue encontrando su cargo (withTrashed), no queda huerfano
+        // el plan se re-ancla a la unica linea viva: no queda huerfano ni apunta a una anulada
         $this->assertNotNull($plan->cargo);
-        $this->assertTrue($plan->cargo->trashed());
-        // el total del grupo sigue incluyendo la linea anulada
-        $this->assertSame(670.0, $plan->montoTotalCompra());
+        $this->assertFalse($plan->cargo->trashed());
+        $this->assertSame('PORTA BIDON FSA', $plan->cargo->descripcion);
+        // el total del grupo ya no incluye la linea anulada
+        $this->assertSame(20.0, $plan->montoTotalCompra());
 
-        // aplicar mora no revienta: antes del hotfix daba 500 por cargo null
+        // aplicar mora no revienta y se calcula sobre lo que queda vivo
         $this->actingAs($this->usuario)
             ->post("/planes-financiamiento/{$plan->id}/aplicar-mora")
             ->assertRedirect();
 
-        $this->assertSame(67.0, $this->moraRegistrada());
+        $this->assertSame(2.0, $this->moraRegistrada());
     }
 
     // 12
-    public function test_tras_anular_una_linea_el_saldo_la_excluye_y_las_cuotas_siguen_pactadas(): void
+    public function test_tras_anular_una_linea_el_saldo_la_excluye_y_las_cuotas_se_recalculan(): void
     {
         $this->postCompra($this->financiada([
             ['CLOUDMONSTER 3', 1, 265],
@@ -346,9 +346,9 @@ class CompraFinanciadaTest extends TestCase
 
         $plan->refresh()->load('cuotas');
 
-        // saldo baja 40; las cuotas siguen sumando el total pactado original
+        // saldo baja 40 y las cuotas se recalculan al nuevo total: 460
         $this->assertSame(460.0, $this->saldoDelCliente());
-        $this->assertSame($totalPactado, $this->sumaCuotas($plan));
-        $this->assertSame(500.0, $plan->montoTotalCompra());
+        $this->assertSame(460.0, $this->sumaCuotas($plan));
+        $this->assertSame(460.0, $plan->montoTotalCompra());
     }
 }
