@@ -217,8 +217,8 @@ class VentasServiceTest extends TestCase
         $articulos = $this->hoy()['articulos'];
 
         $this->assertCount(2, $articulos);
-        $this->assertEquals(['nombre' => 'CADENA KMC', 'origen' => 'tienda', 'cantidad' => 3.0, 'monto' => 30.0], $articulos[0]);
-        $this->assertEquals(['nombre' => 'CADENA KMC', 'origen' => 'taller', 'cantidad' => 1.0, 'monto' => 8.0], $articulos[1]);
+        $this->assertEquals(['nombre' => 'CADENA KMC', 'origen' => 'tienda', 'cantidad' => 3.0, 'monto' => 30.0, 'ventas' => 2, 'ultima' => '2026-10-22'], $articulos[0]);
+        $this->assertEquals(['nombre' => 'CADENA KMC', 'origen' => 'taller', 'cantidad' => 1.0, 'monto' => 8.0, 'ventas' => 1, 'ultima' => '2026-10-22'], $articulos[1]);
     }
 
     public function test_articulos_van_ordenados_por_monto_descendente(): void

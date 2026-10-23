@@ -25,6 +25,9 @@ class VentasService
 
     public const ORIGEN_TALLER = 'taller';
 
+    // ventas individuales por tanda ("Ver mas")
+    public const LINEAS_POR_PAGINA = 50;
+
     // los cargos de mora (PlanFinanciamientoController::aplicarMora) no tienen marca
     // estructural: se reconocen por su descripcion "Mora (n%) - ..." y por no venir
     // de una compra del formulario (esas siempre llevan compra_id)
@@ -79,6 +82,8 @@ class VentasService
                 'origen' => $a['origen'],
                 'cantidad' => round($a['cantidad'], 2),
                 'monto' => round($a['centavos'] / 100, 2),
+                'ventas' => $a['ventas'],
+                'ultima' => $a['ultima'],
             ])
             ->values()
             ->all();
@@ -94,7 +99,75 @@ class VentasService
             'tickets_fecha_aprox' => $servicio['aprox'],
             'cargos_sin_fecha' => $this->cargosSinFecha(),
             'articulos' => $articulos,
+            'dias' => $this->subtotalesPorDia($inicio, $fin),
+            ...$this->lineasPagina($inicio, $fin, 0),
         ];
+    }
+
+    /**
+     * Una pagina de ventas individuales (sin agrupar), de la mas reciente a la mas antigua:
+     * credito por fecha del cargo, taller por una linea por repuesto del ticket atendido.
+     * Orden total (dia, hora, origen, id) para que paginar no duplique ni pierda filas.
+     *
+     * @return array{lineas: list<array<string, mixed>>, hay_mas: bool}
+     */
+    public function lineasPagina(string $inicio, string $fin, int $offset): array
+    {
+        $filas = DB::query()->fromSub($this->lineasUnidas($inicio, $fin), 'v')
+            ->orderByDesc('dia')->orderByDesc('orden')->orderBy('origen')->orderByDesc('ref')
+            ->offset($offset)->limit(self::LINEAS_POR_PAGINA + 1)
+            ->get();
+
+        return [
+            'lineas' => $filas->take(self::LINEAS_POR_PAGINA)->map(fn ($f) => [
+                'dia' => substr((string) $f->dia, 0, 10),
+                'origen' => $f->origen,
+                'nombre' => Producto::normalizarNombre((string) $f->nombre),
+                'cantidad' => round((float) $f->cantidad, 2),
+                'monto' => round((float) $f->monto, 2),
+                'cliente' => $f->cliente,
+                'ticket_id' => $f->ticket_id !== null ? (int) $f->ticket_id : null,
+                'aprox' => (bool) $f->aprox,
+            ])->values()->all(),
+            'hay_mas' => $filas->count() > self::LINEAS_POR_PAGINA,
+        ];
+    }
+
+    /**
+     * Subtotal y cantidad de ventas de CADA dia del rango, calculados en SQL sobre todo el rango
+     * (no sobre la pagina cargada). Suma credito + repuestos; el servicio del taller no es una linea.
+     *
+     * @return list<array{dia: string, ventas: int, monto: float}>
+     */
+    private function subtotalesPorDia(string $inicio, string $fin): array
+    {
+        return DB::query()->fromSub($this->lineasUnidas($inicio, $fin), 'v')
+            ->selectRaw('dia, COUNT(*) as ventas, SUM(monto) as monto')
+            ->groupBy('dia')->orderByDesc('dia')
+            ->get()
+            ->map(fn ($f) => ['dia' => substr((string) $f->dia, 0, 10), 'ventas' => (int) $f->ventas, 'monto' => round((float) $f->monto, 2)])
+            ->all();
+    }
+
+    // mismas reglas que los agregados: credito sin cargo automatico de taller ni mora ni sin fecha;
+    // taller solo tickets atendidos, y sin repuestos de precio 0 (trabajos de la tienda)
+    private function lineasUnidas(string $inicio, string $fin)
+    {
+        $credito = $this->cargosDeVenta()
+            ->whereNotNull('fecha')
+            ->whereBetween('fecha', [$inicio, $fin])
+            ->selectRaw("'tienda' as origen, DATE(movimientos_cuenta.fecha) as dia, movimientos_cuenta.created_at as orden, movimientos_cuenta.id as ref, movimientos_cuenta.descripcion as nombre, COALESCE(movimientos_cuenta.cantidad, 0) as cantidad, movimientos_cuenta.monto as monto, (select c.nombre from clientes c where c.id = movimientos_cuenta.cliente_id) as cliente, NULL as ticket_id, 0 as aprox")
+            ->toBase();
+
+        $taller = DB::table('ticket_repuestos as r')
+            ->join('tickets_taller as t', 't.id', '=', 'r.ticket_id')
+            ->whereNull('t.deleted_at')
+            ->where('t.estado', 'atendido')
+            ->whereBetween('t.atendido_en', [$inicio, $fin])
+            ->whereRaw('r.cantidad * r.precio > 0')
+            ->selectRaw("'taller' as origen, DATE(t.atendido_en) as dia, t.atendido_en as orden, r.id as ref, r.producto as nombre, r.cantidad as cantidad, r.cantidad * r.precio as monto, (select c.nombre from clientes c where c.id = t.cliente_id) as cliente, t.id as ticket_id, COALESCE(t.atendido_en_aprox, 0) as aprox");
+
+        return $credito->unionAll($taller);
     }
 
     /**
@@ -116,7 +189,7 @@ class VentasService
             ->whereNotNull('fecha')
             ->whereBetween('fecha', [$inicio, $fin])
             ->groupBy('descripcion')
-            ->selectRaw('descripcion as nombre, SUM(COALESCE(cantidad, 0)) as cantidad, SUM(monto) as monto')
+            ->selectRaw('descripcion as nombre, SUM(COALESCE(cantidad, 0)) as cantidad, SUM(monto) as monto, COUNT(*) as ventas, MAX(fecha) as ultima')
             ->toBase()
             ->get();
     }
@@ -129,7 +202,7 @@ class VentasService
             ->where('t.estado', 'atendido')
             ->whereBetween('t.atendido_en', [$inicio, $fin])
             ->groupBy('r.producto')
-            ->selectRaw('r.producto as nombre, SUM(r.cantidad) as cantidad, SUM(r.cantidad * r.precio) as monto')
+            ->selectRaw('r.producto as nombre, SUM(r.cantidad) as cantidad, SUM(r.cantidad * r.precio) as monto, COUNT(*) as ventas, MAX(t.atendido_en) as ultima')
             ->get();
     }
 
@@ -167,6 +240,8 @@ class VentasService
                 'origen' => $origen,
                 'cantidad' => (float) $grupo->sum(fn ($l) => (float) $l->cantidad),
                 'centavos' => (int) $grupo->sum(fn ($l) => $this->aCentavos($l->monto)),
+                'ventas' => (int) $grupo->sum(fn ($l) => (int) $l->ventas),
+                'ultima' => substr((string) $grupo->max('ultima'), 0, 10),
             ])
             ->values();
     }

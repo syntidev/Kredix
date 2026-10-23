@@ -99,6 +99,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('es_admin')->group(function () {
         Route::get('/kpi', [KpiController::class, 'index'])->name('kpi');
         Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
+        Route::get('/ventas/lineas', [VentasController::class, 'lineas'])->name('ventas.lineas');
         Route::get('/cartera/exportar', [ClienteController::class, 'carteraExportar'])->name('cartera.exportar');
         // Herramienta de triage retirada el 2026-10-01 tras decision de negocio
         // sobre cartera en revision -- controlador (ClienteController::
