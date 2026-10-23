@@ -369,6 +369,11 @@ const errorTexto = ref('');
 // aprobado se lee; borrador, desactualizado o vacio se editan directo
 const mostrarEditor = computed(() => editandoTexto.value || textoCliente.value.estado !== 'aprobado');
 const ORIGEN_LABEL = { manual: 'escrito a mano', automatico: 'armado desde la revisión', ia: 'redactado por la IA' };
+// revision apagada: un borrador viejo armado desde la revision o por la IA no menciona su origen
+const origenTexto = computed(() => {
+    const origen = textoCliente.value.origen;
+    return props.funciones.revision_tecnica || origen === 'manual' ? (ORIGEN_LABEL[origen] ?? '') : '';
+});
 
 watch(() => props.ticket.trabajo_realizado, (texto) => {
     if (!editandoTexto.value) textoForm.trabajo_realizado = texto ?? '';
@@ -635,7 +640,9 @@ const faltaTrabajoRealizado = computed(() => !props.ticket.trabajo_realizado?.tr
 // no bloquea el cierre, pero se avisa: ese texto no sale en el PDF
 const avisoTextoCliente = computed(() => ({
     borrador: 'El texto para el cliente está en borrador: no saldrá en el PDF hasta que alguien lo apruebe.',
-    desactualizado: 'La revisión cambió después de aprobar el texto para el cliente: no saldrá en el PDF hasta que lo revises y lo guardes de nuevo.',
+    desactualizado: props.funciones.revision_tecnica
+        ? 'La revisión cambió después de aprobar el texto para el cliente: no saldrá en el PDF hasta que lo revises y lo guardes de nuevo.'
+        : 'El texto para el cliente quedó desactualizado: no saldrá en el PDF hasta que lo revises y lo guardes de nuevo.',
 }[textoCliente.value.estado] ?? ''));
 const faltaPagoElegido = computed(() => seCobra.value && pagadoEnTaller.value === null);
 const puedeMarcarAtendido = computed(() => !faltaFotoEntrada.value && !faltaFotoSalida.value && !faltaTrabajoRealizado.value && !faltaPagoElegido.value);
@@ -646,7 +653,7 @@ const puedeMarcarAtendido = computed(() => !faltaFotoEntrada.value && !faltaFoto
 // frontend no la mostraba como razon de bloqueo)
 const itemsFaltantesParaCerrar = computed(() => {
     const items = [];
-    if (faltaTrabajoRealizado.value) items.push('hacer la revisión técnica o escribir el texto para el cliente');
+    if (faltaTrabajoRealizado.value) items.push(props.funciones.revision_tecnica ? 'hacer la revisión técnica o escribir el texto para el cliente' : 'escribir el texto para el cliente');
     if (faltaFotoEntrada.value) items.push('subir al menos 1 foto de entrada');
     if (faltaFotoSalida.value) items.push('subir al menos 1 foto de salida');
     if (faltaPagoElegido.value) items.push('indicar si se pago en el momento');
@@ -799,8 +806,8 @@ const itemsFaltantesParaCerrar = computed(() => {
         <p v-if="avisoTextoCliente && !confirmandoCierre" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{{ avisoTextoCliente }}</p>
 
         <div v-if="confirmandoCierre && !atendido" role="alertdialog" aria-labelledby="aviso-cierre" class="flex flex-col gap-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-4">
-            <p id="aviso-cierre" class="font-semibold text-amber-900">El cliente recibirá el informe SIN el texto de trabajo realizado</p>
-            <p class="text-sm text-amber-800">{{ avisoTextoCliente || 'El texto armado desde la revisión quedará en borrador y no saldrá en el PDF.' }}</p>
+            <p id="aviso-cierre" class="font-semibold text-amber-900">{{ funciones.revision_tecnica ? 'El cliente recibirá el informe SIN el texto de trabajo realizado' : 'El cliente recibirá el PDF SIN el texto de trabajo realizado' }}</p>
+            <p class="text-sm text-amber-800">{{ avisoTextoCliente || (funciones.revision_tecnica ? 'El texto armado desde la revisión quedará en borrador y no saldrá en el PDF.' : 'El texto quedará en borrador y no saldrá en el PDF.') }}</p>
             <div class="flex flex-col gap-2 sm:flex-row">
                 <button type="button" class="min-h-11 flex-1 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" :disabled="!puedeMarcarAtendido" @click="marcarAtendido('aprobar')">
                     Aprobar y cerrar
@@ -1087,10 +1094,10 @@ const itemsFaltantesParaCerrar = computed(() => {
             </div>
 
             <p v-if="textoCliente.estado === 'borrador'" class="rounded-lg bg-gray-50 p-2 text-sm text-kredix-gris">
-                Borrador {{ ORIGEN_LABEL[textoCliente.origen] ?? '' }}. No sale en el PDF hasta que alguien lo revise y lo guarde.
+                Borrador{{ origenTexto ? ` ${origenTexto}` : '' }}. No sale en el PDF hasta que alguien lo revise y lo guarde.
             </p>
             <p v-else-if="textoCliente.estado === 'desactualizado'" class="rounded-lg bg-amber-50 p-2 text-sm text-amber-800">
-                La revisión cambió después de aprobar este texto. No sale en el PDF hasta que lo revises y lo guardes de nuevo.
+                {{ funciones.revision_tecnica ? 'La revisión cambió después de aprobar este texto.' : 'Este texto quedó desactualizado.' }} No sale en el PDF hasta que lo revises y lo guardes de nuevo.
             </p>
             <p v-if="textoCliente.ia?.estado === 'pendiente'" class="text-sm text-kredix-gris">La IA está redactando un texto…</p>
             <p v-if="textoCliente.ia?.estado === 'requiere_revision'" class="rounded-lg bg-amber-50 p-2 text-sm text-amber-800">

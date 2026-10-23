@@ -886,10 +886,14 @@ class TallerController extends Controller
     {
         $seCobra = $ticket->seCobra();
 
-        $tieneRevision = InformeRevision::tieneContenido($ticket->revision_tecnica);
+        // revision apagada: una revision guardada no cuenta para cerrar ni arma texto; hace falta el texto a mano
+        $revisionActiva = Funciones::revisionTecnica();
+        $tieneRevision = $revisionActiva && InformeRevision::tieneContenido($ticket->revision_tecnica);
 
         if (blank($ticket->trabajo_realizado) && ! $tieneRevision) {
-            return back()->withErrors(['trabajo_realizado' => 'Debes hacer la revision tecnica o escribir el trabajo realizado antes de marcar el ticket como atendido.']);
+            return back()->withErrors(['trabajo_realizado' => $revisionActiva
+                ? 'Debes hacer la revision tecnica o escribir el trabajo realizado antes de marcar el ticket como atendido.'
+                : 'Debes escribir el trabajo realizado antes de marcar el ticket como atendido.']);
         }
 
         // VIP ya no exige foto de entrada al crear (se agenda antes de ver la
@@ -922,7 +926,9 @@ class TallerController extends Controller
         ])['texto_cliente'] ?? null;
         if ($textoPendiente && ! $confirmacion) {
             throw ValidationException::withMessages([
-                'texto_cliente' => 'El cliente recibirá el informe SIN el texto de trabajo realizado.',
+                'texto_cliente' => $revisionActiva
+                    ? 'El cliente recibirá el informe SIN el texto de trabajo realizado.'
+                    : 'El cliente recibirá el PDF SIN el texto de trabajo realizado.',
             ]);
         }
 
