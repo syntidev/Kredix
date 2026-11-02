@@ -211,6 +211,8 @@ class MovimientoCuentaController extends Controller
                         'descripcion' => 'Pago de contado - '.$primero->descripcion.($movimientos->count() > 1 ? ' (+'.($movimientos->count() - 1).' más)' : ''),
                         'comentario' => 'Venta de contado (pago completo)',
                         'es_contado' => true,
+                        // mismo compra_id que sus lineas: permite reconciliar el grupo si luego se edita o se borra algo
+                        'compra_id' => $compraId,
                     ]);
 
                     activity()->causedBy(auth()->user())->performedOn($primero)
@@ -313,6 +315,28 @@ class MovimientoCuentaController extends Controller
         }
 
         return redirect()->route('clientes.show', $validated['cliente_id']);
+    }
+
+    // Una venta de contado solo queda fuera de KPI/mora/cartera mientras su cargo y su pago netean cero.
+    // Si una edicion o un borrado lo rompe (monto distinto, pago eliminado, linea eliminada), TODA la compra
+    // vuelve a credito: asi la deuda que quede es visible y nunca se oculta tras la marca es_contado
+    private function reconciliarContado(MovimientoCuenta $tocado): void
+    {
+        if (! $tocado->es_contado || ! $tocado->compra_id) {
+            return;
+        }
+
+        $filas = MovimientoCuenta::where('compra_id', $tocado->compra_id)->where('es_contado', true)->get();
+        $cargos = round((float) $filas->where('tipo', 'cargo')->sum('monto'), 2);
+        $abonos = round((float) $filas->where('tipo', 'abono')->sum('monto'), 2);
+
+        if ($filas->isEmpty() || $cargos !== $abonos || $cargos <= 0) {
+            MovimientoCuenta::where('compra_id', $tocado->compra_id)->where('es_contado', true)->update(['es_contado' => false]);
+
+            activity()->causedBy(auth()->user())->performedOn($tocado)
+                ->withProperties(['compra_id' => $tocado->compra_id, 'cargos' => $cargos, 'abonos' => $abonos])
+                ->log('contado_revertido_a_credito');
+        }
     }
 
     // Pago al registrar la venta: la inicial de un plan (con plan_financiamiento_id) o el pago total de una
@@ -476,6 +500,8 @@ class MovimientoCuentaController extends Controller
         // editar el monto de un abono de plan reparte de nuevo la cascada
         $movimiento->planDeAbono()?->recalcularCascada();
 
+        $this->reconciliarContado($movimiento->fresh());
+
         if ($request->hasFile('comprobante')) {
             $this->adjuntarComprimida($movimiento, $request->file('comprobante'), 'comprobantes');
 
@@ -587,6 +613,8 @@ class MovimientoCuentaController extends Controller
 
         // anular un abono de plan libera lo que habia cubierto en las cuotas
         $movimiento->planDeAbono()?->recalcularCascada();
+
+        $this->reconciliarContado($movimiento);
 
         return redirect()->route('clientes.show', $clienteId);
     }

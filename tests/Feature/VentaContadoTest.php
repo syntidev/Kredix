@@ -300,6 +300,52 @@ class VentaContadoTest extends TestCase
         $this->actingAs($this->usuario)->getJson('/productos?q=garmin')->assertExactJson(['GARMIN FORERUNNER']);
     }
 
+    // ---- hallazgo de seguridad: la deuda nunca queda oculta tras es_contado ----
+    private function editarCargo(MovimientoCuenta $cargo, array $cambios): void
+    {
+        $this->actingAs($this->usuario)->put("/movimientos/{$cargo->id}", [
+            'fecha' => '2026-11-02', 'descripcion' => $cargo->descripcion, 'moneda' => 'usd', 'cantidad' => 1, 'precio_unitario' => 220,
+            'modalidad_precio' => 'divisa', 'plazo_meses' => 1, 'frecuencia_pago' => 'mensual', 'motivo_edicion' => 'prueba', ...$cambios,
+        ])->assertRedirect();
+    }
+
+    public function test_borrar_el_pago_de_una_venta_de_contado_la_vuelve_credito_y_la_deuda_se_ve_en_el_kpi(): void
+    {
+        $admin = User::factory()->create(['es_admin' => true]);
+        $this->venta()->assertRedirect();
+        $abono = MovimientoCuenta::where('tipo', 'abono')->firstOrFail();
+
+        $this->actingAs($this->usuario)->delete("/movimientos/{$abono->id}", ['motivo' => 'error'])->assertRedirect();
+
+        $this->assertFalse(MovimientoCuenta::where('tipo', 'cargo')->firstOrFail()->es_contado, 'ya no esta oculta');
+        $this->assertSame(220.0, MovimientoCuenta::saldoPendiente($this->cliente->id));
+        $this->actingAs($admin)->get('/kpi')->assertInertia(fn ($p) => $p->where('dineroEnCalle', 220)->where('periodos.historico.actual.otorgado', 220));
+        $this->assertTrue(Activity::where('description', 'contado_revertido_a_credito')->exists());
+    }
+
+    public function test_cambiar_el_monto_de_la_linea_de_contado_la_vuelve_credito(): void
+    {
+        $this->venta()->assertRedirect();
+        $cargo = MovimientoCuenta::where('tipo', 'cargo')->firstOrFail();
+
+        $this->editarCargo($cargo, ['precio_unitario' => 300]);
+
+        $this->assertFalse($cargo->fresh()->es_contado);
+        $this->assertFalse(MovimientoCuenta::where('tipo', 'abono')->firstOrFail()->es_contado);
+        $this->assertSame(80.0, MovimientoCuenta::saldoPendiente($this->cliente->id));
+    }
+
+    public function test_una_edicion_que_no_cambia_el_monto_conserva_el_contado(): void
+    {
+        $this->venta()->assertRedirect();
+        $cargo = MovimientoCuenta::where('tipo', 'cargo')->firstOrFail();
+
+        $this->editarCargo($cargo, ['descripcion' => 'Garmin Forerunner 265']);
+
+        $this->assertTrue($cargo->fresh()->es_contado);
+        $this->assertFalse(Activity::where('description', 'contado_revertido_a_credito')->exists());
+    }
+
     // respaldo en BD: el indice unico sobre la columna generada impide el duplicado aunque la aplicacion falle
     public function test_el_indice_unico_de_la_bd_impide_duplicar_un_serial_vigente_pero_no_uno_liberado(): void
     {
