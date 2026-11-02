@@ -344,6 +344,7 @@ class TallerController extends Controller
             'domicilio_direccion' => [Rule::requiredIf($esVip), 'nullable', 'string', 'max:1000'],
             'monto_servicio' => [Rule::requiredIf(! $esTienda), 'nullable', 'numeric', 'min:0'],
             'incluye_armado' => ['nullable', 'boolean'],
+            'comisionable' => ['nullable', 'boolean'],
             'monto_armado' => ['nullable', 'numeric', 'min:0'],
             'mecanico_id' => ['required', 'exists:users,id'],
             // un dia cerrado solo avisa en pantalla, no se bloquea
@@ -378,6 +379,8 @@ class TallerController extends Controller
             'incluye_armado' => $conArmado,
             'monto_armado' => $conArmado ? ($validated['monto_armado'] ?? null) : null,
             'mecanico_id' => $validated['mecanico_id'],
+            // el trabajo de la tienda nunca comisiona; con cliente solo cambia si la clave viene
+            ...($esTienda ? ['comisionable' => false] : ($request->has('comisionable') ? ['comisionable' => $request->boolean('comisionable')] : [])),
             'diagnostico' => $validated['diagnostico'] ?? null,
             // solo si la clave viene: editar sin ella no toca la fecha
             ...($request->has('fecha_compromiso') ? ['fecha_compromiso' => $validated['fecha_compromiso'] ?? null] : []),
@@ -497,7 +500,7 @@ class TallerController extends Controller
             'ticket' => [
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',
-                    'tipo_servicio', 'domicilio_direccion', 'monto_servicio', 'incluye_armado', 'monto_armado', 'diagnostico', 'estado', 'mecanico_id', 'trabajo_realizado',
+                    'tipo_servicio', 'domicilio_direccion', 'monto_servicio', 'incluye_armado', 'monto_armado', 'comisionable', 'diagnostico', 'estado', 'mecanico_id', 'trabajo_realizado',
                     'pagado_en_taller', 'movimiento_cuenta_id',
                 ]),
                 'fecha_compromiso' => $ticket->fecha_compromiso?->toDateString(),

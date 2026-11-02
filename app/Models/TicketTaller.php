@@ -50,6 +50,7 @@ class TicketTaller extends Model implements HasMedia
         'monto_servicio',
         'incluye_armado',
         'monto_armado',
+        'comisionable',
         'diagnostico',
         'estado',
         'fecha_compromiso',
@@ -64,6 +65,7 @@ class TicketTaller extends Model implements HasMedia
     protected $casts = [
         'monto_servicio' => 'decimal:2',
         'incluye_armado' => 'boolean',
+        'comisionable' => 'boolean',
         'monto_armado' => 'decimal:2',
         'diagnostico' => 'array',
         'revision_tecnica' => 'array',

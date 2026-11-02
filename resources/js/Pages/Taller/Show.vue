@@ -20,6 +20,7 @@ import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
 import EtiquetaCompromiso from '../../Components/EtiquetaCompromiso.vue';
+import ComisionableCheck from '../../Components/ComisionableCheck.vue';
 import FechaCompromiso from '../../Components/FechaCompromiso.vue';
 import FotosCasillas from '../../Components/FotosCasillas.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
@@ -157,6 +158,7 @@ const editForm = useForm({
     incluye_armado: props.ticket.incluye_armado,
     monto_armado: props.ticket.monto_armado,
     mecanico_id: props.ticket.mecanico_id,
+    comisionable: props.ticket.comisionable ?? true,
     fecha_compromiso: props.ticket.fecha_compromiso,
 });
 const puedeIncluirArmado = computed(() => !editForm.trabajo_tienda && editForm.tipo_servicio !== 'armado');
@@ -998,6 +1000,8 @@ const itemsFaltantesParaCerrar = computed(() => {
                         <option v-for="m in mecanicos" :key="m.id" :value="m.id">{{ m.name }}</option>
                     </select>
                 </div>
+
+                <ComisionableCheck v-if="!editForm.trabajo_tienda" v-model="editForm.comisionable" />
 
                 <FechaCompromiso v-model="editForm.fecha_compromiso" :config="compromisoConfig" :error="editForm.errors.fecha_compromiso" />
 

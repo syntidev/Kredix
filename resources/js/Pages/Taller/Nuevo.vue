@@ -6,6 +6,7 @@ import { UserPlus, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
+import ComisionableCheck from '../../Components/ComisionableCheck.vue';
 import FechaCompromiso from '../../Components/FechaCompromiso.vue';
 import FotosCasillas from '../../Components/FotosCasillas.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
@@ -44,6 +45,7 @@ const form = useForm({
     incluye_armado: false,
     monto_armado: '',
     mecanico_id: props.tecnicoDefectoId ?? '',
+    comisionable: true,
     fecha_compromiso: props.compromisoConfig.defecto,
     fotos_entrada: [],
 });
@@ -451,6 +453,8 @@ function submit() {
                 <p v-if="!mecanicos.length" class="text-sm text-kredix-rojo">No hay técnicos disponibles. Marca a un usuario con rol de taller en Usuarios.</p>
                 <p v-if="form.errors.mecanico_id" class="text-sm text-kredix-rojo">{{ form.errors.mecanico_id }}</p>
             </div>
+
+            <ComisionableCheck v-if="!esTienda" v-model="form.comisionable" />
 
             <FechaCompromiso v-model="form.fecha_compromiso" :config="compromisoConfig" :error="form.errors.fecha_compromiso" />
 
