@@ -349,7 +349,7 @@ const fabAbierto = ref(false);
 const plazoSugerido = ref(null);
 
 function productoVacio() {
-    return { descripcion: '', cantidad: '', precio_unitario: '', pendiente_entrega: false };
+    return { descripcion: '', cantidad: '', precio_unitario: '', pendiente_entrega: false, lleva_serial: false, seriales: [] };
 }
 
 const cargoForm = useForm({
@@ -363,6 +363,7 @@ const cargoForm = useForm({
     moneda: 'usd',
     tasa_cambio: '',
     foto_producto: null,
+    es_contado: false,
     es_financiada: false,
     monto_inicial: '',
     metodo_pago_inicial: 'efectivo',
@@ -396,7 +397,8 @@ function buscarSugerenciasProducto(i) {
 
     sugerenciasProductoTimeout = setTimeout(async () => {
         try {
-            const res = await fetch(`/productos?q=${encodeURIComponent(texto)}`);
+            // detalle=1: cada sugerencia trae {nombre, lleva_serial} para preseleccionar la casilla
+            const res = await fetch(`/productos?q=${encodeURIComponent(texto)}&detalle=1`);
             sugerenciasProducto.value = res.ok ? await res.json() : [];
         } catch {
             sugerenciasProducto.value = [];
@@ -404,8 +406,36 @@ function buscarSugerenciasProducto(i) {
     }, 250);
 }
 
-function elegirSugerenciaProducto(i, nombre) {
-    cargoForm.productos[i].descripcion = nombre;
+// un campo de serial por unidad cuando la linea "lleva serial": el arreglo sigue a la cantidad y a la casilla
+watch(() => cargoForm.productos.map((p) => [p.lleva_serial, p.cantidad]), () => {
+    cargoForm.productos.forEach((p) => {
+        const n = p.lleva_serial ? Math.min(Math.max(Math.floor(parseFloat(p.cantidad) || 0), 0), 50) : 0;
+        while (p.seriales.length < n) p.seriales.push('');
+        if (p.seriales.length > n) p.seriales.splice(n);
+    });
+}, { deep: true });
+
+// corregir un serial ya registrado (typo): edicion en linea, con huella en el servidor
+const serialEditando = ref(null);
+const errorSerial = ref('');
+
+function editarSerial(s) {
+    errorSerial.value = '';
+    serialEditando.value = { id: s.id, valor: s.serial };
+}
+
+function guardarSerial() {
+    router.put(`/seriales/${serialEditando.value.id}`, { serial: serialEditando.value.valor }, {
+        preserveScroll: true,
+        onSuccess: () => { serialEditando.value = null; },
+        onError: (errores) => { errorSerial.value = errores.serial ?? 'No se pudo guardar el serial.'; },
+    });
+}
+
+function elegirSugerenciaProducto(i, sugerencia) {
+    cargoForm.productos[i].descripcion = sugerencia.nombre;
+    // el catalogo recuerda si este articulo lleva serial: sale marcado, se puede desmarcar
+    cargoForm.productos[i].lleva_serial = !!sugerencia.lleva_serial;
     sugerenciasProducto.value = [];
     sugerenciaProductoIndex.value = null;
 }
@@ -467,6 +497,7 @@ function submitCargo() {
             cargoForm.moneda = 'usd';
             cargoForm.frecuencia_pago = 'mensual';
             cargoForm.modalidad_precio = 'divisa';
+            cargoForm.es_contado = false;
             cargoForm.es_financiada = false;
             cargoForm.monto_inicial = '';
             cargoForm.metodo_pago_inicial = 'efectivo';
@@ -1281,13 +1312,13 @@ watch(algunModalAbierto, (abierto) => {
                         v-if="sugerenciaProductoIndex === i && sugerenciasProducto.length > 0"
                         class="absolute top-full z-10 mt-1 w-full rounded-lg border border-[#e3e8ee] bg-white shadow-card-lg"
                     >
-                        <li v-for="s in sugerenciasProducto" :key="s">
+                        <li v-for="s in sugerenciasProducto" :key="s.nombre">
                             <button
                                 type="button"
-                                class="block w-full px-3 py-2 text-left text-sm text-kredix-negro active:bg-gray-100"
+                                class="block min-h-11 w-full px-3 py-2 text-left text-sm text-kredix-negro active:bg-gray-100"
                                 @mousedown.prevent="elegirSugerenciaProducto(i, s)"
                             >
-                                {{ s }}
+                                {{ s.nombre }}<span v-if="s.lleva_serial" class="ml-2 text-xs text-kredix-gris">· lleva serial</span>
                             </button>
                         </li>
                     </ul>
@@ -1309,6 +1340,27 @@ watch(algunModalAbierto, (abierto) => {
                     <input v-model="producto.pendiente_entrega" type="checkbox" class="h-6 w-6 shrink-0" />
                     Aún no entregado (apartado)
                 </label>
+                <label class="flex min-h-11 items-center gap-3 text-sm text-kredix-negro">
+                    <input v-model="producto.lleva_serial" type="checkbox" class="h-6 w-6 shrink-0" />
+                    Lleva serial (garantía)
+                </label>
+                <div v-if="producto.lleva_serial" class="flex flex-col gap-2">
+                    <p v-if="producto.seriales.length === 0" class="text-sm text-amber-700">Indica la cantidad (unidades enteras) para ingresar los seriales.</p>
+                    <div v-for="(_, j) in producto.seriales" :key="j" class="flex flex-col gap-1">
+                        <label :for="`serial-${i}-${j}`" class="text-sm font-medium text-kredix-negro">Serial {{ producto.seriales.length > 1 ? `de la unidad ${j + 1}` : '' }}</label>
+                        <input
+                            :id="`serial-${i}-${j}`"
+                            v-model="producto.seriales[j]"
+                            type="text"
+                            autocapitalize="characters"
+                            autocomplete="off"
+                            placeholder="Número de serie"
+                            class="min-h-11 rounded-lg border border-gray-300 px-3 text-base uppercase text-kredix-negro focus:border-kredix-rojo focus:outline-none"
+                        />
+                        <p v-if="cargoForm.errors[`productos.${i}.seriales.${j}`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.seriales.${j}`] }}</p>
+                    </div>
+                    <p v-if="cargoForm.errors[`productos.${i}.seriales`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.seriales`] }}</p>
+                </div>
             </div>
 
             <div class="flex justify-end md:col-span-2">
@@ -1339,6 +1391,31 @@ watch(algunModalAbierto, (abierto) => {
 
             <div class="rounded-lg bg-gray-100 px-3 py-2 text-sm text-kredix-negro md:col-span-2">Monto: <span class="tabular-nums font-semibold">{{ formatMoney(montoCargo) }}</span></div>
 
+            <label class="flex min-h-11 items-center gap-3 rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro md:col-span-2">
+                <input v-model="cargoForm.es_contado" type="checkbox" class="h-6 w-6 shrink-0" @change="cargoForm.es_financiada = false" />
+                De contado (pago completo)
+            </label>
+
+            <template v-if="cargoForm.es_contado">
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-kredix-negro">Método de pago</label>
+                    <select v-model="cargoForm.metodo_pago_inicial" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                        <option value="efectivo">Efectivo</option>
+                        <option value="zelle">Zelle</option>
+                        <option value="binance">Binance</option>
+                        <option value="transferencia">Transferencia</option>
+                        <option value="pago_movil">Pago movil</option>
+                        <option value="bancamiga_divisa">Bancamiga divisa</option>
+                        <option value="punto_venta">Punto de venta</option>
+                    </select>
+                    <p v-if="cargoForm.errors.metodo_pago_inicial" class="text-sm text-kredix-rojo">{{ cargoForm.errors.metodo_pago_inicial }}</p>
+                </div>
+                <div class="rounded-lg bg-gray-50 p-3 text-sm text-kredix-negro">
+                    Se registra el cargo y un pago por <span class="font-medium tabular-nums">{{ formatMoney(montoCargo) }}</span>. Sin plan ni cuotas; el saldo queda en cero.
+                </div>
+            </template>
+
+            <template v-if="!cargoForm.es_contado">
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">
                     Plazo (meses)
@@ -1356,6 +1433,7 @@ watch(algunModalAbierto, (abierto) => {
                     <option value="mensual">Mensual</option>
                 </select>
             </div>
+            </template>
 
             <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional{{ cargoForm.productos.length > 1 ? ', se adjunta al primer producto' : '' }})</span></label>
@@ -1364,8 +1442,8 @@ watch(algunModalAbierto, (abierto) => {
                 <p v-if="cargoForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ cargoForm.errors.foto_producto }}</p>
             </div>
 
-            <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro md:col-span-2">
-                <input v-model="cargoForm.es_financiada" type="checkbox" class="h-4 w-4" />
+            <label v-if="!cargoForm.es_contado" class="flex min-h-11 items-center gap-3 text-sm font-medium text-kredix-negro md:col-span-2">
+                <input v-model="cargoForm.es_financiada" type="checkbox" class="h-6 w-6 shrink-0" />
                 ¿Es una venta financiada?
             </label>
 
@@ -1801,6 +1879,7 @@ watch(algunModalAbierto, (abierto) => {
                             {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
                         </span>
                         <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="text-xs font-medium text-amber-600">BCV</span>
+                        <span v-if="m.es_contado" class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Contado</span>
                         <span v-if="m.pendiente_entrega" class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendiente de entrega</span>
                         <span class="tabular-nums text-xs text-kredix-gris">saldo {{ formatMoney(m.saldoAcumulado) }}</span>
                     </div>
@@ -1829,6 +1908,21 @@ watch(algunModalAbierto, (abierto) => {
                         <span class="text-kredix-gris">{{ m.registrado_por }}</span>
                     </div>
                     <p v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</p>
+                    <div v-if="m.seriales?.length" class="flex flex-col gap-1" data-seriales>
+                        <span class="text-kredix-gris">Seriales (garantía)</span>
+                        <div v-for="s in m.seriales" :key="s.id" class="flex items-center gap-2">
+                            <template v-if="serialEditando?.id === s.id">
+                                <input v-model="serialEditando.valor" type="text" autocapitalize="characters" class="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-300 px-3 text-base uppercase text-kredix-negro" @click.stop />
+                                <button type="button" class="min-h-11 rounded-lg bg-kredix-negro px-3 text-sm font-medium text-white" @click.stop="guardarSerial">Guardar</button>
+                                <button type="button" class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm text-kredix-negro" @click.stop="serialEditando = null">Cancelar</button>
+                            </template>
+                            <template v-else>
+                                <span class="min-w-0 flex-1 break-all font-mono text-sm text-kredix-negro">{{ s.serial }}</span>
+                                <button type="button" class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm text-kredix-negro active:bg-gray-100" aria-label="Corregir serial" @click.stop="editarSerial(s)">Corregir</button>
+                            </template>
+                        </div>
+                        <p v-if="serialEditando && errorSerial" class="text-sm text-kredix-rojo">{{ errorSerial }}</p>
+                    </div>
                     <p v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="text-kredix-gris">{{ m.comentario }}</p>
                     <div v-if="m.comprobante_url || m.producto_url" class="flex gap-3">
                         <button v-if="m.comprobante_url" type="button" class="flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro" @click.stop="abrirFotoMovimiento(m, 'comprobante')">
@@ -1902,6 +1996,18 @@ watch(algunModalAbierto, (abierto) => {
                             <template v-else>
                                 {{ m.descripcion }}
                                 <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="block text-xs text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
+                                <span v-for="s in m.seriales" :key="s.id" class="mt-1 flex items-center gap-2 text-xs text-kredix-gris" data-serial-fila>
+                                    <template v-if="serialEditando?.id === s.id">
+                                        <input v-model="serialEditando.valor" type="text" autocapitalize="characters" class="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-300 px-2 text-sm uppercase text-kredix-negro" @click.stop />
+                                        <button type="button" class="min-h-11 rounded-lg bg-kredix-negro px-3 text-sm font-medium text-white" @click.stop="guardarSerial">Guardar</button>
+                                        <button type="button" class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm text-kredix-negro" @click.stop="serialEditando = null">Cancelar</button>
+                                    </template>
+                                    <template v-else>
+                                        <span class="font-mono text-kredix-negro">S/N {{ s.serial }}</span>
+                                        <button type="button" class="min-h-11 rounded-lg border border-gray-300 px-3 text-sm text-kredix-negro active:bg-gray-100" aria-label="Corregir serial" @click.stop="editarSerial(s)">Corregir</button>
+                                    </template>
+                                </span>
+                                <span v-if="serialEditando && errorSerial && m.seriales?.some((s) => s.id === serialEditando.id)" class="block text-xs text-kredix-rojo">{{ errorSerial }}</span>
                                 <span v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="block text-xs text-kredix-gris">{{ m.comentario }}</span>
                                 <button v-if="m.comprobante_url" type="button" class="mt-1 flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1 text-sm text-kredix-negro" @click.stop="abrirFotoMovimiento(m, 'comprobante')">
                                     <img v-if="!imgErrores[`dc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`dc${m.id}`)" />
@@ -1933,6 +2039,7 @@ watch(algunModalAbierto, (abierto) => {
                                 {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
                             </span>
                             <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="block text-xs font-normal text-amber-600">BCV</span>
+                            <span v-if="m.es_contado" class="mt-0.5 mr-1 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Contado</span>
                             <span v-if="m.pendiente_entrega" class="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendiente de entrega</span>
                         </td>
                         <td class="break-words px-2 py-2 text-kredix-gris">

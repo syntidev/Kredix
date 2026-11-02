@@ -240,6 +240,7 @@ const OPCIONES_VISTA = [
                                 >
                                     {{ l.origen === 'taller' ? 'Taller' : 'Tienda' }}
                                 </span>
+                                <span v-if="l.contado" class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-green-700">Contado</span>
                             </div>
                         </li>
                     </ul>
