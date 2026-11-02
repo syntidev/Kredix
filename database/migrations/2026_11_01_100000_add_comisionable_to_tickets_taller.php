@@ -16,7 +16,15 @@ return new class extends Migration
             $table->boolean('comisionable')->default(true)->after('monto_armado');
         });
 
+        // REGLA: todo ticket SIN cliente (cliente_id NULL = trabajo de la tienda) queda como no comisionable
         DB::table('tickets_taller')->whereNull('cliente_id')->update(['comisionable' => false]);
+
+        // el deploy avisa cuantos quedaron de cada tipo (incluye eliminados: la regla corre sobre todas las filas)
+        if (! app()->runningUnitTests()) {
+            $tienda = DB::table('tickets_taller')->where('comisionable', false)->count();
+            $comisionables = DB::table('tickets_taller')->where('comisionable', true)->count();
+            (new \Symfony\Component\Console\Output\ConsoleOutput())->writeln("  comisionable: {$tienda} ticket(s) quedaron como TIENDA (sin cliente, no comisionan) y {$comisionables} como COMISIONABLES.");
+        }
     }
 
     public function down(): void
