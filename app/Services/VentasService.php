@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  */
 class VentasService
 {
-    public const RANGOS = ['hoy', '7_dias', '14_dias', 'mes', 'libre'];
+    public const RANGOS = ['hoy', '7_dias', '14_dias', 'mes', 'semana_pasada', 'mes_anterior', 'libre'];
 
     public const ORIGEN_TIENDA = 'tienda';
 
@@ -47,6 +47,10 @@ class VentasService
             '7_dias' => [$hoy->copy()->subDays(6), $hoy],
             '14_dias' => [$hoy->copy()->subDays(13), $hoy],
             'mes' => [$hoy->copy()->startOfMonth(), $hoy],
+            // lunes a domingo de la semana anterior
+            'semana_pasada' => [$hoy->copy()->startOfWeek(Carbon::MONDAY)->subWeek(), $hoy->copy()->startOfWeek(Carbon::MONDAY)->subDay()->startOfDay()],
+            // mes calendario anterior completo (subMonthNoOverflow: 31/03 -> febrero, no marzo)
+            'mes_anterior' => [$hoy->copy()->subMonthNoOverflow()->startOfMonth(), $hoy->copy()->subMonthNoOverflow()->endOfMonth()->startOfDay()],
             'libre' => [Carbon::parse($desde)->startOfDay(), Carbon::parse($hasta)->startOfDay()],
             default => [$hoy, $hoy],
         };

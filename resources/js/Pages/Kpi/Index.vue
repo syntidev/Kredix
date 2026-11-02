@@ -1,6 +1,6 @@
 <script setup>
 import { computed, defineAsyncComponent, ref } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { ChevronDown, TrendingDown, TrendingUp, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import RangoFechas from '../../Components/RangoFechas.vue';
@@ -118,6 +118,10 @@ function cambiarRangoTaller({ rango, desde, hasta }) {
     router.get('/kpi', params, { preserveState: true, preserveScroll: true, replace: true });
 }
 
+// el detalle arranca cerrado en movil y abierto en pantallas anchas
+const detalleAbierto = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches;
+const fechaCorta = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+
 const COLUMNAS_COMISION = [
     { clave: 'servicio_base', etiqueta: 'Servicio base' },
     { clave: 'repuestos_base', etiqueta: 'Repuestos base' },
@@ -209,6 +213,47 @@ const CONTADORES = [
                         </div>
                     </div>
                 </div>
+                <!-- detalle para cotejar a mano: su suma es la base de los totales (los de la tienda van en «—») -->
+                <details class="rounded-card bg-white shadow-card" :open="detalleAbierto" data-detalle-taller>
+                    <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-2 px-4 text-sm font-semibold text-kredix-negro">
+                        <span>Detalle del rango</span>
+                        <span class="text-xs font-normal text-kredix-gris">{{ kpiTaller.detalle.length }} ticket{{ kpiTaller.detalle.length === 1 ? '' : 's' }}</span>
+                    </summary>
+                    <div class="overflow-x-auto px-2 pb-3">
+                        <table class="w-full min-w-[460px] text-left text-sm">
+                            <thead>
+                                <tr class="text-xs text-kredix-gris">
+                                    <th class="px-2 py-2 font-medium">Ticket</th>
+                                    <th class="px-2 py-2 font-medium">Cierre</th>
+                                    <th class="px-2 py-2 font-medium">Técnico</th>
+                                    <th class="px-2 py-2 text-right font-medium">Servicio</th>
+                                    <th class="px-2 py-2 text-right font-medium">Repuestos</th>
+                                    <th class="px-2 py-2 font-medium">Clase</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="d in kpiTaller.detalle" :key="d.id" class="border-t border-gray-100">
+                                    <td class="px-2 py-2 text-kredix-negro">
+                                        <Link :href="`/taller/${d.id}`" class="underline">#{{ d.id }}</Link>
+                                    </td>
+                                    <td class="whitespace-nowrap px-2 py-2 text-kredix-negro">{{ d.aproximada ? '~' : '' }}{{ fechaCorta(d.fecha) }}</td>
+                                    <td class="px-2 py-2 text-kredix-negro">{{ d.mecanico }}</td>
+                                    <td class="tabular-nums px-2 py-2 text-right text-kredix-negro">{{ d.servicio === null ? '—' : formatMoney(d.servicio) }}</td>
+                                    <td class="tabular-nums px-2 py-2 text-right text-kredix-negro">{{ d.repuestos === null ? '—' : formatMoney(d.repuestos) }}</td>
+                                    <td class="px-2 py-2 text-xs font-semibold" :class="d.clase === 'normal' ? 'text-kredix-gris' : 'text-amber-700'">{{ d.clase }}</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="border-t-2 border-gray-200 font-semibold">
+                                    <td class="px-2 py-2 text-kredix-negro" colspan="3">Total (base)</td>
+                                    <td class="tabular-nums px-2 py-2 text-right text-kredix-negro">{{ formatMoney(kpiTaller.totales.servicio_base) }}</td>
+                                    <td class="tabular-nums px-2 py-2 text-right text-kredix-negro">{{ formatMoney(kpiTaller.totales.repuestos_base) }}</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </details>
             </template>
         </template>
 

@@ -31,9 +31,30 @@ class ComisionesTaller
             'porMecanico' => $filas,
             'totales' => self::totales($filas),
             'porcentajes' => ['servicio' => $pctServicio, 'repuestos' => $pctRepuestos],
+            'detalle' => self::detalle($tickets),
             // atendido_en estimado (no registrado en el momento): el rango puede no ser exacto para ellos
             'tickets_fecha_aprox' => $tickets->where('atendido_en_aprox', true)->count(),
         ];
+    }
+
+    // Una fila por ticket para cotejar a mano. Los de la tienda no entran a la base: sus montos van
+    // en null (se muestran "—") para que la suma de las columnas sea exactamente la base de los totales
+    private static function detalle(Collection $tickets): Collection
+    {
+        return $tickets->sortBy([['atendido_en', 'asc'], ['id', 'asc']])->map(function (TicketTaller $t) {
+            $servicio = self::centavos((float) $t->monto_servicio + (float) $t->monto_armado);
+            $clase = ! $t->comisionable ? 'TIENDA' : ($servicio === 0 ? 'CORTESIA' : 'normal');
+
+            return [
+                'id' => $t->id,
+                'fecha' => $t->atendido_en->format('Y-m-d'),
+                'aproximada' => (bool) $t->atendido_en_aprox,
+                'mecanico' => $t->mecanico?->name ?? 'Sin asignar',
+                'servicio' => $t->comisionable ? $servicio / 100.0 : null,
+                'repuestos' => $t->comisionable ? self::centavos($t->totalRepuestos()) / 100.0 : null,
+                'clase' => $clase,
+            ];
+        })->values();
     }
 
     private static function fila(Collection $grupo, float $pctServicio, float $pctRepuestos): array

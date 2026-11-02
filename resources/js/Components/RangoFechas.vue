@@ -21,6 +21,8 @@ const PRESETS = [
     { valor: '7_dias', etiqueta: '7 días' },
     { valor: '14_dias', etiqueta: '14 días' },
     { valor: 'mes', etiqueta: 'Este mes' },
+    { valor: 'semana_pasada', etiqueta: 'Semana pasada' },
+    { valor: 'mes_anterior', etiqueta: 'Mes anterior' },
 ];
 
 const libreAbierto = ref(props.rango === 'libre');
