@@ -33,3 +33,12 @@ DataProspectos/
 # en app/ y resources/, y se desactualizan solos)
 .doc/auditoria-taller-2026-10-06/*
 !.doc/auditoria-taller-2026-10-06/INFORME.md
+
+# Artefactos temporales de verificacion en navegador (Playwright) y mockups de trabajo
+.playwright-mcp/
+/[A-D][0-9]_*.png
+/nuevo_*.png
+/cargo_movil.png
+/cliente4.png
+.doc/mockups-*/
+/kpi_*.png

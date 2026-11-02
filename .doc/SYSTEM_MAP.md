@@ -293,3 +293,31 @@ No son pendientes activos: nada de esto se implementa sin decision de Carlos.
 *Actualizacion del 2026-10-06 sobre la version consolidada del 2026-09-09. Los estados
 marcados [sin verificar] no se pudieron confirmar con git ni con archivos del repo y
 quedan pendientes de confirmacion por Carlos.*
+
+---
+
+## Estado de la rama `feat/taller-cierre-comisiones-entregas` (2026-11-02)
+
+- **Rama:** `feat/taller-cierre-comisiones-entregas`, sobre `main` en `e9b0cc2`, pusheada. **NO mergeada, NO desplegada.**
+  Produccion sigue en `e9b0cc2`. Pendiente: **deploy unico** (un solo `git pull` + `migrate --force`).
+- **Lo hecho en la rama (sin certificar):**
+  - Taller: la foto de salida ya no es obligatoria al cerrar; tecnico por defecto configurable; el boton de
+    crear muestra el tecnico elegido; "Siguiente" de Taller/Show ahora sigue el orden del listado
+    (`FechaCompromiso::ordenarListado`, sin filtros).
+  - KPI Taller: comisiones por tecnico (`taller_comision_servicio_pct` 50 y `taller_comision_repuestos_pct` 5, editables
+    por admin en Configuracion > Taller), clasificacion normal/CORTESIA/TIENDA, columna `tickets_taller.comisionable`,
+    selector `RangoFechas` con "Semana pasada" y "Mes anterior", tabla "Detalle del rango" para cotejar a mano.
+    Caso de cotejo real (VPS, semana 26/10-01/11, Carlos Rojas): servicio base 120.00 -> 60.00; repuestos 78.00 -> 3.90; total 63.90
+    (cubierto por `LoteCierreTest`).
+  - Entregas pendientes: `movimientos_cuenta.pendiente_entrega/entregado_en/entregado_por`, bloque "Por entregar" en Inicio.
+  - Fotos: `FotoInput.vue` (camara + galeria en tactil, un boton en escritorio) y compresion en el cliente. Excepcion
+    intencional: `Configuracion/Index.vue` (logo y banners).
+  - Presupuesto WhatsApp: `{monto_servicio}` ya incluye el armado (servicio + repuestos = total); cubierto por `PresupuestoWhatsappTest`.
+- **Migraciones nuevas de la rama:** `2026_11_01_100000_add_comisionable_to_tickets_taller` y
+  `2026_11_01_110000_add_entrega_to_movimientos_cuenta`. Orden de deploy: `git pull` y `php artisan migrate --force` seguidos,
+  antes de los comandos de cache.
+- **NO verificado aqui:** produccion, Safari/iOS, PWA instalada, camara fisica iOS/Android, HEIC en dispositivo real.
+- **Certificacion:** ningun modulo queda certificado por este trabajo. El criterio 6 de la Regla del Policia exige la
+  aprobacion visual de Carlos en vivo (local o VPS real).
+- **Aviso de higiene:** `main` local quedo 6 commits adelante de `origin/main` con los mismos commits de la rama
+  (sin push). Origen sin determinar; no se hizo merge a proposito.

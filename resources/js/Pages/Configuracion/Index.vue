@@ -294,13 +294,13 @@ function onLogoChange(event) {
             </div>
 
             <div class="flex flex-col gap-1">
-                <label for="taller-com-servicio" class="text-sm font-medium text-kredix-negro">Comisión del técnico sobre servicio (%)</label>
+                <label for="taller-com-servicio" class="text-sm font-medium text-kredix-negro">Comisión del técnico: % sobre servicio + armado</label>
                 <input id="taller-com-servicio" v-model="ajustesTallerForm.comision_servicio_pct" type="number" inputmode="decimal" min="0" max="100" step="0.01" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 <p v-if="ajustesTallerForm.errors.comision_servicio_pct" class="text-sm text-kredix-rojo">{{ ajustesTallerForm.errors.comision_servicio_pct }}</p>
             </div>
 
             <div class="flex flex-col gap-1">
-                <label for="taller-com-repuestos" class="text-sm font-medium text-kredix-negro">Comisión del técnico sobre repuestos (%)</label>
+                <label for="taller-com-repuestos" class="text-sm font-medium text-kredix-negro">Comisión del técnico: % sobre repuestos</label>
                 <input id="taller-com-repuestos" v-model="ajustesTallerForm.comision_repuestos_pct" type="number" inputmode="decimal" min="0" max="100" step="0.01" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 <p v-if="ajustesTallerForm.errors.comision_repuestos_pct" class="text-sm text-kredix-rojo">{{ ajustesTallerForm.errors.comision_repuestos_pct }}</p>
             </div>
