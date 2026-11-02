@@ -321,3 +321,33 @@ quedan pendientes de confirmacion por Carlos.*
   aprobacion visual de Carlos en vivo (local o VPS real).
 - **Aviso de higiene:** `main` local quedo 6 commits adelante de `origin/main` con los mismos commits de la rama
   (sin push). Origen sin determinar; no se hizo merge a proposito.
+
+### Venta de contado y seriales de producto (rama `feat/taller-cierre-comisiones-entregas`, 2026-11-02)
+
+- **Causa del 422 en producción:** `MovimientoCuentaController::store` hacía `abort_if(monto_inicial >= montoTotal, 422, ...)`
+  para toda venta financiada. Con inicial == total (los artículos Garmin de contado que se cargaban como "financiada" solo
+  para guardar el serial) devolvía la página "Oops! An Error Occurred". Reproducido con una prueba antes del arreglo.
+- **Venta de contado:** inicial == total (o el interruptor "De contado (pago completo)") no crea plan ni cuotas: crea el cargo
+  (`es_contado = true`) y UN abono por el total por el mismo camino que la inicial de un plan (`registrarPagoInicial`), con
+  tasa por transacción, `registrado_por` y ActivityLog `venta_contado`. Inicial > total → 422 "La inicial (…) no puede ser mayor
+  al total de la venta (…)" en el campo `monto_inicial`. Inicial < total: sin cambios (plan + cuotas).
+  Las filas de contado (cargo y abono) quedan FUERA de: KPI (otorgado/cobrado/antigüedad/salud/actividad), "último abono" de
+  mora y Cartelera, y otorgado/cobrado/último abono de la cartera por cliente. SÍ cuentan en el panel Ventas (etiqueta "Contado")
+  y en el cierre del día de Inicio (es dinero real cobrado hoy).
+- **Seriales:** tabla `seriales_producto` (una fila por unidad; normalizado trim + MAYÚSCULAS; soft-delete). La unicidad de los
+  vigentes se valida en la aplicación dentro de la transacción y la respalda un índice único sobre la columna generada
+  `serial_vigente` (`CASE WHEN deleted_at IS NULL THEN serial END`; MySQL 8 y sqlite). Al eliminar la línea de cargo sus
+  seriales quedan libres. Corregir/crear/liberar un serial queda en ActivityLog (`serial_creado`, `serial_editado`, `serial_liberado`).
+  **La devolución (`ajuste_devolucion`) NO guarda a qué línea corresponde, así que no libera seriales** (no se adivina).
+- **Catálogo:** `productos.lleva_serial` se actualiza con la casilla de cada venta y sale marcado la próxima vez
+  (`/productos?q=…&detalle=1`). El buscador `/clientes?q=` y `/clientes/buscar` también encuentran por serial.
+- **Migraciones nuevas de este bloque (todas aditivas):** `2026_11_02_100000_add_es_contado_to_movimientos_cuenta`,
+  `2026_11_02_110000_create_seriales_producto_table`, `2026_11_02_120000_add_lleva_serial_to_productos`.
+- **Migración `2026_11_01_100000_add_comisionable_to_tickets_taller`:** regla = todo ticket SIN cliente (`cliente_id` NULL =
+  trabajo de la tienda) queda `comisionable = false`; el resto `true`. Ahora imprime al migrar cuántos quedaron como TIENDA y
+  cuántos como COMISIONABLES (en local: 7 y 15). `down()` borra la columna (probado en local).
+- **Línea base de pruebas:** `e9b0cc2` = 27 fallas / 229 pasan; la rama = 27 fallas / 285+ pasan; mismos 27 nombres, ninguno nuevo.
+  Las 27 (Auth, Profile, TasaBcv) son de entorno: la migración `replace_procesado_con_estado_en_prospectos_200k` hace
+  `drop column` sobre una columna indexada y sqlite en memoria no lo soporta (afecta a todo test con `RefreshDatabase`).
+- **Pendiente:** deploy único (`git pull` + `migrate --force` seguidos). Ningún módulo queda certificado: falta la aprobación
+  visual de Carlos (criterio 6). No verificado aquí: producción, Safari/iOS, PWA, dispositivos físicos.
