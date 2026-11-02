@@ -475,26 +475,15 @@ class TallerController extends Controller
     {
         $ticket->load(['cliente:id,nombre,telefono', 'mecanico:id,name', 'registradoPor:id,name', 'revisadoPor:id,name', 'textoClienteAprobadoPor:id,name', 'repuestos']);
 
-        // mismo orden que el listado (TallerController::index(),
-        // orderByDesc('created_at') + orderByDesc('id')) -- comparacion por
-        // tupla (created_at, id), no solo created_at: tickets reales
-        // comparten el mismo created_at exacto (al segundo), con solo
-        // created_at la query no encontraba nada y el boton quedaba
-        // deshabilitado en todos. "Siguiente" = el que sigue mas abajo en
-        // una lista descendente por (created_at, id)
-        $siguienteTicket = TicketTaller::where(function ($query) use ($ticket) {
-            $query->where('created_at', '<', $ticket->created_at)
-                ->orWhere(function ($query) use ($ticket) {
-                    $query->where('created_at', $ticket->created_at)
-                        ->where('id', '<', $ticket->id);
-                });
-        })
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->first(['id']);
+        // "Siguiente" = el que sigue en el listado (Taller/Index SIN filtros): mismo orden que index(),
+        // FechaCompromiso::ordenarListado (en proceso por fecha de compromiso, luego los atendidos).
+        // Se toman los ids en ese orden y se avanza una posicion; el orden no se re-implementa aqui
+        $ids = FechaCompromiso::ordenarListado(TicketTaller::query())->pluck('id');
+        $posicion = $ids->search($ticket->id);
+        $siguienteTicketId = $posicion === false ? null : $ids->get($posicion + 1);
 
         return Inertia::render('Taller/Show', [
-            'siguienteTicketId' => $siguienteTicket?->id,
+            'siguienteTicketId' => $siguienteTicketId,
             'mensajesWhatsapp' => $this->mensajesWhatsapp($ticket),
             'compromisoConfig' => FechaCompromiso::configuracion(),
             'ticket' => [
