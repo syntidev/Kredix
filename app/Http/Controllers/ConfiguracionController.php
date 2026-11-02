@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Configuracion;
 use App\Models\ConfiguracionPdf;
 use App\Services\ImagenUploadService;
+use App\Services\Taller\AjustesTaller;
 use App\Services\Taller\PlantillasWhatsapp;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class ConfiguracionController extends Controller
@@ -35,6 +37,13 @@ class ConfiguracionController extends Controller
                 'texto' => PlantillasWhatsapp::texto($campo),
                 'defecto' => PlantillasWhatsapp::defecto($campo),
             ])->values(),
+            // pestana Taller: solo admin edita; el dato no viaja a quien no lo ve
+            'ajustesTaller' => request()->user()->es_admin ? [
+                'tecnicos' => AjustesTaller::tecnicos(),
+                'tecnico_defecto_id' => AjustesTaller::tecnicoDefectoId(),
+                'comision_servicio_pct' => AjustesTaller::comisionServicioPct(),
+                'comision_repuestos_pct' => AjustesTaller::comisionRepuestosPct(),
+            ] : null,
             'tasaBcvActual' => Configuracion::valorDe('tasa_bcv_actual'),
             'pdfMensajeGlobal' => Configuracion::valorDe('pdf_mensaje_global'),
             'bannerSuperiorUrl' => ConfiguracionPdf::instancia()->getFirstMediaUrl('banner_superior', 'pdf') ?: null,
@@ -102,6 +111,32 @@ class ConfiguracionController extends Controller
                 ['clave' => $definicion['clave']],
                 ['valor' => $texto === trim(PlantillasWhatsapp::defecto($campo)) ? null : $texto]
             );
+        }
+
+        return redirect()->route('configuracion.index');
+    }
+
+    // pestana Taller (solo admin): tecnico por defecto y porcentajes de comision del KPI
+    public function updateTaller(Request $request)
+    {
+        abort_unless($request->user()->es_admin, 403);
+
+        $validated = $request->validate([
+            'tecnico_defecto_id' => ['nullable', Rule::exists('users', 'id')->where('rol_taller', 1)->where('es_oculto', 0)],
+            'comision_servicio_pct' => ['required', 'numeric', 'between:0,100'],
+            'comision_repuestos_pct' => ['required', 'numeric', 'between:0,100'],
+        ], [
+            'comision_servicio_pct.between' => 'El porcentaje debe estar entre 0 y 100.',
+            'comision_repuestos_pct.between' => 'El porcentaje debe estar entre 0 y 100.',
+            'tecnico_defecto_id.exists' => 'Elige un técnico válido.',
+        ]);
+
+        foreach ([
+            AjustesTaller::CLAVE_TECNICO_DEFECTO => $validated['tecnico_defecto_id'] ?? null,
+            AjustesTaller::CLAVE_COMISION_SERVICIO => $validated['comision_servicio_pct'],
+            AjustesTaller::CLAVE_COMISION_REPUESTOS => $validated['comision_repuestos_pct'],
+        ] as $clave => $valor) {
+            Configuracion::updateOrCreate(['clave' => $clave], ['valor' => $valor]);
         }
 
         return redirect()->route('configuracion.index');

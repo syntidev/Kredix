@@ -13,6 +13,7 @@ use App\Services\ImagenUploadService;
 use App\Services\Taller\FechaCompromiso;
 use App\Services\Taller\Funciones;
 use App\Services\Taller\InformeRevision;
+use App\Services\Taller\AjustesTaller;
 use App\Services\Taller\PlantillasWhatsapp;
 use App\Services\Taller\PresupuestoWhatsapp;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -317,6 +318,7 @@ class TallerController extends Controller
             'funciones' => Funciones::paraPantalla(),
             'maxFotos' => config('taller.max_fotos'),
             'mecanicos' => $this->mecanicosOpciones(),
+            'tecnicoDefectoId' => AjustesTaller::tecnicoDefectoId(),
             'compromisoConfig' => FechaCompromiso::configuracion(),
         ]);
     }
@@ -899,9 +901,7 @@ class TallerController extends Controller
             return back()->withErrors(['fotos_entrada' => 'Falta al menos 1 foto de entrada para poder marcar el ticket como atendido.']);
         }
 
-        if ($ticket->getMedia('salida')->isEmpty()) {
-            return back()->withErrors(['fotos_salida' => 'Falta al menos 1 foto de salida para poder marcar el ticket como atendido.']);
-        }
+        // la foto de salida es opcional (autorizado por Carlos 2026-11-01)
 
         // un armado sin cliente o sin monto no cobra nada, no aplica -- la
         // decision explicita solo se exige si el ticket se cobra

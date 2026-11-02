@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion.index');
     Route::put('/configuracion/whatsapp', [ConfiguracionController::class, 'updateWhatsapp'])->name('configuracion.whatsapp');
     Route::put('/configuracion/whatsapp-taller', [ConfiguracionController::class, 'updateWhatsappTaller'])->name('configuracion.whatsapp-taller');
+    Route::put('/configuracion/taller', [ConfiguracionController::class, 'updateTaller'])->name('configuracion.taller');
     Route::put('/configuracion/estado-cuenta', [ConfiguracionController::class, 'updateEstadoCuenta'])->name('configuracion.estado-cuenta');
     Route::post('/configuracion/pdf/banner/{coleccion}', [ConfiguracionController::class, 'subirBannerPdf'])->name('configuracion.pdf.banner.store');
     Route::delete('/configuracion/pdf/banner/{coleccion}', [ConfiguracionController::class, 'quitarBannerPdf'])->name('configuracion.pdf.banner.destroy');

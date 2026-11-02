@@ -17,6 +17,8 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     mecanicos: { type: Array, required: true },
+    // tecnico preseleccionado (ajuste de Configuracion o el primero elegible); null si no hay tecnicos
+    tecnicoDefectoId: { type: Number, default: null },
     // etiquetas de paquete y categoria desde config('taller') (fuente unica)
     etiquetas: { type: Object, required: true },
     maxFotos: { type: Number, required: true },
@@ -41,7 +43,7 @@ const form = useForm({
     monto_servicio: MONTOS_SERVICIO.basico,
     incluye_armado: false,
     monto_armado: '',
-    mecanico_id: '',
+    mecanico_id: props.tecnicoDefectoId ?? '',
     fecha_compromiso: props.compromisoConfig.defecto,
     fotos_entrada: [],
 });
@@ -232,6 +234,12 @@ const razonNoGuardar = computed(() => {
     if (!esTienda.value && !form.cliente_id) return props.funciones.trabajo_tienda ? 'Elige un cliente o marca "Trabajo de la tienda".' : 'Elige un cliente.';
     if (!esVip.value && fotosLocales.value.length === 0) return 'Sube al menos 1 foto de entrada para guardar el ticket.';
     return '';
+});
+
+// el boton nombra al tecnico elegido: una asignacion por defecto equivocada no pasa en silencio
+const etiquetaGuardar = computed(() => {
+    const tecnico = props.mecanicos.find((m) => m.id === form.mecanico_id);
+    return tecnico ? `Crear ticket · Técnico: ${tecnico.name}` : 'Crear ticket';
 });
 
 function submit() {
@@ -440,6 +448,7 @@ function submit() {
                     <option value="" disabled>Selecciona...</option>
                     <option v-for="m in mecanicos" :key="m.id" :value="m.id">{{ m.name }}</option>
                 </select>
+                <p v-if="!mecanicos.length" class="text-sm text-kredix-rojo">No hay técnicos disponibles. Marca a un usuario con rol de taller en Usuarios.</p>
                 <p v-if="form.errors.mecanico_id" class="text-sm text-kredix-rojo">{{ form.errors.mecanico_id }}</p>
             </div>
 
@@ -472,7 +481,7 @@ function submit() {
                     class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     :disabled="form.processing || !!razonNoGuardar"
                 >
-                    Guardar ticket
+                    {{ etiquetaGuardar }}
                 </button>
             </div>
             <p v-if="razonNoGuardar" class="text-sm text-kredix-gris">{{ razonNoGuardar }}</p>

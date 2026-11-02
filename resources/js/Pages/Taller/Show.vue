@@ -629,7 +629,6 @@ function marcarAtendido(confirmacion = null) {
 }
 
 const faltaFotoEntrada = computed(() => props.ticket.fotos_entrada.length === 0);
-const faltaFotoSalida = computed(() => props.ticket.fotos_salida.length === 0);
 // revision con al menos 1 accion basta: el backend genera el texto al cerrar
 const faltaTrabajoRealizado = computed(() => !props.ticket.trabajo_realizado?.trim() && !props.ticket.revision);
 // no bloquea el cierre, pero se avisa: ese texto no sale en el PDF
@@ -638,7 +637,7 @@ const avisoTextoCliente = computed(() => ({
     desactualizado: 'La revisión cambió después de aprobar el texto para el cliente: no saldrá en el PDF hasta que lo revises y lo guardes de nuevo.',
 }[textoCliente.value.estado] ?? ''));
 const faltaPagoElegido = computed(() => seCobra.value && pagadoEnTaller.value === null);
-const puedeMarcarAtendido = computed(() => !faltaFotoEntrada.value && !faltaFotoSalida.value && !faltaTrabajoRealizado.value && !faltaPagoElegido.value);
+const puedeMarcarAtendido = computed(() => !faltaFotoEntrada.value &&!faltaTrabajoRealizado.value && !faltaPagoElegido.value);
 
 // lista en vez de cadena de if/else-if -- con 4 condiciones posibles la
 // combinatoria de frases hechas a mano se vuelve inmanejable (gap real:
@@ -648,7 +647,6 @@ const itemsFaltantesParaCerrar = computed(() => {
     const items = [];
     if (faltaTrabajoRealizado.value) items.push('hacer la revisión técnica o escribir el texto para el cliente');
     if (faltaFotoEntrada.value) items.push('subir al menos 1 foto de entrada');
-    if (faltaFotoSalida.value) items.push('subir al menos 1 foto de salida');
     if (faltaPagoElegido.value) items.push('indicar si se pago en el momento');
     return items;
 });

@@ -15,6 +15,8 @@ const props = defineProps({
     whatsappPlantillaActiva: { type: String, default: '1' },
     // bloque "Taller": [{ campo, etiqueta, variables, texto (vigente), defecto (original) }]
     plantillasTaller: { type: Array, default: () => [] },
+    // solo admin: { tecnicos, tecnico_defecto_id, comision_servicio_pct, comision_repuestos_pct }; null para el resto
+    ajustesTaller: { type: Object, default: null },
     pdfMensajeGlobal: { type: String, default: null },
     bannerSuperiorUrl: { type: String, default: null },
     bannerInferiorUrl: { type: String, default: null },
@@ -31,7 +33,21 @@ const TABS = [
     { id: 'whatsapp', label: 'WhatsApp' },
     { id: 'estado_cuenta', label: 'Estado de cuenta' },
     { id: 'empresa', label: 'Datos de la empresa' },
+    ...(props.ajustesTaller ? [{ id: 'taller', label: 'Taller' }] : []),
 ];
+
+// pestana Taller (admin): tecnico por defecto y porcentajes de comision del KPI
+const ajustesTallerForm = useForm({
+    tecnico_defecto_id: props.ajustesTaller?.tecnico_defecto_id ?? '',
+    comision_servicio_pct: props.ajustesTaller?.comision_servicio_pct ?? 50,
+    comision_repuestos_pct: props.ajustesTaller?.comision_repuestos_pct ?? 5,
+});
+
+function guardarAjustesTaller() {
+    ajustesTallerForm.transform((data) => ({ ...data, tecnico_defecto_id: data.tecnico_defecto_id || null, _method: 'put' })).post('/configuracion/taller', {
+        preserveScroll: true,
+    });
+}
 
 const tabActivo = ref('whatsapp');
 
@@ -258,6 +274,38 @@ function onLogoChange(event) {
             </div>
 
             <button type="submit" class="min-h-11 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="tallerForm.processing">
+                Guardar
+            </button>
+        </form>
+
+        <form
+            v-if="tabActivo === 'taller' && ajustesTaller"
+            class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-card bg-white p-4 shadow-card"
+            @submit.prevent="guardarAjustesTaller"
+        >
+            <div class="flex flex-col gap-1">
+                <label for="taller-tecnico" class="text-sm font-medium text-kredix-negro">Técnico por defecto</label>
+                <p class="text-xs text-kredix-gris">Queda preseleccionado en «Nuevo ticket». Sin elegir, se usa el primero de la lista.</p>
+                <select id="taller-tecnico" v-model="ajustesTallerForm.tecnico_defecto_id" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                    <option value="">Primero de la lista</option>
+                    <option v-for="t in ajustesTaller.tecnicos" :key="t.id" :value="t.id">{{ t.name }}</option>
+                </select>
+                <p v-if="ajustesTallerForm.errors.tecnico_defecto_id" class="text-sm text-kredix-rojo">{{ ajustesTallerForm.errors.tecnico_defecto_id }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label for="taller-com-servicio" class="text-sm font-medium text-kredix-negro">Comisión del técnico sobre servicio (%)</label>
+                <input id="taller-com-servicio" v-model="ajustesTallerForm.comision_servicio_pct" type="number" inputmode="decimal" min="0" max="100" step="0.01" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <p v-if="ajustesTallerForm.errors.comision_servicio_pct" class="text-sm text-kredix-rojo">{{ ajustesTallerForm.errors.comision_servicio_pct }}</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label for="taller-com-repuestos" class="text-sm font-medium text-kredix-negro">Comisión del técnico sobre repuestos (%)</label>
+                <input id="taller-com-repuestos" v-model="ajustesTallerForm.comision_repuestos_pct" type="number" inputmode="decimal" min="0" max="100" step="0.01" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <p v-if="ajustesTallerForm.errors.comision_repuestos_pct" class="text-sm text-kredix-rojo">{{ ajustesTallerForm.errors.comision_repuestos_pct }}</p>
+            </div>
+
+            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="ajustesTallerForm.processing">
                 Guardar
             </button>
         </form>
