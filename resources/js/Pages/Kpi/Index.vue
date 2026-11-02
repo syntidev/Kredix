@@ -142,7 +142,7 @@ const CONTADORES = [
         <div class="flex gap-2">
             <button
                 type="button"
-                class="min-h-9 rounded-full border px-3 text-sm font-medium"
+                class="min-h-11 rounded-full border px-3 text-sm font-medium"
                 :class="seccion === 'general' ? 'border-kredix-negro bg-kredix-negro/10 text-kredix-negro' : 'border-gray-300 text-kredix-negro'"
                 @click="seccion = 'general'"
             >
@@ -150,7 +150,7 @@ const CONTADORES = [
             </button>
             <button
                 type="button"
-                class="min-h-9 rounded-full border px-3 text-sm font-medium"
+                class="min-h-11 rounded-full border px-3 text-sm font-medium"
                 :class="seccion === 'taller' ? 'border-kredix-negro bg-kredix-negro/10 text-kredix-negro' : 'border-gray-300 text-kredix-negro'"
                 @click="seccion = 'taller'"
             >

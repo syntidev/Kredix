@@ -195,7 +195,7 @@ const accionesRapidas = [
                 :key="p.id"
                 class="flex items-center gap-3 rounded-2xl bg-white px-3.5 py-3 shadow-card-sm"
             >
-                <Link :href="`/clientes/${p.clienteId}`" class="min-w-0 flex-1 active:opacity-70">
+                <Link :href="`/clientes/${p.clienteId}`" class="flex min-h-11 min-w-0 flex-1 flex-col justify-center active:opacity-70">
                     <p class="truncate text-sm font-medium text-kredix-negro">{{ p.producto }}</p>
                     <p class="truncate text-[11px] text-kredix-gris">{{ p.clienteNombre }} · {{ formatMoney(p.monto) }} · {{ haceDias(p.dias) }}</p>
                 </Link>
