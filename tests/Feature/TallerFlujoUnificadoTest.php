@@ -310,14 +310,16 @@ class TallerFlujoUnificadoTest extends TestCase
         $m = new \ReflectionMethod($c, 'kpiTaller');
         $m->setAccessible(true);
 
-        return (float) $m->invoke($c, \Illuminate\Http\Request::create('/kpi'))['totales']['monto_servicio'];
+        return (float) $m->invoke($c, \Illuminate\Http\Request::create('/kpi'))['totales']['servicio_base'];
     }
 
     public function test_el_kpi_suma_servicio_y_armado_y_la_tienda_aporta_cero(): void
     {
-        $this->ticket(['estado' => 'atendido', 'incluye_armado' => true, 'monto_armado' => 25]); // 15 + 25
-        $this->ticket(['estado' => 'atendido']); // 15, sin armado: no cambia
-        $this->tienda(['estado' => 'atendido']); // 0
+        // atendido_en no es fillable (lo asigna marcarAtendido): se fuerza aqui
+        $atender = fn (TicketTaller $t) => $t->forceFill(['atendido_en' => now()])->save();
+        $atender($this->ticket(['estado' => 'atendido', 'incluye_armado' => true, 'monto_armado' => 25])); // 15 + 25
+        $atender($this->ticket(['estado' => 'atendido'])); // 15, sin armado: no cambia
+        $atender($this->tienda(['estado' => 'atendido', 'comisionable' => false])); // 0
 
         $this->assertSame(55.0, $this->montoServicioKpi());
     }

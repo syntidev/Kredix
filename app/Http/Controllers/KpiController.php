@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Models\MovimientoCuenta;
-use App\Models\TicketTaller;
 use App\Models\User;
+use App\Services\Taller\AjustesTaller;
+use App\Services\Taller\ComisionesTaller;
+use App\Services\VentasService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class KpiController extends Controller
@@ -255,44 +259,42 @@ class KpiController extends Controller
     }
 
     /**
-     * Tickets atendidos por mecanico: cantidad, SUM(monto_servicio) y
-     * SUM(repuestos) -- este ultimo via TicketTaller::totalRepuestos(),
-     * misma fuente que "Total del ticket" en Taller/Show.vue y en el cargo
-     * automatico de Fase 6, sin recalcular la logica de repuestos aqui.
+     * Comisiones del taller por tecnico y rango (ComisionesTaller). Rango: mismos presets
+     * que Ventas (VentasService::resolverRango, zona America/Caracas); por defecto el mes.
+     * Una query string invalida (rango desconocido, fechas libres incompletas) cae al
+     * mes en vez de romper el KPI y devuelve el mensaje en 'error'.
      */
     private function kpiTaller(Request $request): array
     {
-        $rango = $request->query('rango_taller');
+        $ventas = app(VentasService::class);
+        $rango = $request->query('rango_taller', 'mes');
+        $error = null;
 
-        $tickets = TicketTaller::query()
-            ->where('estado', 'atendido')
-            ->when($rango === 'hoy', fn ($q) => $q->whereDate('created_at', today()))
-            ->when($rango === 'esta_semana', fn ($q) => $q->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]))
-            ->when($rango === 'este_mes', fn ($q) => $q->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]))
-            ->with(['mecanico:id,name', 'repuestos'])
-            ->get();
+        $validador = Validator::make($request->query(), [
+            'rango_taller' => ['nullable', Rule::in(VentasService::RANGOS)],
+            'desde_taller' => $rango === 'libre' ? ['required', 'date_format:Y-m-d'] : ['nullable'],
+            'hasta_taller' => $rango === 'libre' ? ['required', 'date_format:Y-m-d', 'after_or_equal:desde_taller'] : ['nullable'],
+        ], [
+            'rango_taller.in' => 'rango no valido',
+            'desde_taller.required' => 'indica la fecha desde',
+            'hasta_taller.required' => 'indica la fecha hasta',
+            'hasta_taller.after_or_equal' => 'la fecha hasta no puede ser anterior a la fecha desde',
+            '*.date_format' => 'fecha no valida',
+        ]);
 
-        $porMecanico = $tickets->groupBy('mecanico_id')
-            ->map(function ($grupo) {
-                return [
-                    'mecanico' => $grupo->first()->mecanico?->name ?? 'Sin asignar',
-                    'tickets_atendidos' => $grupo->count(),
-                    // servicio + armado; los trabajos de la tienda no llevan montos (null suma 0)
-                    'monto_servicio' => (float) $grupo->sum(fn (TicketTaller $t) => (float) $t->monto_servicio + (float) $t->monto_armado),
-                    'monto_repuestos' => (float) $grupo->sum(fn (TicketTaller $t) => $t->totalRepuestos()),
-                ];
-            })
-            ->sortByDesc('tickets_atendidos')
-            ->values();
+        if ($validador->fails()) {
+            $error = $validador->errors()->first();
+            $rango = 'mes';
+        }
+
+        [$desde, $hasta] = $ventas->resolverRango($rango, $request->query('desde_taller'), $request->query('hasta_taller'));
 
         return [
-            'porMecanico' => $porMecanico,
-            'totales' => [
-                'tickets_atendidos' => $porMecanico->sum('tickets_atendidos'),
-                'monto_servicio' => $porMecanico->sum('monto_servicio'),
-                'monto_repuestos' => $porMecanico->sum('monto_repuestos'),
-            ],
+            ...ComisionesTaller::calcular($desde, $hasta, AjustesTaller::comisionServicioPct(), AjustesTaller::comisionRepuestosPct()),
             'rango' => $rango,
+            'desde' => $desde->toDateString(),
+            'hasta' => $hasta->toDateString(),
+            'error' => $error,
         ];
     }
 

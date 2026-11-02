@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { ChevronDown, TrendingDown, TrendingUp, Users, Wallet } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
+import RangoFechas from '../../Components/RangoFechas.vue';
 import StatCard from '../../Components/StatCard.vue';
 import { formatMoney } from '../../lib/formatMoney';
 
@@ -107,16 +108,29 @@ const saludChartOptions = computed(() => ({
 // guard es_admin de la ruta /kpi -- no crea acceso nuevo) ---
 const seccion = ref('general');
 
-const RANGOS_TALLER = [
-    { valor: null, etiqueta: 'Todos' },
-    { valor: 'hoy', etiqueta: 'Hoy' },
-    { valor: 'esta_semana', etiqueta: 'Esta semana' },
-    { valor: 'este_mes', etiqueta: 'Este mes' },
+// RangoFechas emite { rango, desde?, hasta? }; en la URL llevan sufijo _taller
+function cambiarRangoTaller({ rango, desde, hasta }) {
+    const params = { rango_taller: rango };
+    if (rango === 'libre') {
+        params.desde_taller = desde;
+        params.hasta_taller = hasta;
+    }
+    router.get('/kpi', params, { preserveState: true, preserveScroll: true, replace: true });
+}
+
+const COLUMNAS_COMISION = [
+    { clave: 'servicio_base', etiqueta: 'Servicio base' },
+    { clave: 'repuestos_base', etiqueta: 'Repuestos base' },
+    { clave: 'comision_servicio', etiqueta: 'Comisión servicio' },
+    { clave: 'comision_repuestos', etiqueta: 'Comisión repuestos' },
 ];
 
-function filtrarRangoTaller(valor) {
-    router.get('/kpi', valor ? { rango_taller: valor } : {}, { preserveState: true, preserveScroll: true, replace: true });
-}
+const CONTADORES = [
+    { clave: 'tickets_atendidos', etiqueta: 'Atendidos' },
+    { clave: 'con_cobro', etiqueta: 'Con cobro' },
+    { clave: 'cortesias', etiqueta: 'Cortesías' },
+    { clave: 'de_la_tienda', etiqueta: 'De la tienda' },
+];
 </script>
 
 <template>
@@ -145,69 +159,57 @@ function filtrarRangoTaller(valor) {
         </div>
 
         <template v-if="seccion === 'taller'">
-            <div class="flex flex-wrap gap-2">
-                <button
-                    v-for="r in RANGOS_TALLER"
-                    :key="r.etiqueta"
-                    type="button"
-                    class="min-h-9 rounded-full border px-3 text-sm font-medium"
-                    :class="kpiTaller.rango === r.valor ? 'border-kredix-negro bg-kredix-negro/10 text-kredix-negro' : 'border-gray-300 text-kredix-negro'"
-                    @click="filtrarRangoTaller(r.valor)"
-                >
-                    {{ r.etiqueta }}
-                </button>
-            </div>
+            <RangoFechas :rango="kpiTaller.rango" :desde="kpiTaller.desde" :hasta="kpiTaller.hasta" :error="kpiTaller.error" @cambiar="cambiarRangoTaller" />
 
-            <div class="rounded-card bg-white p-4 shadow-card">
-                <h2 class="mb-3 text-sm font-semibold text-kredix-negro">Productividad general — todo el taller</h2>
-                <div class="grid grid-cols-3 gap-2">
-                    <div>
-                        <p class="text-xs text-kredix-gris">Tickets atendidos</p>
-                        <p class="tabular-nums text-lg font-semibold text-kredix-negro">{{ kpiTaller.totales.tickets_atendidos }}</p>
+            <p v-if="kpiTaller.error" class="text-sm text-kredix-rojo" role="alert">{{ kpiTaller.error }}</p>
+            <p v-if="kpiTaller.tickets_fecha_aprox > 0" class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {{ kpiTaller.tickets_fecha_aprox }} ticket(s) de este rango tienen fecha de atención aproximada: el corte por fecha puede no ser exacto.
+            </p>
+            <p class="text-xs text-kredix-gris">
+                Comisión: {{ kpiTaller.porcentajes.servicio }}% del servicio (con armado) y {{ kpiTaller.porcentajes.repuestos }}% de los repuestos. Los tickets «de la tienda» no comisionan; una cortesía (servicio $0) solo comisiona repuestos.
+            </p>
+
+            <p v-if="kpiTaller.porMecanico.length === 0" class="rounded-card bg-white p-4 text-sm text-kredix-gris shadow-card">Sin tickets atendidos en este rango.</p>
+
+            <template v-else>
+                <div v-for="m in kpiTaller.porMecanico" :key="m.mecanico" class="rounded-card bg-white p-4 shadow-card">
+                    <div class="mb-3 flex items-baseline justify-between gap-2">
+                        <h2 class="min-w-0 truncate text-sm font-semibold text-kredix-negro">{{ m.mecanico }}</h2>
+                        <p class="tabular-nums text-lg font-semibold text-kredix-negro">{{ formatMoney(m.total) }}</p>
                     </div>
-                    <div>
-                        <p class="text-xs text-kredix-gris">Monto servicio</p>
-                        <p class="tabular-nums text-lg font-semibold text-kredix-negro">{{ formatMoney(kpiTaller.totales.monto_servicio) }}</p>
+                    <div class="mb-3 grid grid-cols-4 gap-2">
+                        <div v-for="c in CONTADORES" :key="c.clave">
+                            <p class="text-[11px] leading-tight text-kredix-gris">{{ c.etiqueta }}</p>
+                            <p class="tabular-nums text-base font-semibold text-kredix-negro">{{ m[c.clave] }}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-xs text-kredix-gris">Monto repuestos</p>
-                        <p class="tabular-nums text-lg font-semibold text-kredix-negro">{{ formatMoney(kpiTaller.totales.monto_repuestos) }}</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div v-for="c in COLUMNAS_COMISION" :key="c.clave">
+                            <p class="text-xs text-kredix-gris">{{ c.etiqueta }}</p>
+                            <p class="tabular-nums text-sm font-semibold text-kredix-negro">{{ formatMoney(m[c.clave]) }}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="rounded-card bg-white p-4 shadow-card">
-                <h2 class="mb-3 text-sm font-semibold text-kredix-negro">Por mecanico</h2>
-                <p v-if="kpiTaller.porMecanico.length === 0" class="text-sm text-kredix-gris">Sin tickets atendidos en este rango.</p>
-                <div v-else class="overflow-x-auto">
-                    <table class="w-full min-w-[480px] text-left text-sm">
-                        <thead>
-                            <tr class="text-xs text-kredix-gris">
-                                <th class="px-3 py-2 font-medium">Mecanico</th>
-                                <th class="px-3 py-2 text-right font-medium">Tickets</th>
-                                <th class="px-3 py-2 text-right font-medium">Servicio</th>
-                                <th class="px-3 py-2 text-right font-medium">Repuestos</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="m in kpiTaller.porMecanico" :key="m.mecanico" class="border-t border-gray-100">
-                                <td class="px-3 py-2 text-kredix-negro">{{ m.mecanico }}</td>
-                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ m.tickets_atendidos }}</td>
-                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ formatMoney(m.monto_servicio) }}</td>
-                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ formatMoney(m.monto_repuestos) }}</td>
-                            </tr>
-                        </tbody>
-                        <tfoot>
-                            <tr class="border-t-2 border-gray-200 font-semibold">
-                                <td class="px-3 py-2 text-kredix-negro">Total</td>
-                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ kpiTaller.totales.tickets_atendidos }}</td>
-                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ formatMoney(kpiTaller.totales.monto_servicio) }}</td>
-                                <td class="tabular-nums px-3 py-2 text-right text-kredix-negro">{{ formatMoney(kpiTaller.totales.monto_repuestos) }}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                <div class="rounded-card bg-kredix-negro p-4 text-white shadow-card">
+                    <div class="mb-3 flex items-baseline justify-between gap-2">
+                        <h2 class="text-sm font-semibold">Total a pagar — todo el taller</h2>
+                        <p class="tabular-nums text-lg font-semibold">{{ formatMoney(kpiTaller.totales.total) }}</p>
+                    </div>
+                    <div class="mb-3 grid grid-cols-4 gap-2">
+                        <div v-for="c in CONTADORES" :key="c.clave">
+                            <p class="text-[11px] leading-tight text-white/70">{{ c.etiqueta }}</p>
+                            <p class="tabular-nums text-base font-semibold">{{ kpiTaller.totales[c.clave] }}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div v-for="c in COLUMNAS_COMISION" :key="c.clave">
+                            <p class="text-xs text-white/70">{{ c.etiqueta }}</p>
+                            <p class="tabular-nums text-sm font-semibold">{{ formatMoney(kpiTaller.totales[c.clave]) }}</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </template>
         </template>
 
         <template v-if="seccion === 'general'">
