@@ -151,6 +151,8 @@ class CarteleraController extends Controller
             // movimientos sin fecha (importados del papel sin dato) se excluyen de
             // todo calculo de antiguedad -- no cuentan como "hoy" ni rompen el
             // calculo, simplemente no participan en el FIFO/promedios de fechas
+            // un pago de contado no reinicia la mora: se ignora para "ultimo abono" y "ultima actividad"
+            $movs = $movs->where('es_contado', false);
             $abonos = $movs->where('tipo', 'abono')->whereNotNull('fecha')->sortBy('fecha')->values();
             $gestiones = $movs->where('tipo', 'gestion')->whereNotNull('fecha')->sortBy('fecha')->values();
             $cargos = $movs->where('tipo', 'cargo')->whereNotNull('fecha')->sortBy('fecha')->values();

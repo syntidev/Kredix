@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Cuota;
 use App\Models\MovimientoCuenta;
 use App\Models\PlanFinanciamiento;
+use App\Services\SerialesVenta;
 use App\Services\SincronizaPlanConCargos;
+use Illuminate\Validation\ValidationException;
 use App\Models\Producto;
 use App\Services\ImagenUploadService;
 use Illuminate\Http\Request;
@@ -75,6 +77,13 @@ class MovimientoCuentaController extends Controller
 
         if ($esCargo) {
             $esFinanciada = $request->boolean('es_financiada');
+            // De contado = inicial igual al total, o el interruptor de la UI. El servidor aplica la regla
+            // aunque la UI no use el interruptor (antes inicial == total daba 422 "la inicial debe ser menor")
+            $totalEnviado = round(collect($request->input('productos', []))
+                ->sum(fn ($p) => (float) ($p['cantidad'] ?? 0) * (float) ($p['precio_unitario'] ?? 0)), 2);
+            $esContado = $request->boolean('es_contado')
+                || ($esFinanciada && $request->filled('monto_inicial') && $totalEnviado > 0
+                    && round((float) $request->input('monto_inicial'), 2) === $totalEnviado);
 
             $validated = $request->validate([
                 'cliente_id' => ['required', 'exists:clientes,id'],
@@ -84,9 +93,14 @@ class MovimientoCuentaController extends Controller
                 'productos.*.cantidad' => ['required', 'numeric', 'min:0.01'],
                 'productos.*.precio_unitario' => ['required', 'numeric', 'min:0.01'],
                 'productos.*.pendiente_entrega' => ['nullable', 'boolean'],
+                'productos.*.lleva_serial' => ['nullable', 'boolean'],
+                'productos.*.seriales' => ['nullable', 'array'],
+                'productos.*.seriales.*' => ['nullable', 'string', 'max:100'],
+                'es_contado' => ['nullable', 'boolean'],
                 'modalidad_precio' => ['required', 'in:divisa,bcv'],
-                'plazo_meses' => ['required', 'integer', 'min:1'],
-                'frecuencia_pago' => ['required', 'in:semanal,quincenal,mensual'],
+                // plazo y frecuencia son del plan: una venta de contado no los lleva
+                'plazo_meses' => [Rule::requiredIf(! $esContado), 'nullable', 'integer', 'min:1'],
+                'frecuencia_pago' => [Rule::requiredIf(! $esContado), 'nullable', 'in:semanal,quincenal,mensual'],
                 'tasa_cambio' => ['nullable', 'numeric', 'min:0.0001'],
                 'foto_producto' => ['nullable', 'image', 'max:5120'],
                 'usa_plan_cuotas' => ['boolean'],
@@ -96,9 +110,9 @@ class MovimientoCuentaController extends Controller
                 'cuotas.*.fecha_esperada' => ['required_with:cuotas', 'date'],
                 'es_financiada' => ['boolean'],
                 'monto_inicial' => [Rule::requiredIf($esFinanciada), 'nullable', 'numeric', 'min:0'],
-                'metodo_pago_inicial' => [Rule::requiredIf(fn () => $esFinanciada && (float) $request->input('monto_inicial', 0) > 0), 'nullable', 'in:efectivo,zelle,binance,transferencia,pago_movil,bancamiga_divisa,punto_venta,intercambio,devolucion'],
-                'numero_cuotas_financiamiento' => [Rule::requiredIf($esFinanciada), 'nullable', 'integer', 'min:1', 'max:36'],
-                'porcentaje_mora' => [Rule::requiredIf($esFinanciada), 'nullable', 'numeric', 'min:0', 'max:100'],
+                'metodo_pago_inicial' => [Rule::requiredIf(fn () => $esContado || ($esFinanciada && (float) $request->input('monto_inicial', 0) > 0)), 'nullable', 'in:efectivo,zelle,binance,transferencia,pago_movil,bancamiga_divisa,punto_venta,intercambio,devolucion'],
+                'numero_cuotas_financiamiento' => [Rule::requiredIf($esFinanciada && ! $esContado), 'nullable', 'integer', 'min:1', 'max:36'],
+                'porcentaje_mora' => [Rule::requiredIf($esFinanciada && ! $esContado), 'nullable', 'numeric', 'min:0', 'max:100'],
             ], [
                 'productos.*.descripcion.required' => 'descripcion requerida',
                 'productos.*.cantidad.required' => 'cantidad requerida',
@@ -112,15 +126,23 @@ class MovimientoCuentaController extends Controller
                 'porcentaje_mora.required' => 'porcentaje de mora requerido',
             ]);
 
-            if ($esFinanciada) {
-                // el carrito completo se financia: el total es la suma de todas
-                // las lineas del mismo envio, no la del primer producto
-                $montoTotal = collect($validated['productos'])
-                    ->sum(fn (array $p) => (float) $p['cantidad'] * (float) $p['precio_unitario']);
-                abort_if((float) $validated['monto_inicial'] >= $montoTotal, 422, 'La inicial debe ser menor al monto total de la venta');
+            // el carrito completo se financia: el total es la suma de todas
+            // las lineas del mismo envio, no la del primer producto
+            $montoTotal = round(collect($validated['productos'])
+                ->sum(fn (array $p) => (float) $p['cantidad'] * (float) $p['precio_unitario']), 2);
+
+            // inicial == total es venta de contado (arriba); solo una inicial MAYOR al total es un error
+            if ($esFinanciada && ! $esContado && (float) $validated['monto_inicial'] > $montoTotal) {
+                throw ValidationException::withMessages([
+                    'monto_inicial' => 'La inicial ('.number_format((float) $validated['monto_inicial'], 2).') no puede ser mayor al total de la venta ('.number_format($montoTotal, 2).').',
+                ]);
             }
 
-            $primero = DB::transaction(function () use ($request, $validated, $esFinanciada) {
+            $primero = DB::transaction(function () use ($request, $validated, $esFinanciada, $esContado, $montoTotal) {
+                // seriales: cantidad exacta, distintos y sin repetir un vigente; dentro de la transaccion
+                // para que la comprobacion y el alta vayan juntas (el indice unico es el respaldo)
+                SerialesVenta::validar($validated['productos']);
+
                 // fecha/modalidad/plazo/frecuencia se comparten entre todos los productos
                 // del mismo envio; cada uno crea su propio registro tipo=cargo
                 // independiente -- el plan de cuotas y la foto (si se adjunto) quedan
@@ -129,12 +151,16 @@ class MovimientoCuentaController extends Controller
                 // sin perder el detalle por producto
                 $compraId = (string) Str::uuid();
 
-                $movimientos = collect($validated['productos'])->map(function (array $producto) use ($validated, $compraId) {
+                $movimientos = collect($validated['productos'])->map(function (array $producto) use ($validated, $compraId, $esContado) {
                     $catalogo = Producto::firstOrCreate(
                         ['nombre' => Producto::normalizarNombre($producto['descripcion'])],
                         ['veces_usado' => 0]
                     );
                     $catalogo->increment('veces_usado');
+                    // "lleva serial" se aprende: la proxima vez que se venda este articulo sale marcado
+                    if (array_key_exists('lleva_serial', $producto)) {
+                        $catalogo->update(['lleva_serial' => (bool) $producto['lleva_serial']]);
+                    }
 
                     return MovimientoCuenta::create([
                         'cliente_id' => $validated['cliente_id'],
@@ -145,10 +171,11 @@ class MovimientoCuentaController extends Controller
                         'cantidad' => $producto['cantidad'],
                         'precio_unitario' => $producto['precio_unitario'],
                         'modalidad_precio' => $validated['modalidad_precio'],
-                        'plazo_meses' => $validated['plazo_meses'],
-                        'frecuencia_pago' => $validated['frecuencia_pago'],
+                        'plazo_meses' => $esContado ? null : $validated['plazo_meses'],
+                        'frecuencia_pago' => $esContado ? null : $validated['frecuencia_pago'],
                         'monto' => $producto['cantidad'] * $producto['precio_unitario'],
                         'pendiente_entrega' => (bool) ($producto['pendiente_entrega'] ?? false),
+                        'es_contado' => $esContado,
                         'moneda' => 'usd',
                         'tasa_cambio' => $validated['tasa_cambio'] ?? null,
                         'registrado_por' => auth()->id(),
@@ -157,11 +184,18 @@ class MovimientoCuentaController extends Controller
 
                 $primero = $movimientos->first();
 
+                // un renglon de serial por unidad, ligado a SU linea de cargo
+                foreach ($validated['productos'] as $i => $producto) {
+                    if (! empty($producto['lleva_serial'])) {
+                        SerialesVenta::registrar($movimientos[$i], $producto['seriales'], auth()->id());
+                    }
+                }
+
                 if ($request->hasFile('foto_producto')) {
                     $this->adjuntarComprimida($primero, $request->file('foto_producto'), 'producto');
                 }
 
-                if ($request->boolean('usa_plan_cuotas')) {
+                if (! $esContado && $request->boolean('usa_plan_cuotas')) {
                     foreach ($validated['cuotas'] as $cuota) {
                         $primero->planCuotas()->create([
                             'numero_cuota' => $cuota['numero_cuota'],
@@ -171,7 +205,18 @@ class MovimientoCuentaController extends Controller
                     }
                 }
 
-                if ($esFinanciada) {
+                if ($esContado) {
+                    // sin plan ni cuotas: un abono por el total, por el mismo camino que la inicial del plan
+                    $this->registrarPagoInicial($primero, $montoTotal, $validated, [
+                        'descripcion' => 'Pago de contado - '.$primero->descripcion.($movimientos->count() > 1 ? ' (+'.($movimientos->count() - 1).' más)' : ''),
+                        'comentario' => 'Venta de contado (pago completo)',
+                        'es_contado' => true,
+                    ]);
+
+                    activity()->causedBy(auth()->user())->performedOn($primero)
+                        ->withProperties(['compra_id' => $compraId, 'total' => $montoTotal, 'metodo_pago' => $validated['metodo_pago_inicial'], 'lineas' => $movimientos->count()])
+                        ->log('venta_contado');
+                } elseif ($esFinanciada) {
                     $this->crearPlanFinanciamiento($primero, $validated);
                 }
 
@@ -270,6 +315,23 @@ class MovimientoCuentaController extends Controller
         return redirect()->route('clientes.show', $validated['cliente_id']);
     }
 
+    // Pago al registrar la venta: la inicial de un plan (con plan_financiamiento_id) o el pago total de una
+    // venta de contado (sin plan). Es un abono normal: tasa de cambio y autor por transaccion
+    private function registrarPagoInicial(MovimientoCuenta $cargo, float $monto, array $validated, array $extra): MovimientoCuenta
+    {
+        return MovimientoCuenta::create([
+            'cliente_id' => $cargo->cliente_id,
+            'fecha' => $cargo->fecha,
+            'tipo' => 'abono',
+            'monto' => $monto,
+            'moneda' => 'usd',
+            'metodo_pago' => $validated['metodo_pago_inicial'],
+            'tasa_cambio' => $validated['tasa_cambio'] ?? null,
+            'registrado_por' => auth()->id(),
+            ...$extra,
+        ]);
+    }
+
     // Nueva compra financiada en un solo paso: el Cargo ya existe (creado por el
     // caller), aqui se crea el plan, la inicial (abono normal SIN cuota_id -- ya
     // redujo el monto a financiar antes de generar las cuotas) y las N cuotas
@@ -292,19 +354,11 @@ class MovimientoCuentaController extends Controller
         ]);
 
         if ($montoInicial > 0) {
-            MovimientoCuenta::create([
-                'cliente_id' => $cargo->cliente_id,
-                'fecha' => $cargo->fecha,
-                'tipo' => 'abono',
+            $this->registrarPagoInicial($cargo, $montoInicial, $validated, [
                 'descripcion' => "Inicial - {$cargo->descripcion}",
-                'monto' => $montoInicial,
-                'moneda' => 'usd',
-                'metodo_pago' => $validated['metodo_pago_inicial'],
-                'tasa_cambio' => $validated['tasa_cambio'] ?? null,
                 'plan_financiamiento_id' => $plan->id,
                 'es_inicial' => true,
                 'comentario' => 'Inicial pactada al financiar la venta',
-                'registrado_por' => auth()->id(),
             ]);
         }
 
@@ -451,6 +505,16 @@ class MovimientoCuentaController extends Controller
         return redirect()->route('clientes.show', $movimiento->cliente_id);
     }
 
+    // Corregir un serial mal digitado: misma normalizacion y unicidad que al venderlo, con huella en ActivityLog
+    public function corregirSerial(Request $request, \App\Models\SerialProducto $serial)
+    {
+        $validated = $request->validate(['serial' => ['required', 'string', 'max:100']], ['serial.required' => 'El serial no puede quedar vacío.']);
+
+        SerialesVenta::corregir($serial, $validated['serial'], $request->user());
+
+        return redirect()->back();
+    }
+
     // "Marcar entregado": cierra la venta adelantada. No toca monto, saldo ni plan
     public function entregar(Request $request, MovimientoCuenta $movimiento)
     {
@@ -507,7 +571,7 @@ class MovimientoCuentaController extends Controller
         // nunca forceDelete
         // anular una linea del carrito recalcula o anula su plan; si el plan tiene abonos y era
         // la ultima linea (o el nuevo total no alcanza), el 422 deshace tambien el borrado
-        DB::transaction(function () use ($movimiento, $validated, $sincronizaPlan) {
+        DB::transaction(function () use ($request, $movimiento, $validated, $sincronizaPlan) {
             $movimiento->update([
                 'motivo_eliminacion' => $validated['motivo'],
                 'eliminado_por' => auth()->id(),
@@ -516,6 +580,8 @@ class MovimientoCuentaController extends Controller
 
             if ($movimiento->tipo === 'cargo') {
                 $sincronizaPlan->alAnularLinea($movimiento);
+                // los seriales de la linea quedan libres (soft-delete) y pueden volver a registrarse
+                SerialesVenta::liberarDeLinea($movimiento, $request->user(), 'linea de cargo eliminada: '.$validated['motivo']);
             }
         });
 

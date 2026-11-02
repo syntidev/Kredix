@@ -21,11 +21,13 @@ class ProductoController extends Controller
 
         $normalizado = Producto::normalizarNombre($q);
 
-        return response()->json(
-            Producto::where('nombre', 'like', '%'.$normalizado.'%')
-                ->orderByDesc('veces_usado')
-                ->limit(self::MAX_SUGERENCIAS)
-                ->pluck('nombre')
-        );
+        $consulta = Producto::where('nombre', 'like', '%'.$normalizado.'%')
+            ->orderByDesc('veces_usado')
+            ->limit(self::MAX_SUGERENCIAS);
+
+        // por defecto solo nombres (Taller/Show los usa asi); con ?detalle=1 tambien "lleva serial" (formulario de venta)
+        return response()->json($request->boolean('detalle')
+            ? $consulta->get(['nombre', 'lleva_serial'])
+            : $consulta->pluck('nombre'));
     }
 }

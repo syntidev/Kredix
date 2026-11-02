@@ -58,7 +58,8 @@ class ClienteController extends Controller
                 ->where(function ($query) use ($q, $tokens) {
                     $this->whereNombreTokenizado($query, 'nombre', $tokens);
                     $query->orWhere('cedula', 'like', "%{$q}%")
-                        ->orWhere('telefono', 'like', "%{$q}%");
+                        ->orWhere('telefono', 'like', "%{$q}%")
+                        ->orWhereHas('seriales', fn ($s) => $s->where('serial', 'like', '%'.\App\Services\SerialesVenta::normalizar($q).'%'));
                 })
                 ->orderBy('nombre')
                 ->limit(self::MAX_RESULTADOS_BUSQUEDA)
@@ -86,7 +87,9 @@ class ClienteController extends Controller
                 $this->whereNombreTokenizado($query, 'nombre', $this->tokensDeBusqueda($q));
                 $query->orWhere('cedula', 'like', "%{$q}%")
                     ->orWhere('telefono', 'like', "%{$q}%")
-                    ->orWhere('email', 'like', "%{$q}%");
+                    ->orWhere('email', 'like', "%{$q}%")
+                    // por serial (garantia), sin distinguir mayusculas: se guardan en MAYUSCULAS; liberados no cuentan
+                    ->orWhereHas('seriales', fn ($s) => $s->where('serial', 'like', '%'.\App\Services\SerialesVenta::normalizar((string) $q).'%'));
             }))
             ->when($filtro === 'con_saldo', fn ($query) => $query->where(DB::raw('COALESCE(saldos.saldo, 0)'), '>', 0))
             ->when($filtro === 'sin_saldo', fn ($query) => $query->where(DB::raw('COALESCE(saldos.saldo, 0)'), '<=', 0))
@@ -135,7 +138,7 @@ class ClienteController extends Controller
     public function show(Cliente $cliente, TasaBcvService $tasaBcvService)
     {
         $movimientosRaw = MovimientoCuenta::where('cliente_id', $cliente->id)
-            ->with(['registradoPor:id,name', 'planCuotas', 'planFinanciamiento'])
+            ->with(['registradoPor:id,name', 'planCuotas', 'planFinanciamiento', 'seriales:id,movimiento_cuenta_id,serial'])
             ->orderByRaw('fecha IS NULL, fecha')
             ->orderBy('id')
             ->get();
@@ -159,6 +162,8 @@ class ClienteController extends Controller
                 'cantidad' => $m->cantidad,
                 'precio_unitario' => $m->precio_unitario,
                 'pendiente_entrega' => (bool) $m->pendiente_entrega,
+                'es_contado' => (bool) $m->es_contado,
+                'seriales' => $m->seriales->map(fn ($s) => ['id' => $s->id, 'serial' => $s->serial])->values(),
                 'modalidad_precio' => $m->modalidad_precio,
                 'plazo_meses' => $m->plazo_meses,
                 'frecuencia_pago' => $m->frecuencia_pago,
@@ -398,6 +403,7 @@ class ClienteController extends Controller
             ->map(function (MovimientoCuenta $cargo) use ($movimientosRaw) {
                 $totalAbonadoDesde = $movimientosRaw
                     ->where('tipo', 'abono')
+                    ->where('es_contado', false)
                     ->filter(fn (MovimientoCuenta $m) => $m->fecha !== null && $m->fecha->gte($cargo->fecha))
                     ->sum(fn (MovimientoCuenta $m) => (float) $m->monto);
 
@@ -484,11 +490,13 @@ class ClienteController extends Controller
         $movimientos = MovimientoCuenta::orderBy('fecha')->get()->groupBy('cliente_id');
 
         return Cliente::all()->map(function (Cliente $c) use ($movimientos) {
-            $movs = $movimientos->get($c->id, collect());
+            // la venta de contado (cargo + abono, neto 0) no entra a otorgado/cobrado ni al ultimo abono de la cartera
+            $movs = $movimientos->get($c->id, collect())->where('es_contado', false);
             $totalOtorgado = (float) $movs->where('tipo', 'cargo')->sum('monto');
             $totalCobrado = (float) $movs->where('tipo', 'abono')->sum('monto');
             $saldo = $movs->sum(fn (MovimientoCuenta $m) => $m->tipo === 'cargo' ? (float) $m->monto : -(float) $m->monto);
-            $ultimoAbono = $movs->where('tipo', 'abono')->whereNotNull('fecha')->last();
+            // un pago de contado no cuenta como "ultimo abono": no reinicia los dias sin abonar de la cartera
+            $ultimoAbono = $movs->where('tipo', 'abono')->where('es_contado', false)->whereNotNull('fecha')->last();
 
             return [
                 'id' => $c->id,

@@ -30,6 +30,12 @@ class Cliente extends Model
         'revisado_en' => 'datetime',
     ];
 
+    // seriales vigentes de lo que se le ha vendido (garantia); los liberados quedan fuera por el soft-delete
+    public function seriales(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SerialProducto::class);
+    }
+
     public function usuarioResponsable()
     {
         return $this->belongsTo(User::class, 'usuario_responsable_id');

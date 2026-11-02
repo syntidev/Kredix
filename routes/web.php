@@ -92,6 +92,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/movimientos/verificar-duplicado-abono', [MovimientoCuentaController::class, 'verificarAbonoDuplicado'])->name('movimientos.verificar-duplicado-abono');
     Route::post('/movimientos', [MovimientoCuentaController::class, 'store'])->name('movimientos.store');
     Route::put('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'update'])->name('movimientos.update');
+    Route::put('/seriales/{serial}', [MovimientoCuentaController::class, 'corregirSerial'])->name('seriales.corregir');
     Route::patch('/movimientos/{movimiento}/entregar', [MovimientoCuentaController::class, 'entregar'])->name('movimientos.entregar');
     Route::patch('/movimientos/{movimiento}/validacion', [MovimientoCuentaController::class, 'validar'])->name('movimientos.validar');
     Route::delete('/movimientos/{movimiento}', [MovimientoCuentaController::class, 'destroy'])->name('movimientos.destroy');

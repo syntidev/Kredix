@@ -37,7 +37,19 @@ trait TablasCartera
             $t->id();
             $t->string('nombre');
             $t->unsignedInteger('veces_usado')->default(0);
+            $t->boolean('lleva_serial')->default(false);
             $t->timestamp('created_at')->nullable();
+        });
+
+        Schema::create('seriales_producto', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('movimiento_cuenta_id');
+            $t->foreignId('cliente_id');
+            $t->string('serial', 100);
+            $t->foreignId('registrado_por')->nullable();
+            $t->timestamps();
+            $t->softDeletes();
+            $t->string('serial_vigente', 100)->nullable()->virtualAs('CASE WHEN deleted_at IS NULL THEN serial END')->unique();
         });
 
         Schema::create('movimientos_cuenta', function (Blueprint $t) {
@@ -71,6 +83,7 @@ trait TablasCartera
             $t->text('motivo_eliminacion')->nullable();
             $t->foreignId('eliminado_por')->nullable();
             $t->boolean('pendiente_entrega')->default(false);
+            $t->boolean('es_contado')->default(false);
             $t->timestamp('entregado_en')->nullable();
             $t->foreignId('entregado_por')->nullable();
             $t->timestamps();

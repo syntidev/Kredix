@@ -11,9 +11,11 @@ class Producto extends Model
     protected $fillable = [
         'nombre',
         'veces_usado',
+        'lleva_serial',
     ];
 
     protected $casts = [
+        'lleva_serial' => 'boolean',
         'created_at' => 'datetime',
     ];
 

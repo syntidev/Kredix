@@ -132,6 +132,8 @@ class VentasService
                 'cliente' => $f->cliente,
                 'ticket_id' => $f->ticket_id !== null ? (int) $f->ticket_id : null,
                 'aprox' => (bool) $f->aprox,
+                // venta de contado (cargo + abono): cuenta como venta, se etiqueta "Contado"
+                'contado' => (bool) $f->contado,
             ])->values()->all(),
             'hay_mas' => $filas->count() > self::LINEAS_POR_PAGINA,
         ];
@@ -160,7 +162,7 @@ class VentasService
         $credito = $this->cargosDeVenta()
             ->whereNotNull('fecha')
             ->whereBetween('fecha', [$inicio, $fin])
-            ->selectRaw("'tienda' as origen, DATE(movimientos_cuenta.fecha) as dia, movimientos_cuenta.created_at as orden, movimientos_cuenta.id as ref, movimientos_cuenta.descripcion as nombre, COALESCE(movimientos_cuenta.cantidad, 0) as cantidad, movimientos_cuenta.monto as monto, (select c.nombre from clientes c where c.id = movimientos_cuenta.cliente_id) as cliente, NULL as ticket_id, 0 as aprox")
+            ->selectRaw("'tienda' as origen, DATE(movimientos_cuenta.fecha) as dia, movimientos_cuenta.created_at as orden, movimientos_cuenta.id as ref, movimientos_cuenta.descripcion as nombre, COALESCE(movimientos_cuenta.cantidad, 0) as cantidad, movimientos_cuenta.monto as monto, (select c.nombre from clientes c where c.id = movimientos_cuenta.cliente_id) as cliente, NULL as ticket_id, 0 as aprox, movimientos_cuenta.es_contado as contado")
             ->toBase();
 
         $taller = DB::table('ticket_repuestos as r')
@@ -169,7 +171,7 @@ class VentasService
             ->where('t.estado', 'atendido')
             ->whereBetween('t.atendido_en', [$inicio, $fin])
             ->whereRaw('r.cantidad * r.precio > 0')
-            ->selectRaw("'taller' as origen, DATE(t.atendido_en) as dia, t.atendido_en as orden, r.id as ref, r.producto as nombre, r.cantidad as cantidad, r.cantidad * r.precio as monto, (select c.nombre from clientes c where c.id = t.cliente_id) as cliente, t.id as ticket_id, COALESCE(t.atendido_en_aprox, 0) as aprox");
+            ->selectRaw("'taller' as origen, DATE(t.atendido_en) as dia, t.atendido_en as orden, r.id as ref, r.producto as nombre, r.cantidad as cantidad, r.cantidad * r.precio as monto, (select c.nombre from clientes c where c.id = t.cliente_id) as cliente, t.id as ticket_id, COALESCE(t.atendido_en_aprox, 0) as aprox, 0 as contado");
 
         return $credito->unionAll($taller);
     }

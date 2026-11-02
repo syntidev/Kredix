@@ -101,7 +101,8 @@ class HomeController extends Controller
             ? (float) MovimientoCuenta::where('tipo', 'abono')->whereDate('fecha', now()->toDateString())->sum('monto')
             : null;
 
-        $ultimosAbonos = MovimientoCuenta::where('tipo', 'abono')
+        // un pago de contado no cuenta como "ultimo abono": no reinicia los dias sin abonar de la mora
+        $ultimosAbonos = MovimientoCuenta::where('tipo', 'abono')->where('es_contado', false)
             ->select('cliente_id', DB::raw('MAX(fecha) as ultima_fecha'))
             ->groupBy('cliente_id')
             ->pluck('ultima_fecha', 'cliente_id');

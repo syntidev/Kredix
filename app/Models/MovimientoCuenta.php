@@ -50,6 +50,7 @@ class MovimientoCuenta extends Model implements HasMedia
         'pendiente_entrega',
         'entregado_en',
         'entregado_por',
+        'es_contado',
     ];
 
     protected $casts = [
@@ -64,11 +65,18 @@ class MovimientoCuenta extends Model implements HasMedia
         'es_inicial' => 'boolean',
         'pendiente_entrega' => 'boolean',
         'entregado_en' => 'datetime',
+        'es_contado' => 'boolean',
     ];
 
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    // un renglon por unidad vendida; solo los cargos con "lleva serial" los tienen
+    public function seriales(): HasMany
+    {
+        return $this->hasMany(SerialProducto::class, 'movimiento_cuenta_id')->orderBy('id');
     }
 
     public function registradoPor(): BelongsTo
@@ -161,7 +169,8 @@ class MovimientoCuenta extends Model implements HasMedia
      */
     public static function ultimoAbonoInfo($movimientos): array
     {
-        $ultimoAbono = $movimientos->where('tipo', 'abono')->whereNotNull('fecha')->sortBy('fecha')->last();
+        // un pago de contado no cuenta como "ultimo abono" (no reinicia la mora de otras deudas)
+        $ultimoAbono = $movimientos->where('tipo', 'abono')->where('es_contado', false)->whereNotNull('fecha')->sortBy('fecha')->last();
 
         return [
             'fecha' => $ultimoAbono?->fecha,

@@ -29,7 +29,8 @@ class KpiController extends Controller
         $finMesAnterior = $hoy->copy()->subMonthNoOverflow()->endOfMonth();
         $inicioSemana = $hoy->copy()->startOfWeek(Carbon::MONDAY);
 
-        $todos = MovimientoCuenta::orderBy('fecha')->get();
+        // la venta de contado (cargo + abono) no es credito otorgado ni cobrado: fuera del KPI
+        $todos = MovimientoCuenta::where('es_contado', false)->orderBy('fecha')->get();
         $porCliente = $todos->groupBy('cliente_id');
         // saldo/totales historicos usan $todos completo (el dinero no deja de existir
         // por no tener fecha); solo las metricas por rango de fecha excluyen los
