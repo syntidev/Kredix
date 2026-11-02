@@ -40,7 +40,8 @@ async function evaluarCamara() {
     try {
         if (!navigator.mediaDevices?.enumerateDevices) return;
         const dispositivos = await navigator.mediaDevices.enumerateDevices();
-        if (!dispositivos.some((d) => d.kind === 'videoinput')) {
+        // lista vacia = el navegador no la revela antes del permiso (Safari): se deja intentar
+        if (dispositivos.length > 0 && !dispositivos.some((d) => d.kind === 'videoinput')) {
             camaraBloqueada.value = 'No se detectó una cámara. Usa «Elegir de galería».';
             return;
         }

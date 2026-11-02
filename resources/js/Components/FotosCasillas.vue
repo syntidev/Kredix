@@ -97,13 +97,11 @@ function reemplazar(archivos) {
             </button>
         </div>
 
-        <!-- celular: "Tomar foto" (una por toma); en escritorio no pinta nada. La galeria son los huecos -->
-        <FotoInput v-if="vacias > 0" ref="entrada" mostrar="camara" :procesando="''" :disabled="!!procesando" @elegidos="agregar">
-            <template #galeria />
-        </FotoInput>
-        <FotoInput ref="reemplazo" mostrar="galeria" @elegidos="reemplazar">
-            <template #galeria />
-        </FotoInput>
+        <!-- celular: "Tomar foto" (una por toma) + "Elegir de galería"; escritorio: un solo botón de archivo.
+             Los huecos del grid abren esa misma galería -->
+        <FotoInput v-if="vacias > 0" ref="entrada" :disabled="!!procesando" @elegidos="agregar" />
+        <!-- solo aloja el selector de "Reemplazar" de cada foto: sin botones propios -->
+        <FotoInput ref="reemplazo" class="hidden" mostrar="galeria" @elegidos="reemplazar" />
 
         <p v-if="error" class="text-sm text-kredix-rojo">{{ error }}</p>
         <p v-else-if="exito" class="text-sm font-medium text-green-700">{{ exito }}</p>
