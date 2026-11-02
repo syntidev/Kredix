@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUp, ChevronDown, Download, FileText, ImageOff, Link2, M
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
+import FotoInput from '../../Components/FotoInput.vue';
 import EstadoValidacionLed from '../../Components/EstadoValidacionLed.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
@@ -436,12 +437,11 @@ function actualizarSugerencia() {
 
 const fotoProductoHeicError = ref('');
 
-async function onFotoProductoChange(event) {
+async function onFotoProductoChange(archivos) {
     fotoProductoHeicError.value = '';
-    const convertido = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    const convertido = await convertirHeicSiEsNecesario(archivos[0] ?? null);
     if (convertido === null) {
         fotoProductoHeicError.value = MENSAJE_HEIC_FALLO;
-        event.target.value = '';
         return;
     }
     cargoForm.foto_producto = await comprimirImagenSiEsNecesario(convertido);
@@ -519,12 +519,11 @@ watch(
 
 const comprobanteHeicError = ref('');
 
-async function onFileChange(event) {
+async function onFileChange(archivos) {
     comprobanteHeicError.value = '';
-    const convertido = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    const convertido = await convertirHeicSiEsNecesario(archivos[0] ?? null);
     if (convertido === null) {
         comprobanteHeicError.value = MENSAJE_HEIC_FALLO;
-        event.target.value = '';
         return;
     }
     abonoForm.comprobante = await comprimirImagenSiEsNecesario(convertido);
@@ -670,8 +669,8 @@ const editForm = useForm({
     tipo_contacto: 'llamada',
     fecha_prometida: '',
     cantidad: '',
-    pendiente_entrega: false,
     precio_unitario: '',
+    pendiente_entrega: false,
     modalidad_precio: 'divisa',
     plazo_meses: '',
     frecuencia_pago: 'mensual',
@@ -704,8 +703,8 @@ function openEditMov(m) {
     editForm.referencia = m.referencia ?? '';
     editForm.comentario = m.comentario ?? '';
     editForm.comprobante = null;
-    editForm.pendiente_entrega = m.pendiente_entrega ?? false;
     editForm.foto_producto = null;
+    editForm.pendiente_entrega = m.pendiente_entrega ?? false;
     editForm.motivo_edicion = '';
     editTipo.value = m.tipo;
     editingMovId.value = m.id;
@@ -734,23 +733,21 @@ function dotValidacion(estado) {
 const editComprobanteHeicError = ref('');
 const editFotoProductoHeicError = ref('');
 
-async function onEditComprobanteChange(event) {
+async function onEditComprobanteChange(archivos) {
     editComprobanteHeicError.value = '';
-    const convertido = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    const convertido = await convertirHeicSiEsNecesario(archivos[0] ?? null);
     if (convertido === null) {
         editComprobanteHeicError.value = MENSAJE_HEIC_FALLO;
-        event.target.value = '';
         return;
     }
     editForm.comprobante = await comprimirImagenSiEsNecesario(convertido);
 }
 
-async function onEditFotoProductoChange(event) {
+async function onEditFotoProductoChange(archivos) {
     editFotoProductoHeicError.value = '';
-    const convertido = await convertirHeicSiEsNecesario(event.target.files[0] ?? null);
+    const convertido = await convertirHeicSiEsNecesario(archivos[0] ?? null);
     if (convertido === null) {
         editFotoProductoHeicError.value = MENSAJE_HEIC_FALLO;
-        event.target.value = '';
         return;
     }
     editForm.foto_producto = await comprimirImagenSiEsNecesario(convertido);
@@ -1305,13 +1302,13 @@ watch(algunModalAbierto, (abierto) => {
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                         <label class="text-sm font-medium text-kredix-negro">Precio unit.</label>
                         <input v-model="producto.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
+                        <p v-if="cargoForm.errors[`productos.${i}.precio_unitario`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.precio_unitario`] }}</p>
+                    </div>
+                </div>
                 <label class="flex min-h-11 items-center gap-3 text-sm text-kredix-negro">
                     <input v-model="producto.pendiente_entrega" type="checkbox" class="h-6 w-6 shrink-0" />
                     Aún no entregado (apartado)
                 </label>
-                        <p v-if="cargoForm.errors[`productos.${i}.precio_unitario`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.precio_unitario`] }}</p>
-                    </div>
-                </div>
             </div>
 
             <div class="flex justify-end md:col-span-2">
@@ -1362,7 +1359,7 @@ watch(algunModalAbierto, (abierto) => {
 
             <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional{{ cargoForm.productos.length > 1 ? ', se adjunta al primer producto' : '' }})</span></label>
-                <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onFotoProductoChange" />
+                <FotoInput :archivo="cargoForm.foto_producto" @elegidos="onFotoProductoChange" @quitar="cargoForm.foto_producto = null" />
                 <p v-if="fotoProductoHeicError" class="text-sm text-kredix-rojo">{{ fotoProductoHeicError }}</p>
                 <p v-if="cargoForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ cargoForm.errors.foto_producto }}</p>
             </div>
@@ -1487,7 +1484,7 @@ watch(algunModalAbierto, (abierto) => {
 
             <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="text-sm font-medium text-kredix-negro">Foto de comprobante (opcional)</label>
-                <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onFileChange" />
+                <FotoInput :archivo="abonoForm.comprobante" @elegidos="onFileChange" @quitar="abonoForm.comprobante = null" />
                 <p v-if="comprobanteHeicError" class="text-sm text-kredix-rojo">{{ comprobanteHeicError }}</p>
                 <p v-if="abonoForm.errors.comprobante" class="text-sm text-kredix-rojo">{{ abonoForm.errors.comprobante }}</p>
             </div>
@@ -1625,13 +1622,13 @@ watch(algunModalAbierto, (abierto) => {
                             <input v-model="editForm.modalidad_precio" type="radio" value="bcv" class="h-4 w-4" />
                             BCV
                         </label>
+                    </div>
+                    <p v-if="faltaTasaBcvEdit" class="text-sm text-amber-600">Falta tasa BCV para este registro</p>
+                </div>
                 <label class="flex min-h-11 items-center gap-3 text-sm text-kredix-negro">
                     <input v-model="editForm.pendiente_entrega" type="checkbox" class="h-6 w-6 shrink-0" />
                     Aún no entregado (apartado)
                 </label>
-                    </div>
-                    <p v-if="faltaTasaBcvEdit" class="text-sm text-amber-600">Falta tasa BCV para este registro</p>
-                </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Comentario <span class="font-normal text-kredix-gris">(opcional)</span></label>
                     <textarea v-model="editForm.comentario" rows="2" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"></textarea>
@@ -1639,7 +1636,7 @@ watch(algunModalAbierto, (abierto) => {
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Foto del producto <span class="font-normal text-kredix-gris">(opcional, reemplaza la actual)</span></label>
-                    <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onEditFotoProductoChange" />
+                    <FotoInput :archivo="editForm.foto_producto" @elegidos="onEditFotoProductoChange" @quitar="editForm.foto_producto = null" />
                     <p v-if="editFotoProductoHeicError" class="text-sm text-kredix-rojo">{{ editFotoProductoHeicError }}</p>
                     <p v-if="editForm.errors.foto_producto" class="text-sm text-kredix-rojo">{{ editForm.errors.foto_producto }}</p>
                 </div>
@@ -1682,7 +1679,7 @@ watch(algunModalAbierto, (abierto) => {
                         <ImageOff v-else :size="18" class="text-kredix-gris" />
                         Comprobante actual
                     </button>
-                    <input type="file" accept="image/*" class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5" @change="onEditComprobanteChange" />
+                    <FotoInput :archivo="editForm.comprobante" @elegidos="onEditComprobanteChange" @quitar="editForm.comprobante = null" />
                     <p v-if="editComprobanteHeicError" class="text-sm text-kredix-rojo">{{ editComprobanteHeicError }}</p>
                     <p v-if="editForm.errors.comprobante" class="text-sm text-kredix-rojo">{{ editForm.errors.comprobante }}</p>
                 </div>
@@ -1801,10 +1798,10 @@ watch(algunModalAbierto, (abierto) => {
                         <span v-if="m.tipo === 'gestion'" class="tabular-nums text-sm font-semibold text-kredix-negro">-</span>
                         <span v-else class="tabular-nums inline-flex items-center gap-0.5 text-sm font-semibold" :class="estiloMovimiento(m.tipo).color">
                             <component :is="estiloMovimiento(m.tipo).icono" :size="12" />
-                        <span v-if="m.pendiente_entrega" class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendiente de entrega</span>
                             {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
                         </span>
                         <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="text-xs font-medium text-amber-600">BCV</span>
+                        <span v-if="m.pendiente_entrega" class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendiente de entrega</span>
                         <span class="tabular-nums text-xs text-kredix-gris">saldo {{ formatMoney(m.saldoAcumulado) }}</span>
                     </div>
                 </button>
@@ -1933,10 +1930,10 @@ watch(algunModalAbierto, (abierto) => {
                             <span v-if="m.tipo === 'gestion'">-</span>
                             <span v-else class="inline-flex items-center gap-0.5">
                                 <component :is="estiloMovimiento(m.tipo).icono" :size="12" />
-                            <span v-if="m.pendiente_entrega" class="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendiente de entrega</span>
                                 {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
                             </span>
                             <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="block text-xs font-normal text-amber-600">BCV</span>
+                            <span v-if="m.pendiente_entrega" class="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendiente de entrega</span>
                         </td>
                         <td class="break-words px-2 py-2 text-kredix-gris">
                             <span>{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ? etiquetaMetodoPago(m.metodo_pago) : '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}</span>

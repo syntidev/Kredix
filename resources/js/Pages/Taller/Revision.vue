@@ -2,9 +2,10 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
-import { Camera, Check, Zap } from '@lucide/vue';
+import { Check, Zap } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
+import FotoInput from '../../Components/FotoInput.vue';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
 import { forzarVerticalSiEsNecesario, comprimirImagenSiEsNecesario } from '../../lib/forzarVertical';
 
@@ -194,14 +195,14 @@ const fotoExito = ref('');
 
 const fotosCompletas = computed(() => fotosSalida.value >= props.maxFotos);
 
-async function onFotoSalida(event) {
+async function onFotoSalida(seleccion) {
     if (etapaFoto.value || fotosCompletas.value) return;
     etapaFoto.value = 'Procesando foto…';
     fotoError.value = '';
     fotoExito.value = '';
     try {
         const archivos = [];
-        for (const raw of event.target.files) {
+        for (const raw of seleccion) {
             const convertido = await convertirHeicSiEsNecesario(raw);
             if (convertido === null) {
                 fotoError.value = MENSAJE_HEIC_FALLO;
@@ -354,14 +355,10 @@ async function onFotoSalida(event) {
                     <button v-else-if="guardado === 'error'" type="button" class="font-semibold text-red-300 underline" @click="guardar">{{ errorGuardado || 'Error, reintentar' }}</button>
                 </p>
             </div>
-            <label v-if="!atendido" class="flex min-h-14 shrink-0 flex-col items-center justify-center rounded-xl bg-white px-4 text-base font-semibold text-kredix-negro active:opacity-80" :class="etapaFoto || fotosCompletas ? 'pointer-events-none cursor-not-allowed opacity-50' : 'cursor-pointer'">
-                <span class="flex items-center gap-2">
-                    <Camera :size="20" aria-hidden="true" />
-                    {{ etapaFoto || 'Foto de salida' }}
-                </span>
-                <span class="text-xs font-normal text-kredix-gris">{{ fotosSalida }} de {{ maxFotos }}</span>
-                <input type="file" accept="image/*" capture="environment" class="hidden" :disabled="!!etapaFoto || fotosCompletas" @change="onFotoSalida" />
-            </label>
+            <div v-if="!atendido" class="flex shrink-0 flex-col gap-1 rounded-xl bg-white p-2 text-kredix-negro">
+                <FotoInput multiple :disabled="fotosCompletas" :procesando="etapaFoto" @elegidos="onFotoSalida" />
+                <span class="text-center text-xs text-kredix-gris">Foto de salida · {{ fotosSalida }} de {{ maxFotos }}</span>
+            </div>
         </div>
         <p v-if="fotoError" class="text-sm text-red-300">{{ fotoError }}</p>
         <p v-else-if="fotoExito" class="text-sm text-green-300">{{ fotoExito }}</p>

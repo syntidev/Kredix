@@ -60,52 +60,67 @@ export async function forzarVerticalSiEsNecesario(file) {
     return rotar90(file);
 }
 
-// solo vale la pena comprimir si el original ya pesa algo -- una foto de
-// WhatsApp (ya comprimida por ellos) no se toca, no se agranda ni se le baja
-// mas calidad de la que ya tiene
-const UMBRAL_COMPRESION_BYTES = 800 * 1024;
-const LADO_MAXIMO_COMPRESION = 1600;
+// Compresion: solo si pesa mas de 1.5 MB o su lado mayor pasa de 1600 px. Una foto
+// chica (p. ej. ya comprimida por WhatsApp) no se toca. Nunca se agranda: ni en
+// pixeles (escala <= 1) ni en bytes (si el JPEG sale mas pesado se devuelve el original).
+export const UMBRAL_COMPRESION_BYTES = 1.5 * 1024 * 1024;
+export const LADO_MAXIMO_COMPRESION = 1600;
 const CALIDAD_COMPRESION = 0.82;
 
-function redimensionarYComprimir(file, anchoFinal, altoFinal) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = anchoFinal;
-            canvas.height = altoFinal;
-            canvas.getContext('2d').drawImage(img, 0, 0, anchoFinal, altoFinal);
-            URL.revokeObjectURL(url);
-            canvas.toBlob((blob) => resolve(blob), 'image/jpeg', CALIDAD_COMPRESION);
-        };
-        img.onerror = () => {
-            URL.revokeObjectURL(url);
-            resolve(null);
-        };
+// Decodifica respetando la orientacion EXIF: createImageBitmap con "from-image"; si el
+// navegador no lo soporta, <img> (los navegadores actuales ya aplican el EXIF al dibujarla)
+async function abrirImagen(file) {
+    if (typeof createImageBitmap === 'function') {
+        try {
+            const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+            return { fuente: bitmap, width: bitmap.width, height: bitmap.height, liberar: () => bitmap.close?.() };
+        } catch {
+            // cae al <img>
+        }
+    }
+
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    const cargada = await new Promise((resolve) => {
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
         img.src = url;
     });
+    if (!cargada) {
+        URL.revokeObjectURL(url);
+        return null;
+    }
+
+    return { fuente: img, width: img.naturalWidth, height: img.naturalHeight, liberar: () => URL.revokeObjectURL(url) };
 }
 
 export async function comprimirImagenSiEsNecesario(file) {
-    if (!file || !file.type.startsWith('image/') || file.size <= UMBRAL_COMPRESION_BYTES) {
-        return file;
-    }
+    if (!file || !file.type.startsWith('image/')) return file;
 
+    let imagen = null;
     try {
-        const dim = await obtenerDimensiones(file);
-        if (!dim) return file;
+        imagen = await abrirImagen(file);
+        if (!imagen) return file;
 
-        const escala = Math.min(1, LADO_MAXIMO_COMPRESION / Math.max(dim.width, dim.height));
-        const anchoFinal = Math.round(dim.width * escala);
-        const altoFinal = Math.round(dim.height * escala);
+        const ladoMayor = Math.max(imagen.width, imagen.height);
+        if (file.size <= UMBRAL_COMPRESION_BYTES && ladoMayor <= LADO_MAXIMO_COMPRESION) return file;
 
-        const blob = await redimensionarYComprimir(file, anchoFinal, altoFinal);
-        if (!blob) return file; // fail-open
+        const escala = Math.min(1, LADO_MAXIMO_COMPRESION / ladoMayor);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(imagen.width * escala);
+        canvas.height = Math.round(imagen.height * escala);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff'; // un PNG con transparencia no debe quedar negro al pasar a JPEG
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(imagen.fuente, 0, 0, canvas.width, canvas.height);
 
-        const nombreJpeg = file.name.replace(/\.[^.]+$/, '') + '.jpg';
-        return new File([blob], nombreJpeg, { type: 'image/jpeg' });
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', CALIDAD_COMPRESION));
+        if (!blob || (escala === 1 && blob.size >= file.size)) return file;
+
+        return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
     } catch {
-        return file; // fail-open
+        return file; // fail-open: nunca bloquea la subida
+    } finally {
+        imagen?.liberar();
     }
 }

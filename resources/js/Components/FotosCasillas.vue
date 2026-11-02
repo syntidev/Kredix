@@ -1,6 +1,7 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Camera, Plus, RefreshCw, Trash2 } from '@lucide/vue';
+import FotoInput from './FotoInput.vue';
 
 // Casillas de fotos con tope (config('taller.max_fotos')). Solo pinta y avisa:
 // subir, borrar y reemplazar los resuelve la pantalla (servidor o archivos locales).
@@ -20,11 +21,25 @@ const emit = defineEmits(['agregar', 'eliminar', 'reemplazar', 'ver']);
 
 const vacias = computed(() => Math.max(props.max - props.fotos.length, 0));
 
-function archivoElegido(event, accion, foto = null, index = null) {
-    const archivo = event.target.files?.[0];
-    event.target.value = '';
-    if (!archivo || props.procesando) return;
-    accion === 'agregar' ? emit('agregar', archivo) : emit('reemplazar', foto, index, archivo);
+// Toda la entrada de archivos pasa por FotoInput: un FotoInput para agregar (galeria desde los huecos,
+// camara en celular con UNA foto por toma) y otro para reemplazar la foto elegida
+const entrada = ref(null);
+const reemplazo = ref(null);
+const reemplazando = ref(null); // { foto, index }
+
+function agregar(archivos) {
+    if (archivos[0] && !props.procesando) emit('agregar', archivos[0]);
+}
+
+function pedirReemplazo(foto, index) {
+    reemplazando.value = { foto, index };
+    reemplazo.value?.abrirGaleria();
+}
+
+function reemplazar(archivos) {
+    const destino = reemplazando.value;
+    reemplazando.value = null;
+    if (archivos[0] && destino && !props.procesando) emit('reemplazar', destino.foto, destino.index, archivos[0]);
 }
 </script>
 
@@ -42,15 +57,16 @@ function archivoElegido(event, accion, foto = null, index = null) {
                     <img :src="foto.thumb_url" alt="" loading="lazy" class="h-full w-full object-cover" />
                 </button>
                 <div class="grid grid-cols-2 gap-1">
-                    <label
-                        class="flex min-h-11 items-center justify-center rounded-lg border border-gray-300 text-kredix-negro active:bg-gray-100"
-                        :class="procesando ? 'pointer-events-none cursor-not-allowed opacity-50' : 'cursor-pointer'"
+                    <button
+                        type="button"
+                        class="flex min-h-11 items-center justify-center rounded-lg border border-gray-300 text-kredix-negro active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="!!procesando"
                         :aria-label="`Reemplazar foto ${i + 1}`"
                         title="Reemplazar"
+                        @click="pedirReemplazo(foto, i)"
                     >
                         <RefreshCw :size="16" aria-hidden="true" />
-                        <input type="file" accept="image/*" class="hidden" :disabled="!!procesando" @change="archivoElegido($event, 'reemplazar', foto, i)" />
-                    </label>
+                    </button>
                     <button
                         type="button"
                         class="flex min-h-11 items-center justify-center rounded-lg border border-gray-300 text-kredix-rojo active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -64,23 +80,30 @@ function archivoElegido(event, accion, foto = null, index = null) {
                 </div>
             </div>
 
-            <label
+            <button
                 v-for="n in vacias"
                 :key="`vacia-${n}`"
-                class="relative flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-kredix-gris active:bg-gray-50"
-                :class="[
-                    procesando ? 'pointer-events-none cursor-not-allowed opacity-50' : 'cursor-pointer',
-                    obligatoria && fotos.length === 0 && n === 1 ? 'border-kredix-rojo/60' : 'border-gray-300',
-                ]"
-                :aria-label="`Agregar foto ${fotos.length + n} de ${max}`"
+                type="button"
+                class="relative flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-kredix-gris active:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                :class="obligatoria && fotos.length === 0 && n === 1 ? 'border-kredix-rojo/60' : 'border-gray-300'"
+                :disabled="!!procesando"
+                :aria-label="`Elegir de galería: agregar foto ${fotos.length + n} de ${max}`"
+                @click="entrada?.abrirGaleria()"
             >
                 <Plus v-if="!(procesando && n === 1)" :size="22" aria-hidden="true" />
                 <Camera v-else :size="22" aria-hidden="true" />
                 <span v-if="procesando && n === 1" class="px-1 text-center text-xs">{{ procesando }}</span>
                 <span v-else-if="obligatoria && fotos.length === 0 && n === 1" class="text-xs font-semibold text-kredix-rojo">Obligatoria</span>
-                <input type="file" accept="image/*" class="hidden" :disabled="!!procesando" @change="archivoElegido($event, 'agregar')" />
-            </label>
+            </button>
         </div>
+
+        <!-- celular: "Tomar foto" (una por toma); en escritorio no pinta nada. La galeria son los huecos -->
+        <FotoInput v-if="vacias > 0" ref="entrada" mostrar="camara" :procesando="''" :disabled="!!procesando" @elegidos="agregar">
+            <template #galeria />
+        </FotoInput>
+        <FotoInput ref="reemplazo" mostrar="galeria" @elegidos="reemplazar">
+            <template #galeria />
+        </FotoInput>
 
         <p v-if="error" class="text-sm text-kredix-rojo">{{ error }}</p>
         <p v-else-if="exito" class="text-sm font-medium text-green-700">{{ exito }}</p>
