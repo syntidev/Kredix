@@ -158,6 +158,7 @@ class ClienteController extends Controller
                 'descripcion' => $m->descripcion,
                 'cantidad' => $m->cantidad,
                 'precio_unitario' => $m->precio_unitario,
+                'pendiente_entrega' => (bool) $m->pendiente_entrega,
                 'modalidad_precio' => $m->modalidad_precio,
                 'plazo_meses' => $m->plazo_meses,
                 'frecuencia_pago' => $m->frecuencia_pago,

@@ -83,6 +83,7 @@ class MovimientoCuentaController extends Controller
                 'productos.*.descripcion' => ['required', 'string', 'max:255'],
                 'productos.*.cantidad' => ['required', 'numeric', 'min:0.01'],
                 'productos.*.precio_unitario' => ['required', 'numeric', 'min:0.01'],
+                'productos.*.pendiente_entrega' => ['nullable', 'boolean'],
                 'modalidad_precio' => ['required', 'in:divisa,bcv'],
                 'plazo_meses' => ['required', 'integer', 'min:1'],
                 'frecuencia_pago' => ['required', 'in:semanal,quincenal,mensual'],
@@ -147,6 +148,7 @@ class MovimientoCuentaController extends Controller
                         'plazo_meses' => $validated['plazo_meses'],
                         'frecuencia_pago' => $validated['frecuencia_pago'],
                         'monto' => $producto['cantidad'] * $producto['precio_unitario'],
+                        'pendiente_entrega' => (bool) ($producto['pendiente_entrega'] ?? false),
                         'moneda' => 'usd',
                         'tasa_cambio' => $validated['tasa_cambio'] ?? null,
                         'registrado_por' => auth()->id(),
@@ -360,6 +362,7 @@ class MovimientoCuentaController extends Controller
             'comentario' => [Rule::requiredIf(! $esCargo), 'nullable', 'string', 'max:1000'],
             'comprobante' => ['nullable', 'image', 'max:5120'],
             'foto_producto' => ['nullable', 'image', 'max:5120'],
+            'pendiente_entrega' => ['nullable', 'boolean'],
             'motivo_edicion' => ['required', 'string', 'max:500'],
         ], [
             'comentario.required' => 'comentario requerido',
@@ -380,14 +383,14 @@ class MovimientoCuentaController extends Controller
         $antes = $movimiento->only([
             'fecha', 'descripcion', 'tipo_contacto', 'fecha_prometida', 'cantidad', 'precio_unitario',
             'modalidad_precio', 'plazo_meses', 'frecuencia_pago', 'monto', 'moneda', 'tasa_cambio',
-            'metodo_pago', 'referencia', 'comentario',
+            'metodo_pago', 'referencia', 'comentario', 'pendiente_entrega',
         ]);
 
         // el plan de financiamiento solo se toca si cambia el monto de la linea; un 422 del
         // recalculo (p. ej. nuevo total menor a lo abonado) deshace tambien la edicion
         $cambiaMonto = $esCargo && round((float) $monto, 2) !== round((float) $movimiento->monto, 2);
 
-        DB::transaction(function () use ($movimiento, $validated, $esCargo, $esGestion, $monto, $cambiaMonto, $sincronizaPlan) {
+        DB::transaction(function () use ($request, $movimiento, $validated, $esCargo, $esGestion, $monto, $cambiaMonto, $sincronizaPlan) {
             $movimiento->update([
                 'fecha' => $validated['fecha'],
                 'descripcion' => $validated['descripcion'],
@@ -404,6 +407,11 @@ class MovimientoCuentaController extends Controller
                 'metodo_pago' => $validated['metodo_pago'] ?? null,
                 'referencia' => ($validated['metodo_pago'] ?? null) !== 'efectivo' ? ($validated['referencia'] ?? null) : null,
                 'comentario' => $validated['comentario'] ?? null,
+                // solo los cargos; volver a marcar "pendiente" borra la entrega anterior
+                ...($esCargo && $request->has('pendiente_entrega')
+                    ? ['pendiente_entrega' => $request->boolean('pendiente_entrega')]
+                        + ($request->boolean('pendiente_entrega') ? ['entregado_en' => null, 'entregado_por' => null] : [])
+                    : []),
             ]);
 
             if ($cambiaMonto) {
@@ -441,6 +449,26 @@ class MovimientoCuentaController extends Controller
             ->log('actualizacion_movimiento');
 
         return redirect()->route('clientes.show', $movimiento->cliente_id);
+    }
+
+    // "Marcar entregado": cierra la venta adelantada. No toca monto, saldo ni plan
+    public function entregar(Request $request, MovimientoCuenta $movimiento)
+    {
+        abort_if($movimiento->tipo !== 'cargo' || ! $movimiento->pendiente_entrega, 422, 'Este cargo no esta pendiente de entrega');
+
+        $movimiento->update([
+            'pendiente_entrega' => false,
+            'entregado_en' => now(),
+            'entregado_por' => $request->user()->id,
+        ]);
+
+        activity()
+            ->causedBy($request->user())
+            ->performedOn($movimiento)
+            ->withProperties(['entregado_en' => $movimiento->entregado_en->toDateTimeString()])
+            ->log('entrega_movimiento');
+
+        return redirect()->back();
     }
 
     public function validar(Request $request, MovimientoCuenta $movimiento)

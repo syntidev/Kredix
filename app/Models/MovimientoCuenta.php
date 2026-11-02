@@ -47,6 +47,9 @@ class MovimientoCuenta extends Model implements HasMedia
         'validado_en',
         'motivo_eliminacion',
         'eliminado_por',
+        'pendiente_entrega',
+        'entregado_en',
+        'entregado_por',
     ];
 
     protected $casts = [
@@ -59,6 +62,8 @@ class MovimientoCuenta extends Model implements HasMedia
         'validado_en' => 'datetime',
         'duplicado_confirmado' => 'boolean',
         'es_inicial' => 'boolean',
+        'pendiente_entrega' => 'boolean',
+        'entregado_en' => 'datetime',
     ];
 
     public function cliente(): BelongsTo

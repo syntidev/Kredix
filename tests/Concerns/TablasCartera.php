@@ -70,6 +70,9 @@ trait TablasCartera
             $t->timestamp('validado_en')->nullable();
             $t->text('motivo_eliminacion')->nullable();
             $t->foreignId('eliminado_por')->nullable();
+            $t->boolean('pendiente_entrega')->default(false);
+            $t->timestamp('entregado_en')->nullable();
+            $t->foreignId('entregado_por')->nullable();
             $t->timestamps();
             $t->softDeletes();
         });

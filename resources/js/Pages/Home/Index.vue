@@ -22,7 +22,23 @@ const props = defineProps({
     enCalle: { type: Number, default: null },
     cobradoHoy: { type: Number, default: null },
     carteraConMora: { type: Array, default: () => [] },
+    // cargos marcados "aun no entregado", los mas antiguos primero
+    porEntregar: { type: Array, default: () => [] },
 });
+
+// un toque + confirmacion corta; la lista se refresca con la respuesta de Inertia
+function marcarEntregado(item) {
+    if (!window.confirm(`¿Marcar entregado «${item.producto}» a ${item.clienteNombre}?`)) {
+        return;
+    }
+    router.patch(`/movimientos/${item.id}/entregar`, {}, { preserveScroll: true });
+}
+
+function haceDias(dias) {
+    if (dias === null) return 'sin fecha';
+    if (dias === 0) return 'hoy';
+    return `hace ${dias} ${dias === 1 ? 'día' : 'días'}`;
+}
 
 const busqueda = ref('');
 const resultadosBusqueda = ref([]);
@@ -165,6 +181,30 @@ const accionesRapidas = [
                         <component :is="accion.icon" :size="18" :class="accion.color" />
                     </div>
                     <span class="text-[11px]" :class="accionSeleccionada === accion.accion ? 'font-semibold text-kredix-negro' : 'text-kredix-gris'">{{ accion.label }}</span>
+                </button>
+            </div>
+        </div>
+
+        <div v-if="porEntregar.length > 0" class="flex flex-col gap-2">
+            <div class="flex items-center justify-between px-1">
+                <p class="text-xs text-kredix-gris">Por entregar</p>
+                <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{{ porEntregar.length }}</span>
+            </div>
+            <div
+                v-for="p in porEntregar"
+                :key="p.id"
+                class="flex items-center gap-3 rounded-2xl bg-white px-3.5 py-3 shadow-card-sm"
+            >
+                <Link :href="`/clientes/${p.clienteId}`" class="min-w-0 flex-1 active:opacity-70">
+                    <p class="truncate text-sm font-medium text-kredix-negro">{{ p.producto }}</p>
+                    <p class="truncate text-[11px] text-kredix-gris">{{ p.clienteNombre }} · {{ formatMoney(p.monto) }} · {{ haceDias(p.dias) }}</p>
+                </Link>
+                <button
+                    type="button"
+                    class="min-h-11 shrink-0 rounded-xl border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"
+                    @click="marcarEntregado(p)"
+                >
+                    Marcar entregado
                 </button>
             </div>
         </div>

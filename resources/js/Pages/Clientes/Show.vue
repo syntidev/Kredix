@@ -348,7 +348,7 @@ const fabAbierto = ref(false);
 const plazoSugerido = ref(null);
 
 function productoVacio() {
-    return { descripcion: '', cantidad: '', precio_unitario: '' };
+    return { descripcion: '', cantidad: '', precio_unitario: '', pendiente_entrega: false };
 }
 
 const cargoForm = useForm({
@@ -670,6 +670,7 @@ const editForm = useForm({
     tipo_contacto: 'llamada',
     fecha_prometida: '',
     cantidad: '',
+    pendiente_entrega: false,
     precio_unitario: '',
     modalidad_precio: 'divisa',
     plazo_meses: '',
@@ -703,6 +704,7 @@ function openEditMov(m) {
     editForm.referencia = m.referencia ?? '';
     editForm.comentario = m.comentario ?? '';
     editForm.comprobante = null;
+    editForm.pendiente_entrega = m.pendiente_entrega ?? false;
     editForm.foto_producto = null;
     editForm.motivo_edicion = '';
     editTipo.value = m.tipo;
@@ -1303,6 +1305,10 @@ watch(algunModalAbierto, (abierto) => {
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                         <label class="text-sm font-medium text-kredix-negro">Precio unit.</label>
                         <input v-model="producto.precio_unitario" type="number" step="0.01" min="0" class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" @input="actualizarSugerencia" />
+                <label class="flex min-h-11 items-center gap-3 text-sm text-kredix-negro">
+                    <input v-model="producto.pendiente_entrega" type="checkbox" class="h-6 w-6 shrink-0" />
+                    Aún no entregado (apartado)
+                </label>
                         <p v-if="cargoForm.errors[`productos.${i}.precio_unitario`]" class="text-sm text-kredix-rojo">{{ cargoForm.errors[`productos.${i}.precio_unitario`] }}</p>
                     </div>
                 </div>
@@ -1619,6 +1625,10 @@ watch(algunModalAbierto, (abierto) => {
                             <input v-model="editForm.modalidad_precio" type="radio" value="bcv" class="h-4 w-4" />
                             BCV
                         </label>
+                <label class="flex min-h-11 items-center gap-3 text-sm text-kredix-negro">
+                    <input v-model="editForm.pendiente_entrega" type="checkbox" class="h-6 w-6 shrink-0" />
+                    Aún no entregado (apartado)
+                </label>
                     </div>
                     <p v-if="faltaTasaBcvEdit" class="text-sm text-amber-600">Falta tasa BCV para este registro</p>
                 </div>
@@ -1791,6 +1801,7 @@ watch(algunModalAbierto, (abierto) => {
                         <span v-if="m.tipo === 'gestion'" class="tabular-nums text-sm font-semibold text-kredix-negro">-</span>
                         <span v-else class="tabular-nums inline-flex items-center gap-0.5 text-sm font-semibold" :class="estiloMovimiento(m.tipo).color">
                             <component :is="estiloMovimiento(m.tipo).icono" :size="12" />
+                        <span v-if="m.pendiente_entrega" class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendiente de entrega</span>
                             {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
                         </span>
                         <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="text-xs font-medium text-amber-600">BCV</span>
@@ -1922,6 +1933,7 @@ watch(algunModalAbierto, (abierto) => {
                             <span v-if="m.tipo === 'gestion'">-</span>
                             <span v-else class="inline-flex items-center gap-0.5">
                                 <component :is="estiloMovimiento(m.tipo).icono" :size="12" />
+                            <span v-if="m.pendiente_entrega" class="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendiente de entrega</span>
                                 {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
                             </span>
                             <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="block text-xs font-normal text-amber-600">BCV</span>

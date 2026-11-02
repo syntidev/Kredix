@@ -136,6 +136,29 @@ class HomeController extends Controller
             'enCalle' => $enCalle,
             'cobradoHoy' => $cobradoHoy,
             'carteraConMora' => $carteraConMora,
+            'porEntregar' => $this->porEntregar(),
         ]);
+    }
+
+    // ventas adelantadas sin entregar, la mas antigua primero. Un cargo borrado (soft-delete) o de
+    // un cliente borrado no aparece. No es un agregado de cartera: son lineas individuales
+    private function porEntregar()
+    {
+        return MovimientoCuenta::where('tipo', 'cargo')
+            ->where('pendiente_entrega', true)
+            ->whereHas('cliente')
+            ->with('cliente:id,nombre')
+            ->orderByRaw('fecha IS NULL, fecha')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (MovimientoCuenta $m) => [
+                'id' => $m->id,
+                'clienteId' => $m->cliente_id,
+                'clienteNombre' => $m->cliente->nombre,
+                'producto' => $m->descripcion,
+                'monto' => (float) $m->monto,
+                'dias' => $m->fecha ? (int) now()->startOfDay()->diffInDays($m->fecha, true) : null,
+            ])
+            ->values();
     }
 }
