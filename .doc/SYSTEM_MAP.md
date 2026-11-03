@@ -351,3 +351,21 @@ quedan pendientes de confirmacion por Carlos.*
   `drop column` sobre una columna indexada y sqlite en memoria no lo soporta (afecta a todo test con `RefreshDatabase`).
 - **Pendiente:** deploy único (`git pull` + `migrate --force` seguidos). Ningún módulo queda certificado: falta la aprobación
   visual de Carlos (criterio 6). No verificado aquí: producción, Safari/iOS, PWA, dispositivos físicos.
+
+### Lote de correcciones 1 (rama `feat/lote-correcciones-1`, 2026-11-03)
+
+- **Punto de partida:** el deploy ya corrió; `main`, `origin/main` y `feat/taller-cierre-comisiones-entregas` coinciden en `e2dabb9`
+  (ningún commit de la rama quedó fuera de `origin/main`). Esta rama parte de ahí. Sin merge ni deploy.
+- **Pruebas:** la migración `replace_procesado_con_estado_en_prospectos_200k` ahora quita el índice de `procesado` antes del `dropColumn`
+  SOLO en sqlite (MySQL queda igual). Resultado: la suite completa corre sin fallas (324 pasan; antes 27 rotas por esa causa, incluida `TasaBcvServiceTest`).
+- **Ventas por entregar:** `/ventas?por_entregar=1` (chip "Solo por entregar" en Ventas y enlace "Ver todos" en el bloque de Inicio, este último solo
+  para admin porque `/ventas` es solo de admin). Ignora el rango de fechas. Pagado/saldo por compra: contado = todo pagado; con plan = inicial + abonos
+  del plan; crédito sin plan = 0 pagado (los abonos generales no se asignan a una compra). Sin menú nuevo ni botón nuevo.
+- **Eliminar una línea de contado:** en la misma transacción ajusta su pago (mismo `compra_id`): sin líneas vivas lo anula (soft-delete), con líneas
+  restantes lo reduce por el monto de la línea y conserva su tasa; ActivityLog `contado_pago_ajustado`; la UI avisa antes de confirmar.
+- **"Lleva serial":** desmarcarla en una venta ya no toca `productos.lleva_serial` (solo marcar persiste). **No existe pantalla de edición del catálogo
+  de artículos** (solo la ruta de búsqueda `/productos`): no se creó; hoy no hay forma de quitar la marca desde la UI.
+- **Agregar serial** a líneas existentes con menos seriales vigentes que su cantidad entera (`POST /movimientos/{id}/seriales`), con las mismas reglas.
+- **Hallazgo (NO corregido):** el KPI cuenta como "otorgado" la mercancía apartada sin entregar, por su fecha de venta
+  (`KpiController.php:85,131,194,309`: suman todos los cargos sin mirar `pendiente_entrega`). Prueba: una compra apartada de 250 sube el otorgado en 250.
+- **Pendiente:** deploy de esta rama; ningún módulo certificado (falta la aprobación visual de Carlos). No verificado: producción, Safari/iOS, PWA, dispositivos físicos.
