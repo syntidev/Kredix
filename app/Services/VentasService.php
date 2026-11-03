@@ -111,9 +111,8 @@ class VentasService
 
     /**
      * Ventas por entregar (apartados): lineas de cargo vivas con pendiente_entrega, SIN mirar el rango de fechas,
-     * de la mas antigua a la mas reciente. Pagado y saldo son de la COMPRA de la linea:
-     *  - contado: todo pagado; - con plan: inicial + abonos del plan; - credito sin plan: 0 pagado (los abonos
-     *    generales no se asignan a una compra concreta), saldo = total.
+     * de la mas antigua a la mas reciente. Total es el de la compra; Abono y Saldo son los de la CUENTA del cliente
+     * (MovimientoCuenta::totalCobrado / saldoPendiente, igual que la ficha). Contado: Abono = Total, Saldo = 0.
      *
      * @return list<array<string, mixed>>
      */
@@ -125,12 +124,17 @@ class VentasService
             ->get()
             ->map(function (MovimientoCuenta $linea) {
                 $total = PlanFinanciamiento::montoTotalDeCompra($linea);
-                $plan = $linea->es_contado ? null : PlanFinanciamiento::deCargo($linea);
-                $pagado = match (true) {
-                    (bool) $linea->es_contado => $total,
-                    $plan !== null => (float) $plan->monto_inicial + $plan->totalAbonado(),
-                    default => 0.0,
-                };
+                // contado: la venta se paga completa (cargo + abono que netean cero), no depende de la cuenta.
+                // credito: abono y saldo son los de la CUENTA del cliente, la misma funcion que usa la ficha.
+                $contado = (bool) $linea->es_contado;
+                $abono = $contado ? $total : MovimientoCuenta::totalCobrado($linea->cliente_id);
+                $saldo = $contado ? 0.0 : MovimientoCuenta::saldoPendiente($linea->cliente_id);
+                $otrosCargos = ! $contado && MovimientoCuenta::where('cliente_id', $linea->cliente_id)->where('tipo', 'cargo')
+                    ->when(
+                        filled($linea->compra_id),
+                        fn ($q) => $q->where(fn ($w) => $w->whereNull('compra_id')->orWhere('compra_id', '!=', $linea->compra_id)),
+                        fn ($q) => $q->where('id', '!=', $linea->id),
+                    )->exists();
 
                 return [
                     'id' => $linea->id,
@@ -141,8 +145,9 @@ class VentasService
                     'fecha' => $linea->fecha?->toDateString(),
                     'contado' => (bool) $linea->es_contado,
                     'total' => round($total, 2),
-                    'pagado' => round($pagado, 2),
-                    'saldo' => round(max(0, $total - $pagado), 2),
+                    'abono' => round($abono, 2),
+                    'saldo' => round($saldo, 2),
+                    'cuenta_con_otros_cargos' => $otrosCargos,
                 ];
             })->values()->all();
     }

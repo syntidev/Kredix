@@ -80,7 +80,8 @@ class LoteCorreccionesTest extends TestCase
         $this->assertSame('GARMIN', $lista[0]['articulo']);
         $this->assertSame('Ana Perez', $lista[0]['cliente']);
         $this->assertSame(now()->subDays(30)->toDateString(), $lista[0]['fecha']);
-        $this->assertEquals(220.0, $lista[0]['pagado'], 'contado: todo pagado');
+        $this->assertEquals(220.0, $lista[0]['total']);
+        $this->assertEquals(220.0, $lista[0]['abono'], 'contado: todo abonado');
         $this->assertEquals(0.0, $lista[0]['saldo']);
         $this->assertTrue($lista[0]['contado']);
 
@@ -98,7 +99,8 @@ class LoteCorreccionesTest extends TestCase
 
         [$fila] = $this->porEntregar();
 
-        $this->assertEquals(70.0, $fila['pagado']);
+        $this->assertEquals(220.0, $fila['total']);
+        $this->assertEquals(70.0, $fila['abono']);
         $this->assertEquals(150.0, $fila['saldo']);
         $this->assertFalse($fila['contado']);
     }

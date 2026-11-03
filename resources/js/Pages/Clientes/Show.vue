@@ -21,6 +21,9 @@ import { formatMoney } from '../../lib/formatMoney';
 import { formatPhoneDisplay } from '../../lib/formatPhone';
 import { etiquetaMetodoPago } from '../../lib/metodoPago';
 
+// "1 mes, mensual" / "2 meses, mensual"
+const textoPlazo = (plazo, frecuencia) => `${plazo} ${Number(plazo) === 1 ? 'mes' : 'meses'}, ${frecuencia}`;
+
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
@@ -1908,7 +1911,7 @@ watch(algunModalAbierto, (abierto) => {
                         <span class="text-kredix-gris">Registrado por</span>
                         <span class="text-kredix-gris">{{ m.registrado_por }}</span>
                     </div>
-                    <p v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</p>
+                    <p v-if="m.tipo === 'cargo' && m.plazo_meses" class="text-kredix-gris">{{ textoPlazo(m.plazo_meses, m.frecuencia_pago) }}</p>
                     <div v-if="m.seriales?.length" class="flex flex-col gap-1" data-seriales>
                         <span class="text-kredix-gris">Seriales (garantía)</span>
                         <div v-for="s in m.seriales" :key="s.id" class="flex items-center gap-2">
@@ -1997,7 +2000,7 @@ watch(algunModalAbierto, (abierto) => {
                             </template>
                             <template v-else>
                                 {{ m.descripcion }}
-                                <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="block text-xs text-kredix-gris">{{ m.plazo_meses }} meses, {{ m.frecuencia_pago }}</span>
+                                <span v-if="m.tipo === 'cargo' && m.plazo_meses" class="block text-xs text-kredix-gris">{{ textoPlazo(m.plazo_meses, m.frecuencia_pago) }}</span>
                                 <span v-for="s in m.seriales" :key="s.id" class="mt-1 flex items-center gap-2 text-xs text-kredix-gris" data-serial-fila>
                                     <template v-if="serialEditando?.id === s.id">
                                         <input v-model="serialEditando.valor" type="text" autocapitalize="characters" class="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-300 px-2 text-sm uppercase text-kredix-negro" @click.stop />
@@ -2042,8 +2045,8 @@ watch(algunModalAbierto, (abierto) => {
                                 {{ estiloMovimiento(m.tipo).signo }}{{ formatMoney(m.tipo === 'cargo' ? m.precio_unitario : m.monto) }}
                             </span>
                             <span v-if="m.tipo === 'cargo' && m.modalidad_precio === 'bcv'" class="block text-xs font-normal text-amber-600">BCV</span>
-                            <span v-if="m.es_contado" class="mt-0.5 mr-1 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Contado</span>
-                            <span v-if="m.pendiente_entrega" class="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendiente de entrega</span>
+                            <span v-if="m.es_contado" class="ml-auto mt-0.5 block w-fit max-w-full whitespace-normal rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Contado</span>
+                            <span v-if="m.pendiente_entrega" class="ml-auto mt-0.5 block w-fit max-w-full whitespace-normal rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendiente de entrega</span>
                         </td>
                         <td class="break-words px-2 py-2 text-kredix-gris">
                             <span>{{ m.tipo === 'gestion' ? '-' : (m.metodo_pago ? etiquetaMetodoPago(m.metodo_pago) : '-') }}{{ m.referencia ? ` · ${m.referencia}` : '' }}</span>

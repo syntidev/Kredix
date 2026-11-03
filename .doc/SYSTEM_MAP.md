@@ -369,3 +369,18 @@ quedan pendientes de confirmacion por Carlos.*
 - **Hallazgo (NO corregido):** el KPI cuenta como "otorgado" la mercancía apartada sin entregar, por su fecha de venta
   (`KpiController.php:85,131,194,309`: suman todos los cargos sin mirar `pendiente_entrega`). Prueba: una compra apartada de 250 sube el otorgado en 250.
 - **Pendiente:** deploy de esta rama; ningún módulo certificado (falta la aprobación visual de Carlos). No verificado: producción, Safari/iOS, PWA, dispositivos físicos.
+
+## Lote de correcciones 2 (2026-11-03) — rama `feat/lote-correcciones-2`
+
+- **Tarjeta "Por entregar" (Ventas):** muestra Total (de la compra), Abono y Saldo en una fila. Abono y Saldo son los de la CUENTA del cliente:
+  `MovimientoCuenta::totalCobrado()` / `saldoPendiente()`, las mismas funciones de "Total cobrado" / "Saldo pendiente" de la ficha
+  (`ClienteController`). Si el cliente tiene otros cargos vigentes además de esa compra, la tarjeta dice "Abono y saldo de toda la cuenta del cliente"
+  (`cuenta_con_otros_cargos`). Contado: Abono = Total, Saldo = 0, sin nota. Se eliminó la aproximación anterior (pagado por plan / "0 pagado" sin plan).
+  Sin reparto de abonos entre compras (decisión de negocio fuera de alcance).
+- **Clientes/Show:** la etiqueta "Pendiente de entrega" (y "Contado") ahora va en su propia línea dentro de la celda del monto (antes se desbordaba
+  sobre la columna Método); `textoPlazo()` pluraliza "1 mes" / "2 meses".
+- **6c (solo reporte):** una compra no guarda método de pago al crearse (`MovimientoCuentaController::store`, sin `metodo_pago`), pero al EDITARLA el
+  formulario (`editForm.metodo_pago = m.metodo_pago ?? 'efectivo'`, `Show.vue`) envía 'efectivo' y `update()` lo persiste en el cargo
+  (`MovimientoCuentaController.php`, `'metodo_pago' => $validated['metodo_pago'] ?? null`). El nombre es `registrado_por` del cargo (quien lo registró,
+  `store()`; `update()` no lo cambia), mostrado por `ClienteController` (`'registrado_por' => $m->registradoPor?->name`).
+- **No verificado:** producción, Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).

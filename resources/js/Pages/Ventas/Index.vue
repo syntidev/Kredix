@@ -187,10 +187,12 @@ const OPCIONES_VISTA = [
                     </div>
                     <a :href="`/clientes/${p.clienteId}`" class="flex min-h-11 items-center text-sm text-primario underline">{{ p.cliente }}</a>
                     <p class="text-xs text-suave">Vendido el {{ formatFecha(p.fecha) }}</p>
-                    <div class="flex items-baseline justify-between gap-2 text-sm tabular-nums">
-                        <span class="text-suave">Pagado <span class="font-bold text-tinta">{{ formatMoney(p.pagado) }}</span></span>
-                        <span class="text-suave">Saldo <span class="font-bold text-tinta">{{ formatMoney(p.saldo) }}</span></span>
+                    <div class="grid grid-cols-3 gap-2 text-sm tabular-nums">
+                        <span class="flex flex-col text-xs text-suave">Total <span class="text-sm font-bold text-tinta">{{ formatMoney(p.total) }}</span></span>
+                        <span class="flex flex-col text-xs text-suave">Abono <span class="text-sm font-bold text-tinta">{{ formatMoney(p.abono) }}</span></span>
+                        <span class="flex flex-col text-xs text-suave">Saldo <span class="text-sm font-bold text-tinta">{{ formatMoney(p.saldo) }}</span></span>
                     </div>
+                    <p v-if="p.cuenta_con_otros_cargos" class="text-[11px] text-suave">Abono y saldo de toda la cuenta del cliente</p>
                 </li>
             </ul>
         </section>
