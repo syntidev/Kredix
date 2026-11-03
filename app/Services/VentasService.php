@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\MovimientoCuenta;
+use App\Models\PlanFinanciamiento;
 use App\Models\Producto;
 use App\Models\TicketTaller;
 use Carbon\CarbonInterface;
@@ -106,6 +107,44 @@ class VentasService
             'dias' => $this->subtotalesPorDia($inicio, $fin),
             ...$this->lineasPagina($inicio, $fin, 0),
         ];
+    }
+
+    /**
+     * Ventas por entregar (apartados): lineas de cargo vivas con pendiente_entrega, SIN mirar el rango de fechas,
+     * de la mas antigua a la mas reciente. Pagado y saldo son de la COMPRA de la linea:
+     *  - contado: todo pagado; - con plan: inicial + abonos del plan; - credito sin plan: 0 pagado (los abonos
+     *    generales no se asignan a una compra concreta), saldo = total.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function porEntregar(): array
+    {
+        return MovimientoCuenta::where('tipo', 'cargo')->where('pendiente_entrega', true)
+            ->whereHas('cliente')->with('cliente:id,nombre')
+            ->orderByRaw('fecha IS NULL, fecha')->orderBy('id')
+            ->get()
+            ->map(function (MovimientoCuenta $linea) {
+                $total = PlanFinanciamiento::montoTotalDeCompra($linea);
+                $plan = $linea->es_contado ? null : PlanFinanciamiento::deCargo($linea);
+                $pagado = match (true) {
+                    (bool) $linea->es_contado => $total,
+                    $plan !== null => (float) $plan->monto_inicial + $plan->totalAbonado(),
+                    default => 0.0,
+                };
+
+                return [
+                    'id' => $linea->id,
+                    'clienteId' => $linea->cliente_id,
+                    'cliente' => $linea->cliente->nombre,
+                    'articulo' => Producto::normalizarNombre((string) $linea->descripcion),
+                    'cantidad' => round((float) $linea->cantidad, 2),
+                    'fecha' => $linea->fecha?->toDateString(),
+                    'contado' => (bool) $linea->es_contado,
+                    'total' => round($total, 2),
+                    'pagado' => round($pagado, 2),
+                    'saldo' => round(max(0, $total - $pagado), 2),
+                ];
+            })->values()->all();
     }
 
     /**

@@ -157,9 +157,10 @@ class MovimientoCuentaController extends Controller
                         ['veces_usado' => 0]
                     );
                     $catalogo->increment('veces_usado');
-                    // "lleva serial" se aprende: la proxima vez que se venda este articulo sale marcado
-                    if (array_key_exists('lleva_serial', $producto)) {
-                        $catalogo->update(['lleva_serial' => (bool) $producto['lleva_serial']]);
+                    // "lleva serial" se aprende al MARCARLO: la proxima vez que se venda este articulo sale marcado.
+                    // Desmarcarlo en una venta NO lo quita del catalogo (eso seria desde la edicion del articulo)
+                    if (! empty($producto['lleva_serial'])) {
+                        $catalogo->update(['lleva_serial' => true]);
                     }
 
                     return MovimientoCuenta::create([
@@ -317,6 +318,31 @@ class MovimientoCuentaController extends Controller
         return redirect()->route('clientes.show', $validated['cliente_id']);
     }
 
+    // Eliminar una linea de contado ajusta SU pago en la misma transaccion (el saldo del cliente queda en 0):
+    // sin lineas vivas en la compra el pago se anula (soft-delete); con lineas restantes baja por el monto de la
+    // eliminada. El pago esta en USD y conserva la tasa de su transaccion (tasa_cambio no se toca)
+    private function ajustarPagoDeContado(MovimientoCuenta $linea, string $motivo): void
+    {
+        $pago = MovimientoCuenta::where('compra_id', $linea->compra_id)->where('tipo', 'abono')->where('es_contado', true)->first();
+        if (! $pago) {
+            return;
+        }
+
+        $montoAntes = (float) $pago->monto;
+        $quedanLineas = MovimientoCuenta::where('compra_id', $linea->compra_id)->where('tipo', 'cargo')->exists();
+
+        if ($quedanLineas) {
+            $pago->update(['monto' => round($montoAntes - (float) $linea->monto, 2)]);
+        } else {
+            $pago->update(['motivo_eliminacion' => 'Venta de contado anulada: '.$motivo, 'eliminado_por' => auth()->id()]);
+            $pago->delete();
+        }
+
+        activity()->causedBy(auth()->user())->performedOn($pago)
+            ->withProperties(['linea_eliminada' => $linea->id, 'monto_linea' => (float) $linea->monto, 'monto_pago_antes' => $montoAntes, 'pago_anulado' => ! $quedanLineas])
+            ->log('contado_pago_ajustado');
+    }
+
     // Una venta de contado solo queda fuera de KPI/mora/cartera mientras su cargo y su pago netean cero.
     // Si una edicion o un borrado lo rompe (monto distinto, pago eliminado, linea eliminada), TODA la compra
     // vuelve a credito: asi la deuda que quede es visible y nunca se oculta tras la marca es_contado
@@ -327,6 +353,9 @@ class MovimientoCuentaController extends Controller
         }
 
         $filas = MovimientoCuenta::where('compra_id', $tocado->compra_id)->where('es_contado', true)->get();
+        if ($filas->isEmpty()) {
+            return; // la compra de contado se anulo completa: no hay nada que revertir
+        }
         $cargos = round((float) $filas->where('tipo', 'cargo')->sum('monto'), 2);
         $abonos = round((float) $filas->where('tipo', 'abono')->sum('monto'), 2);
 
@@ -531,6 +560,30 @@ class MovimientoCuentaController extends Controller
         return redirect()->route('clientes.show', $movimiento->cliente_id);
     }
 
+    // Agregar seriales a una linea de cargo existente que tiene menos seriales vigentes que unidades: se piden
+    // exactamente los que faltan, con las mismas reglas de la venta (normalizado, distintos, sin repetir un vigente)
+    public function agregarSeriales(Request $request, MovimientoCuenta $movimiento)
+    {
+        abort_if($movimiento->tipo !== 'cargo', 422, 'Solo las lineas de cargo llevan seriales');
+
+        $validated = $request->validate(['seriales' => ['required', 'array', 'min:1'], 'seriales.*' => ['nullable', 'string', 'max:100']], ['seriales.required' => 'Indica los seriales que faltan.']);
+
+        $faltan = (int) floor((float) $movimiento->cantidad) - $movimiento->seriales()->count();
+        abort_if($faltan < 1, 422, 'Esta linea ya tiene todos sus seriales');
+
+        try {
+            DB::transaction(function () use ($movimiento, $validated, $faltan, $request) {
+                SerialesVenta::validar([['descripcion' => $movimiento->descripcion, 'cantidad' => $faltan, 'lleva_serial' => true, 'seriales' => $validated['seriales']]]);
+                SerialesVenta::registrar($movimiento, $validated['seriales'], $request->user()->id);
+            });
+        } catch (ValidationException $e) {
+            // la validacion habla de "productos.0.*" (el formulario de venta); aqui el campo es "seriales"
+            throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => [str_replace('productos.0.', '', $k) => $m])->all());
+        }
+
+        return redirect()->back();
+    }
+
     // Corregir un serial mal digitado: misma normalizacion y unicidad que al venderlo, con huella en ActivityLog
     public function corregirSerial(Request $request, \App\Models\SerialProducto $serial)
     {
@@ -608,6 +661,10 @@ class MovimientoCuentaController extends Controller
                 $sincronizaPlan->alAnularLinea($movimiento);
                 // los seriales de la linea quedan libres (soft-delete) y pueden volver a registrarse
                 SerialesVenta::liberarDeLinea($movimiento, $request->user(), 'linea de cargo eliminada: '.$validated['motivo']);
+
+                if ($movimiento->es_contado) {
+                    $this->ajustarPagoDeContado($movimiento, $validated['motivo']);
+                }
             }
         });
 

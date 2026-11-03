@@ -7,6 +7,7 @@ import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
 import FotoInput from '../../Components/FotoInput.vue';
+import SerialesAgregar from '../../Components/SerialesAgregar.vue';
 import EstadoValidacionLed from '../../Components/EstadoValidacionLed.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
@@ -1923,6 +1924,7 @@ watch(algunModalAbierto, (abierto) => {
                         </div>
                         <p v-if="serialEditando && errorSerial" class="text-sm text-kredix-rojo">{{ errorSerial }}</p>
                     </div>
+                    <SerialesAgregar :movimiento="m" />
                     <p v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="text-kredix-gris">{{ m.comentario }}</p>
                     <div v-if="m.comprobante_url || m.producto_url" class="flex gap-3">
                         <button v-if="m.comprobante_url" type="button" class="flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-kredix-negro" @click.stop="abrirFotoMovimiento(m, 'comprobante')">
@@ -2008,6 +2010,7 @@ watch(algunModalAbierto, (abierto) => {
                                     </template>
                                 </span>
                                 <span v-if="serialEditando && errorSerial && m.seriales?.some((s) => s.id === serialEditando.id)" class="block text-xs text-kredix-rojo">{{ errorSerial }}</span>
+                                <SerialesAgregar :movimiento="m" class="mt-1" />
                                 <span v-if="(m.tipo === 'abono' || m.tipo === 'ajuste_devolucion' || m.tipo === 'cargo') && esComentarioVisible(m.comentario)" class="block text-xs text-kredix-gris">{{ m.comentario }}</span>
                                 <button v-if="m.comprobante_url" type="button" class="mt-1 flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1 text-sm text-kredix-negro" @click.stop="abrirFotoMovimiento(m, 'comprobante')">
                                     <img v-if="!imgErrores[`dc${m.id}`]" :src="m.comprobante_thumb_url" alt="comprobante" class="h-8 w-8 rounded object-cover" @error="onImgError(`dc${m.id}`)" />
@@ -2211,6 +2214,7 @@ watch(algunModalAbierto, (abierto) => {
                     {{ movimientoAEliminar?.descripcion }}
                     <span v-if="movimientoAEliminar?.monto"> — {{ formatMoney(movimientoAEliminar.monto) }}</span>
                 </p>
+                <p v-if="movimientoAEliminar?.tipo === 'cargo' && movimientoAEliminar?.es_contado" class="mt-2 text-sm font-medium text-amber-700">También se anulará el pago de contado de esta línea.</p>
                 <p class="mt-2 text-sm text-kredix-gris">Esta accion requiere un administrador para revertirla.</p>
                 <div class="mt-4 flex gap-2">
                     <button type="button" autofocus class="min-h-11 flex-1 rounded-lg bg-kredix-negro text-sm font-semibold text-white active:opacity-80" @click="cancelarEliminarMov">

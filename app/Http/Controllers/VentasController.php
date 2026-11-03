@@ -19,6 +19,8 @@ class VentasController extends Controller
 
         return Inertia::render('Ventas/Index', [
             'ventas' => $this->ventas->resumen($desde, $hasta),
+            // "Solo por entregar": lista de apartados que IGNORA el rango de fechas; null = vista normal
+            'porEntregar' => $request->boolean('por_entregar') ? $this->ventas->porEntregar() : null,
             'rango' => $rango,
             // "hoy" segun la zona horaria de la app, para rotular los dias (Hoy / Ayer)
             'hoy' => Carbon::today()->toDateString(),

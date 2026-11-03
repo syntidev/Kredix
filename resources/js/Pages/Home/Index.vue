@@ -188,7 +188,11 @@ const accionesRapidas = [
         <div v-if="porEntregar.length > 0" class="flex flex-col gap-2">
             <div class="flex items-center justify-between px-1">
                 <p class="text-xs text-kredix-gris">Por entregar</p>
-                <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{{ porEntregar.length }}</span>
+                <span class="flex items-center gap-2">
+                    <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{{ porEntregar.length }}</span>
+                    <!-- /ventas es solo de admin (enCalle solo llega a admin): al operador no se le ofrece un enlace que da 403 -->
+                    <Link v-if="enCalle !== null" href="/ventas?por_entregar=1" class="flex min-h-11 items-center rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100">Ver todos</Link>
+                </span>
             </div>
             <div
                 v-for="p in porEntregar"

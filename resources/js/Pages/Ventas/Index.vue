@@ -14,6 +14,8 @@ const props = defineProps({
     rango: { type: String, required: true },
     // fecha de hoy (YYYY-MM-DD) en la zona horaria de la app, para rotular Hoy / Ayer
     hoy: { type: String, required: true },
+    // "Solo por entregar": apartados sin entregar (ignora el rango); null = vista normal de ventas
+    porEntregar: { type: Array, default: null },
 });
 
 const page = usePage();
@@ -162,9 +164,38 @@ const OPCIONES_VISTA = [
             <p class="text-sm text-suave">Lo que se vendió, no lo que se cobró</p>
         </div>
 
-        <RangoFechas :rango="rango" :desde="ventas.desde" :hasta="ventas.hasta" :error="errorRango" @cambiar="cambiarRango" />
+        <RangoFechas v-if="porEntregar === null" :rango="rango" :desde="ventas.desde" :hasta="ventas.hasta" :error="errorRango" @cambiar="cambiarRango" />
 
-        <div class="flex flex-col gap-4 transition-opacity duration-150" :class="cargando ? 'opacity-60' : ''" :aria-busy="cargando">
+        <button
+            type="button"
+            class="k-presion min-h-11 w-fit rounded-full border px-4 text-sm font-semibold"
+            :class="porEntregar !== null ? 'border-primario bg-primario text-white shadow-primario' : 'border-linea bg-white text-tinta shadow-e1'"
+            :aria-pressed="porEntregar !== null"
+            @click="router.get('/ventas', porEntregar !== null ? {} : { por_entregar: 1 })"
+        >
+            Solo por entregar
+        </button>
+
+        <section v-if="porEntregar !== null" class="flex flex-col gap-3" aria-label="Ventas por entregar" data-por-entregar>
+            <p class="text-sm text-suave">Compras apartadas que aún no se entregan, sin importar la fecha. Marcar entregado se hace en la ficha del cliente.</p>
+            <p v-if="porEntregar.length === 0" class="k-card rounded-k14 bg-white p-4 text-sm text-suave">No hay ventas por entregar.</p>
+            <ul v-else class="flex flex-col gap-2">
+                <li v-for="p in porEntregar" :key="p.id" class="k-card flex flex-col gap-1 rounded-k14 bg-white p-3">
+                    <div class="flex items-start justify-between gap-2">
+                        <p class="min-w-0 break-words text-sm font-bold text-tinta">{{ p.articulo }}<span v-if="p.cantidad !== 1" class="font-normal text-suave"> × {{ p.cantidad }}</span></p>
+                        <span v-if="p.contado" class="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-green-700">Contado</span>
+                    </div>
+                    <a :href="`/clientes/${p.clienteId}`" class="flex min-h-11 items-center text-sm text-primario underline">{{ p.cliente }}</a>
+                    <p class="text-xs text-suave">Vendido el {{ formatFecha(p.fecha) }}</p>
+                    <div class="flex items-baseline justify-between gap-2 text-sm tabular-nums">
+                        <span class="text-suave">Pagado <span class="font-bold text-tinta">{{ formatMoney(p.pagado) }}</span></span>
+                        <span class="text-suave">Saldo <span class="font-bold text-tinta">{{ formatMoney(p.saldo) }}</span></span>
+                    </div>
+                </li>
+            </ul>
+        </section>
+
+        <div v-if="porEntregar === null" class="flex flex-col gap-4 transition-opacity duration-150" :class="cargando ? 'opacity-60' : ''" :aria-busy="cargando">
             <section class="rounded-k14 bg-primario p-4 text-white shadow-e2" aria-label="Total vendido">
                 <p class="text-[11px] font-bold uppercase tracking-[0.1em] text-lateral-suave">Total vendido</p>
                 <p class="mt-1 break-words text-[34px] font-extrabold leading-tight tracking-tight tabular-nums sm:text-5xl">{{ formatMoney(ventas.total) }}</p>
