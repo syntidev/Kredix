@@ -18,6 +18,14 @@ return new class extends Migration
 
         DB::table('prospectos_200k')->where('procesado', true)->update(['estado' => 'fusionado']);
 
+        // sqlite no puede borrar una columna que tiene un indice (pruebas en memoria): se quita el indice antes.
+        // En MySQL no hace falta (al borrar la columna sale del indice), asi que su efecto no cambia
+        if (DB::getDriverName() === 'sqlite') {
+            Schema::table('prospectos_200k', function (Blueprint $table) {
+                $table->dropIndex('prospectos_200k_procesado_index');
+            });
+        }
+
         Schema::table('prospectos_200k', function (Blueprint $table) {
             $table->dropColumn('procesado');
         });
