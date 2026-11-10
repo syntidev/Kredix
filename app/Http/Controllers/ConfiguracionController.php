@@ -25,10 +25,6 @@ class ConfiguracionController extends Controller
     public function index()
     {
         return Inertia::render('Configuracion/Index', [
-            'whatsappIntro1' => Configuracion::valorDe('whatsapp_intro_1'),
-            'whatsappIntro2' => Configuracion::valorDe('whatsapp_intro_2'),
-            'whatsappIntro3' => Configuracion::valorDe('whatsapp_intro_3'),
-            'whatsappPlantillaActiva' => Configuracion::valorDe('whatsapp_plantilla_activa', '1'),
             // bloque "Taller" de la pestana WhatsApp: texto vigente (guardado u original) y el original
             'plantillasTaller' => collect(PlantillasWhatsapp::CAMPOS)->map(fn (array $c, string $campo) => [
                 'campo' => $campo,
@@ -45,6 +41,14 @@ class ConfiguracionController extends Controller
                 'comision_repuestos_pct' => AjustesTaller::comisionRepuestosPct(),
                 'presets_servicio' => AjustesTaller::presetsServicio(),
             ] : null,
+            // plantillas de cobranza: solo admin las edita; el dato no viaja a quien no lo ve
+            'plantillasCobranza' => request()->user()->es_admin ? collect(PlantillasWhatsapp::COBRANZA)->map(fn (array $c, string $tipo) => [
+                'campo' => $tipo,
+                'etiqueta' => $c['etiqueta'],
+                'variables' => $c['variables'],
+                'texto' => PlantillasWhatsapp::texto($tipo, 'cobranza'),
+                'defecto' => PlantillasWhatsapp::defecto($tipo, 'cobranza'),
+            ])->values() : [],
             'tasaBcvActual' => Configuracion::valorDe('tasa_bcv_actual'),
             'pdfMensajeGlobal' => Configuracion::valorDe('pdf_mensaje_global'),
             'bannerSuperiorUrl' => ConfiguracionPdf::instancia()->getFirstMediaUrl('banner_superior', 'pdf') ?: null,
@@ -59,6 +63,8 @@ class ConfiguracionController extends Controller
         ]);
     }
 
+    // LEGADO: plantillas 1-3 de la ficha (ya no se usan en pantalla: las reemplaza el selector de cobranza). Se conserva el
+    // endpoint porque tiene pruebas del Taller que no se tocan en este lote.
     // 3 endpoints independientes (uno por tab) en vez de un update() unico --
     // guardar un tab nunca valida ni escribe las claves de los otros dos.
     // Las 3 cajas + la plantilla activa se guardan juntas en un solo submit --
@@ -111,6 +117,33 @@ class ConfiguracionController extends Controller
             Configuracion::updateOrCreate(
                 ['clave' => $definicion['clave']],
                 ['valor' => $texto === trim(PlantillasWhatsapp::defecto($campo)) ? null : $texto]
+            );
+        }
+
+        return redirect()->route('configuracion.index');
+    }
+
+    // Bloque "Cobranza" de la pestana WhatsApp (solo admin): mismo patron que el del Taller. Un texto igual al
+    // original se guarda como null y sigue al original si algun dia cambia
+    public function updateWhatsappCobranza(Request $request)
+    {
+        abort_unless($request->user()->es_admin, 403);
+
+        $reglas = [];
+        foreach (array_keys(PlantillasWhatsapp::COBRANZA) as $tipo) {
+            $reglas[$tipo] = ['required', 'string', 'max:1000', function (string $atributo, mixed $valor, Closure $fallar) use ($tipo) {
+                if ($error = PlantillasWhatsapp::errorDeVariables($tipo, $valor, 'cobranza')) {
+                    $fallar($error);
+                }
+            }];
+        }
+        $validated = $request->validate($reglas, ['*.required' => 'El texto no puede quedar vacío; usa «Restaurar texto por defecto».']);
+
+        foreach (PlantillasWhatsapp::COBRANZA as $tipo => $definicion) {
+            $texto = trim($validated[$tipo]);
+            Configuracion::updateOrCreate(
+                ['clave' => $definicion['clave']],
+                ['valor' => $texto === trim(PlantillasWhatsapp::defecto($tipo, 'cobranza')) ? null : $texto]
             );
         }
 

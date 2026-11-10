@@ -396,3 +396,18 @@ quedan pendientes de confirmacion por Carlos.*
 - **C1 (no se implementó C2):** un ticket sin pagos ni abonos SÍ se puede marcar atendido: `TallerController::marcarAtendido` solo exige trabajo
   realizado o revisión, ≥1 foto de entrada y decir si se pagó en taller o a cuenta (`pagado_en_taller=false` genera el cargo). Cerrarlo basta.
 - **No verificado:** producción, Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).
+
+## Lote 5: WhatsApp de cobranza en la ficha (2026-11-10) — rama `feat/whatsapp-cobranza` (parte de `feat/taller-presets-bicis`)
+
+- **Un solo motor:** `PlantillasWhatsapp` ahora tiene el espacio `cobranza` (`COBRANZA`, 6 tipos con su texto original en código) además del Taller; `texto/defecto/errorDeVariables`
+  reciben `$espacio` (por defecto `taller`, el Taller no cambia) y `armar()` reemplaza variables: un dato null quita su línea y nunca queda un `{x}`.
+  Claves `whatsapp_cobranza_<tipo>` en Configuracion (null = texto del código).
+- **Servicio:** `CobranzaWhatsapp::paraCliente()` arma los 6 textos (USD, `$1,199.00`). Abono y saldo son los de la CUENTA (`totalCobrado()` / `saldoPendiente()`).
+  Estado de cuenta: compras de crédito (sin contado) recortadas con "• y N más" hasta 1800 de URL (`PresupuestoWhatsapp::largoDelEnlace`). Recordatorio: cuota pendiente
+  de menor vencimiento ("Lleva N días de atraso" si venció); sin cuotas usa la plantilla de saldo. Abono recibido: último abono vigente que no es de contado.
+  Preselección: recordatorio si hay cuota vencida, si no estado de cuenta.
+- **UI:** `WhatsappCobranza.vue` (hoja inferior en móvil, ventana flotante en escritorio), texto editable, "Anotar gestión" (desactivada), sin teléfono = botón
+  deshabilitado. `POST /clientes/{cliente}/whatsapp-cobranza` registra `whatsapp_cobranza` (tipo + usuario, sin el texto) y, si se pide, la gestión "WhatsApp: <tipo>".
+  Configuración › WhatsApp › «WhatsApp · Cobranza» (solo admin). Se quitó el formulario de las plantillas 1-3; el endpoint `PUT /configuracion/whatsapp` queda
+  como legado porque tiene pruebas del Taller que no se modifican.
+- **No verificado:** apertura real de WhatsApp, Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).

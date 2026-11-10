@@ -14,6 +14,7 @@ use App\Models\Prospecto200k;
 use App\Models\ProspectoDescarte;
 use App\Models\ReglaPlazo;
 use App\Models\User;
+use App\Services\CobranzaWhatsapp;
 use App\Services\TasaBcvService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -188,27 +189,6 @@ class ClienteController extends Controller
         $ultimoAbonoInfo = MovimientoCuenta::ultimoAbonoInfo($movimientosRaw);
         $diasSinAbonar = $ultimoAbonoInfo['dias'];
 
-        // plantilla 3 = universal, sin datos de credito (solo {nombre}) --
-        // pensada para promociones/avisos, no para cobranza. 1 y 2 mantienen
-        // el comportamiento de siempre: intro + bloque fijo de saldo/dias/cierre
-        $plantillaActiva = Configuracion::valorDe('whatsapp_plantilla_activa', '1');
-
-        if ($plantillaActiva === '3') {
-            $mensajeWhatsapp = str_replace('{nombre}', $cliente->nombre, Configuracion::valorDe('whatsapp_intro_3', ''));
-        } else {
-            $claveIntro = $plantillaActiva === '2' ? 'whatsapp_intro_2' : 'whatsapp_intro_1';
-            $intro = str_replace(
-                ['{nombre}', '{saldo}', '{dias_sin_abonar}'],
-                [$cliente->nombre, number_format($saldoPendiente, 2), $diasSinAbonar ?? 'sin abonos registrados'],
-                Configuracion::valorDe($claveIntro, 'Hola {nombre},')
-            );
-
-            $mensajeWhatsapp = $intro
-                ."\n\nSaldo pendiente: ".number_format($saldoPendiente, 2)
-                ."\nDias sin abonar: ".($diasSinAbonar ?? 'sin abonos registrados')
-                ."\n\nQuedamos atentos, gracias por su preferencia.";
-        }
-
         $ultimaTasaBcv = $tasaBcvService->getLastUpdate();
 
         // mismo orden que el listado principal (ClienteController::index(),
@@ -231,7 +211,7 @@ class ClienteController extends Controller
             'reglas' => ReglaPlazo::orderBy('monto_min')->get(),
             'compromisosCuotas' => $this->compromisosCuotas($movimientosRaw),
             'planesFinanciamiento' => $this->planesFinanciamiento($cliente),
-            'mensajeWhatsapp' => $mensajeWhatsapp,
+            'whatsappCobranza' => CobranzaWhatsapp::paraCliente($cliente),
             'tasaBcvCargo' => $ultimaTasaBcv ? [
                 'rate' => $ultimaTasaBcv['rate'],
                 'source' => $ultimaTasaBcv['source'],
@@ -450,6 +430,29 @@ class ClienteController extends Controller
     // diferencia de compromisosCuotas() esto es un registro contable de verdad:
     // los abonos se ligan al plan (movimientos_cuenta.plan_financiamiento_id) y
     // la cascada los reparte sobre las cuotas
+    // "Abrir WhatsApp" en la ficha: deja la huella en ActivityLog (tipo y usuario, NUNCA el texto) y, si se pide,
+    // anota la gestion "WhatsApp: <tipo>" con el mismo formato de gestion de MovimientoCuentaController::store
+    public function registrarWhatsappCobranza(Request $request, Cliente $cliente)
+    {
+        $validated = $request->validate([
+            'tipo' => ['required', 'in:'.implode(',', CobranzaWhatsapp::tipos())],
+            'anotar_gestion' => ['nullable', 'boolean'],
+        ]);
+
+        activity()->causedBy($request->user())->performedOn($cliente)
+            ->withProperties(['tipo' => $validated['tipo']])->log('whatsapp_cobranza');
+
+        if ($request->boolean('anotar_gestion')) {
+            $texto = 'WhatsApp: '.$validated['tipo'];
+            MovimientoCuenta::create([
+                'cliente_id' => $cliente->id, 'fecha' => now()->toDateString(), 'tipo' => 'gestion', 'tipo_contacto' => 'whatsapp',
+                'descripcion' => $texto, 'comentario' => $texto, 'monto' => 0, 'moneda' => 'usd', 'registrado_por' => $request->user()->id,
+            ]);
+        }
+
+        return response()->noContent();
+    }
+
     private function planesFinanciamiento(Cliente $cliente)
     {
         return PlanFinanciamiento::whereHas('cargo', fn ($q) => $q->where('cliente_id', $cliente->id))

@@ -41,6 +41,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/conciliacion', [ConciliacionController::class, 'index'])->middleware('acceso_conciliacion')->name('conciliacion.index');
     Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion.index');
     Route::put('/configuracion/whatsapp', [ConfiguracionController::class, 'updateWhatsapp'])->name('configuracion.whatsapp');
+    Route::put('/configuracion/whatsapp-cobranza', [ConfiguracionController::class, 'updateWhatsappCobranza'])->name('configuracion.whatsapp-cobranza');
     Route::put('/configuracion/whatsapp-taller', [ConfiguracionController::class, 'updateWhatsappTaller'])->name('configuracion.whatsapp-taller');
     Route::put('/configuracion/taller', [ConfiguracionController::class, 'updateTaller'])->name('configuracion.taller');
     Route::put('/configuracion/estado-cuenta', [ConfiguracionController::class, 'updateEstadoCuenta'])->name('configuracion.estado-cuenta');
@@ -63,6 +64,7 @@ Route::middleware('auth')->group(function () {
     // ignora el filename= del Content-Disposition al guardar desde el visor nativo
     // y usa el ultimo segmento de la URL, de ahi que el nombre tenga que vivir aqui
     Route::get('/clientes/{cliente}/estado-cuenta-{nombreSlug}.pdf', [ClienteController::class, 'estadoCuenta'])->name('clientes.estado-cuenta');
+    Route::post('/clientes/{cliente}/whatsapp-cobranza', [ClienteController::class, 'registrarWhatsappCobranza'])->name('clientes.whatsapp-cobranza');
     Route::patch('/clientes/{cliente}/mensaje-pdf', [ClienteController::class, 'actualizarMensajePdf'])->name('clientes.mensaje-pdf');
     Route::patch('/clientes/{cliente}/responsable', [ClienteController::class, 'actualizarResponsable'])->name('clientes.responsable');
     Route::get('/taller', [TallerController::class, 'index'])->name('taller.index');

@@ -9,10 +9,8 @@ defineOptions({ layout: AppLayout });
 const lightboxUrl = ref(null);
 
 const props = defineProps({
-    whatsappIntro1: { type: String, default: '' },
-    whatsappIntro2: { type: String, default: '' },
-    whatsappIntro3: { type: String, default: '' },
-    whatsappPlantillaActiva: { type: String, default: '1' },
+    // bloque "Cobranza" (solo admin): mismo formato que plantillasTaller
+    plantillasCobranza: { type: Array, default: () => [] },
     // bloque "Taller": [{ campo, etiqueta, variables, texto (vigente), defecto (original) }]
     plantillasTaller: { type: Array, default: () => [] },
     // solo admin: { tecnicos, tecnico_defecto_id, comision_servicio_pct, comision_repuestos_pct }; null para el resto
@@ -54,43 +52,7 @@ function guardarAjustesTaller() {
 
 const tabActivo = ref('whatsapp');
 
-// tab 1: WhatsApp -- 3 plantillas + cual esta activa, un solo submit
-const whatsappForm = useForm({
-    whatsapp_intro_1: props.whatsappIntro1 ?? '',
-    whatsapp_intro_2: props.whatsappIntro2 ?? '',
-    whatsapp_intro_3: props.whatsappIntro3 ?? '',
-    whatsapp_plantilla_activa: props.whatsappPlantillaActiva ?? '1',
-});
-
-const PLANTILLAS_WHATSAPP = [
-    {
-        valor: '1',
-        campo: 'whatsapp_intro_1',
-        titulo: 'Plantilla 1 — Cobranza',
-        ayuda: 'Usa esta plantilla para mensajes de cobranza — incluye automaticamente el saldo pendiente y los dias sin abonar del cliente. Variables disponibles: {nombre}, {saldo}, {dias_sin_abonar}.',
-    },
-    {
-        valor: '2',
-        campo: 'whatsapp_intro_2',
-        titulo: 'Plantilla 2 — Cobranza',
-        ayuda: 'Usa esta plantilla para mensajes de cobranza — incluye automaticamente el saldo pendiente y los dias sin abonar del cliente. Variables disponibles: {nombre}, {saldo}, {dias_sin_abonar}.',
-    },
-    {
-        valor: '3',
-        campo: 'whatsapp_intro_3',
-        titulo: 'Plantilla 3 — General',
-        ayuda: 'Usa esta plantilla para mensajes que no son de cobranza — promociones, avisos generales, saludos. No incluye saldo ni dias de mora, solo el nombre del cliente. Variable disponible: {nombre}.',
-    },
-];
-
-function guardarWhatsapp() {
-    whatsappForm.transform((data) => ({ ...data, _method: 'put' })).post('/configuracion/whatsapp', {
-        preserveScroll: true,
-    });
-}
-
-// tab 1, bloque Taller: 5 textos disponibles a la vez (sin radio) con su propio Guardar,
-// independiente del de las plantillas 1-3
+// tab 1, bloque Taller: 5 textos disponibles a la vez (sin radio) con su propio Guardar
 const tallerForm = useForm(Object.fromEntries(props.plantillasTaller.map((p) => [p.campo, p.texto])));
 
 // "{nombre}, {bici}": se arma aqui porque un "}}" dentro de {{ }} rompe la plantilla de Vue
@@ -105,6 +67,20 @@ function restablecerTaller(p) {
 
 function guardarTaller() {
     tallerForm.transform((data) => ({ ...data, _method: 'put' })).post('/configuracion/whatsapp-taller', {
+        preserveScroll: true,
+    });
+}
+
+// tab 1, bloque Cobranza (solo admin): 6 textos con su propio Guardar y "Restaurar texto por defecto"
+const cobranzaForm = useForm(Object.fromEntries(props.plantillasCobranza.map((p) => [p.campo, p.texto])));
+
+function restaurarCobranza(p) {
+    cobranzaForm[p.campo] = p.defecto;
+    cobranzaForm.clearErrors(p.campo);
+}
+
+function guardarCobranza() {
+    cobranzaForm.transform((data) => ({ ...data, _method: 'put' })).post('/configuracion/whatsapp-cobranza', {
         preserveScroll: true,
     });
 }
@@ -216,35 +192,35 @@ function onLogoChange(event) {
         </div>
 
         <form
-            v-if="tabActivo === 'whatsapp'"
+            v-if="tabActivo === 'whatsapp' && plantillasCobranza.length"
             class="mx-auto flex w-full max-w-md flex-col gap-3 rounded-card bg-white p-4 shadow-card"
-            @submit.prevent="guardarWhatsapp"
+            data-whatsapp-cobranza-config
+            @submit.prevent="guardarCobranza"
         >
-            <p class="text-sm text-kredix-gris">Elige con el radio cual plantilla se usa hoy al armar el mensaje de WhatsApp de un cliente.</p>
+            <h2 class="text-base font-semibold text-kredix-negro">WhatsApp · Cobranza</h2>
+            <p class="text-sm text-kredix-gris">Mensajes del botón WhatsApp de la ficha del cliente. Quien los envía elige el tipo y puede editar el texto antes de abrir WhatsApp.</p>
 
-            <div
-                v-for="p in PLANTILLAS_WHATSAPP"
-                :key="p.valor"
-                class="flex flex-col gap-2 rounded-lg border p-3 transition-colors"
-                :class="whatsappForm.whatsapp_plantilla_activa === p.valor ? 'border-kredix-negro bg-kredix-negro/5' : 'border-gray-200'"
-            >
-                <label class="flex items-center gap-2 text-sm font-medium text-kredix-negro">
-                    <input v-model="whatsappForm.whatsapp_plantilla_activa" type="radio" :value="p.valor" class="h-4 w-4" />
-                    {{ p.titulo }}
-                    <span v-if="whatsappForm.whatsapp_plantilla_activa === p.valor" class="ml-auto rounded-full bg-kredix-negro px-2 py-0.5 text-[10px] font-semibold uppercase text-white">Activa</span>
-                </label>
+            <div v-for="p in plantillasCobranza" :key="p.campo" class="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+                <label :for="`cobranza-${p.campo}`" class="text-sm font-medium text-kredix-negro">{{ p.etiqueta }}</label>
                 <textarea
-                    v-model="whatsappForm[p.campo]"
+                    :id="`cobranza-${p.campo}`"
+                    v-model="cobranzaForm[p.campo]"
                     rows="4"
+                    maxlength="1000"
                     class="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                 ></textarea>
-                <p v-if="whatsappForm.errors[p.campo]" class="text-sm text-kredix-rojo">{{ whatsappForm.errors[p.campo] }}</p>
-                <p class="text-xs leading-snug text-kredix-gris">{{ p.ayuda }}</p>
+                <p v-if="cobranzaForm.errors[p.campo]" class="text-sm text-kredix-rojo">{{ cobranzaForm.errors[p.campo] }}</p>
+                <p class="text-xs leading-snug text-kredix-gris">Variables disponibles: {{ variablesTexto(p) }}.</p>
+                <button
+                    type="button"
+                    class="min-h-11 self-start rounded-lg border border-gray-300 px-3 text-sm font-medium text-kredix-negro active:bg-gray-100"
+                    @click="restaurarCobranza(p)"
+                >
+                    Restaurar texto por defecto
+                </button>
             </div>
 
-            <p v-if="whatsappForm.errors.whatsapp_plantilla_activa" class="text-sm text-kredix-rojo">{{ whatsappForm.errors.whatsapp_plantilla_activa }}</p>
-
-            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="whatsappForm.processing">
+            <button type="submit" class="min-h-11 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="cobranzaForm.processing">
                 Guardar
             </button>
         </form>

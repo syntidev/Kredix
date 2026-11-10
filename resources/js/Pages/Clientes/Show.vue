@@ -8,6 +8,7 @@ import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
 import FotoInput from '../../Components/FotoInput.vue';
 import SerialesAgregar from '../../Components/SerialesAgregar.vue';
+import WhatsappCobranza from '../../Components/WhatsappCobranza.vue';
 import EstadoValidacionLed from '../../Components/EstadoValidacionLed.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
@@ -38,7 +39,8 @@ const props = defineProps({
     reglas: { type: Array, required: true },
     compromisosCuotas: { type: Array, default: () => [] },
     planesFinanciamiento: { type: Array, default: () => [] },
-    mensajeWhatsapp: { type: String, default: '' },
+    // selector de mensajes de cobranza: { tiene_telefono, preseleccion, tipos: [{ tipo, etiqueta, habilitado, pista, texto }] }
+    whatsappCobranza: { type: Object, required: true },
     tasaBcvCargo: { type: Object, default: null },
     usuarios: { type: Array, default: () => [] },
 });
@@ -242,19 +244,13 @@ const anchoBarraCobrado = computed(() => Math.min(100, Math.max(0, porcentajeCob
 const tieneCargoBcvActivo = computed(() => Number(props.saldoPendiente) > 0
     && props.movimientos.some((m) => m.tipo === 'cargo' && m.modalidad_precio === 'bcv'));
 
-const waLink = computed(() => {
-    if (!props.cliente.telefono) {
-        return null;
-    }
-    // cliente.telefono siempre esta en E.164 (+584141234567) -- basta con quitar el "+"
-    return `https://wa.me/${props.cliente.telefono.replace('+', '')}?text=${encodeURIComponent(props.mensajeWhatsapp)}`;
-});
-
+// contacto alterno: abre el mensaje preseleccionado (recordatorio o estado de cuenta)
 const waLinkAlterno = computed(() => {
     if (!props.cliente.contacto_alterno_telefono) {
         return null;
     }
-    return `https://wa.me/${props.cliente.contacto_alterno_telefono.replace('+', '')}?text=${encodeURIComponent(props.mensajeWhatsapp)}`;
+    const sugerido = props.whatsappCobranza.tipos.find((t) => t.tipo === props.whatsappCobranza.preseleccion)?.texto ?? '';
+    return `https://wa.me/${props.cliente.contacto_alterno_telefono.replace(/\D/g, '')}?text=${encodeURIComponent(sugerido)}`;
 });
 
 const mensajePdfForm = useForm({
@@ -1091,16 +1087,12 @@ watch(algunModalAbierto, (abierto) => {
             </div>
 
             <div class="mt-3 flex flex-wrap gap-2">
-                <a
-                    v-if="waLink"
-                    :href="waLink"
-                    target="_blank"
-                    rel="noopener"
-                    class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-2xl bg-abono-bg px-3 text-sm font-medium text-abono-text shadow-card-sm active:scale-95"
-                >
-                    <MessageCircle :size="16" />
-                    WhatsApp
-                </a>
+                <WhatsappCobranza
+                    :cliente-id="cliente.id"
+                    :telefono="cliente.telefono"
+                    :datos="whatsappCobranza"
+                    @gestion-anotada="router.reload({ preserveScroll: true })"
+                />
                 <button
                     type="button"
                     class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-2xl bg-white px-3 text-sm font-medium text-kredix-negro shadow-card-sm active:scale-95"
