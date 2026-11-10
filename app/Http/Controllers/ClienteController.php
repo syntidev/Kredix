@@ -827,7 +827,7 @@ class ClienteController extends Controller
             'nombre' => ['required', 'string', 'max:255'],
             'telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
             'email' => ['nullable', 'email', 'max:255'],
-            'cedula' => ['nullable', 'string', 'max:20', $this->validarFormatoCedula()],
+            'cedula' => ['nullable', 'string', 'max:20', self::validarFormatoCedula()],
             'direccion' => ['nullable', 'string'],
             'notas' => ['nullable', 'string'],
             'contacto_alterno_nombre' => ['nullable', 'string', 'max:255'],
@@ -874,27 +874,7 @@ class ClienteController extends Controller
 
     public function update(Request $request, Cliente $cliente)
     {
-        $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
-            'telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'cedula' => ['nullable', 'string', 'max:20', $this->validarFormatoCedula()],
-            'direccion' => ['nullable', 'string'],
-            'notas' => ['nullable', 'string'],
-            'contacto_alterno_nombre' => ['nullable', 'string', 'max:255'],
-            'contacto_alterno_telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
-        ], [
-            'nombre.required' => 'nombre requerido',
-            'telefono.regex' => 'telefono invalido, selecciona el pais y completa el numero',
-            'email.email' => 'email invalido',
-            'nombre.max' => 'nombre demasiado largo',
-            'telefono.max' => 'telefono demasiado largo',
-            'email.max' => 'email demasiado largo',
-            'cedula.max' => 'cedula demasiado larga',
-            'contacto_alterno_nombre.max' => 'nombre de contacto alterno demasiado largo',
-            'contacto_alterno_telefono.regex' => 'telefono de contacto alterno invalido, selecciona el pais y completa el numero',
-            'contacto_alterno_telefono.max' => 'telefono de contacto alterno demasiado largo',
-        ]);
+        $validated = $request->validate(self::reglasEdicion(), self::mensajesEdicion());
 
         $validated['nombre'] = mb_strtoupper($validated['nombre'], 'UTF-8');
 
@@ -905,7 +885,38 @@ class ClienteController extends Controller
         return redirect()->back();
     }
 
-    private function validarFormatoCedula(): \Closure
+    // Reglas y mensajes de la edicion de un cliente: fuente unica, tambien las usa Etiquetas al guardar en la ficha
+    public static function reglasEdicion(): array
+    {
+        return [
+            'nombre' => ['required', 'string', 'max:255'],
+            'telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'cedula' => ['nullable', 'string', 'max:20', self::validarFormatoCedula()],
+            'direccion' => ['nullable', 'string'],
+            'notas' => ['nullable', 'string'],
+            'contacto_alterno_nombre' => ['nullable', 'string', 'max:255'],
+            'contacto_alterno_telefono' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9]\d{6,14}$/'],
+        ];
+    }
+
+    public static function mensajesEdicion(): array
+    {
+        return [
+            'nombre.required' => 'nombre requerido',
+            'telefono.regex' => 'telefono invalido, selecciona el pais y completa el numero',
+            'email.email' => 'email invalido',
+            'nombre.max' => 'nombre demasiado largo',
+            'telefono.max' => 'telefono demasiado largo',
+            'email.max' => 'email demasiado largo',
+            'cedula.max' => 'cedula demasiado larga',
+            'contacto_alterno_nombre.max' => 'nombre de contacto alterno demasiado largo',
+            'contacto_alterno_telefono.regex' => 'telefono de contacto alterno invalido, selecciona el pais y completa el numero',
+            'contacto_alterno_telefono.max' => 'telefono de contacto alterno demasiado largo',
+        ];
+    }
+
+    public static function validarFormatoCedula(): \Closure
     {
         return function (string $attribute, mixed $value, \Closure $fail) {
             if (str_contains($value, '.') || str_contains($value, ' ')) {

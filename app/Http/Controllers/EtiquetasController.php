@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Cliente;
 use App\Models\Configuracion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
 // Etiquetas de envio e impresion libre (Xprinter 58mm). Los VALORES impresos (nombre, cedula, telefono,
@@ -33,6 +36,82 @@ class EtiquetasController extends Controller
             ->filter(fn ($p) => is_array($p) && filled($p['nombre'] ?? null) && is_array($p['campos'] ?? null))
             ->map(fn ($p) => ['nombre' => (string) $p['nombre'], 'campos' => array_values(array_map('strval', $p['campos']))])
             ->values()->all();
+    }
+
+    public const CAMPOS_FICHA = ['nombre', 'cedula', 'telefono', 'direccion'];
+
+    public const MAX_RESULTADOS_CLIENTES = 8;
+
+    // sin mayusculas, acentos ni espacios sobrantes
+    private static function normalizar(?string $texto): string
+    {
+        return trim((string) preg_replace('/\s+/u', ' ', Str::lower(Str::ascii((string) $texto))));
+    }
+
+    // Buscador del modo Envio: nombre (todas las palabras), cedula o telefono (solo digitos; "0414..." local o
+    // "+58414..." internacional). Se filtra en PHP para que no dependa de la collation de la base (acentos).
+    public function clientes(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        if (mb_strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $palabras = array_values(array_filter(explode(' ', self::normalizar($q))));
+        $digitos = ltrim((string) preg_replace('/\D/', '', $q), '0');
+
+        return response()->json(
+            Cliente::query()->orderBy('nombre')->get(['id', 'nombre', 'cedula', 'telefono'])
+                ->filter(function (Cliente $c) use ($palabras, $digitos) {
+                    $nombre = self::normalizar($c->nombre);
+                    if ($palabras !== [] && collect($palabras)->every(fn ($p) => str_contains($nombre, $p))) {
+                        return true;
+                    }
+
+                    return strlen($digitos) >= 3 && collect([$c->cedula, $c->telefono])
+                        ->contains(fn ($v) => str_contains((string) preg_replace('/\D/', '', (string) $v), $digitos));
+                })
+                ->take(self::MAX_RESULTADOS_CLIENTES)->values()
+                ->map(fn (Cliente $c) => $c->only(['id', 'nombre', 'cedula', 'telefono']))->all()
+        );
+    }
+
+    // "Guardar en la ficha del cliente": solo Nombre, Cedula, Telefono y Direccion, y solo los que difieren y traen valor
+    // (nunca se borra un dato). Rellenar un campo vacio se guarda directo; reemplazar uno que ya tenia valor exige
+    // confirmar_reemplazo. Misma validacion que la edicion normal del cliente; deja ActivityLog (quien y que cambio).
+    public function guardarEnFicha(Request $request, Cliente $cliente)
+    {
+        $cambios = [];
+        foreach (self::CAMPOS_FICHA as $campo) {
+            if (! $request->has($campo)) {
+                continue;
+            }
+            $valor = trim((string) $request->input($campo));
+            if ($valor === '') {
+                continue;
+            }
+            $valor = $campo === 'nombre' ? mb_strtoupper($valor, 'UTF-8') : $valor;
+            if ($valor !== trim((string) $cliente->{$campo})) {
+                $cambios[$campo] = $valor;
+            }
+        }
+
+        if ($cambios !== []) {
+            Validator::make($cambios, array_intersect_key(ClienteController::reglasEdicion(), $cambios), ClienteController::mensajesEdicion())->validate();
+
+            $reemplazos = array_keys(array_filter($cambios, fn ($v, $campo) => trim((string) $cliente->{$campo}) !== '', ARRAY_FILTER_USE_BOTH));
+            if ($reemplazos !== [] && ! $request->boolean('confirmar_reemplazo')) {
+                throw ValidationException::withMessages(['confirmar_reemplazo' => 'Confirma el reemplazo de: '.implode(', ', $reemplazos).'.']);
+            }
+
+            $antes = $cliente->only(array_keys($cambios));
+            $cliente->update($cambios);
+            activity('clientes')->performedOn($cliente)->causedBy($request->user())
+                ->withProperties(['campos' => collect($cambios)->map(fn ($nuevo, $campo) => ['anterior' => $antes[$campo], 'nuevo' => $nuevo])->all()])
+                ->log('cliente_actualizado_desde_etiqueta');
+        }
+
+        return response()->json($cliente->fresh()->only(self::CAMPOS_FICHA));
     }
 
     public function index()
