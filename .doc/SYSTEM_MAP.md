@@ -425,3 +425,16 @@ quedan pendientes de confirmacion por Carlos.*
 - **Método "Efectivo":** `Clientes/Show.vue` ya no preselecciona 'efectivo' al editar (queda vacío) y `MovimientoCuentaController::update` conserva el método de un cargo si no llega uno. Otros
   valores por defecto 'efectivo' que se dejan como estaban: `cargoForm.metodo_pago_inicial` (Show.vue:369, 503), `abonoForm.metodo_pago` (525, 621) para NUEVOS abonos/iniciales.
 - **No verificado:** Safari/iOS, PWA, cámara real, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).
+
+## Lote 8: Etiquetas de envío e impresión libre (2026-11-10) — rama `feat/etiquetas`
+
+- **Mecanismo reutilizado (Taller):** el ticket del Taller se imprime desde la misma página con `window.print()` y CSS `@media print` (`Taller/Show.vue`: `@page { size: 58mm auto; margin: 0 }`,
+  `body * { visibility: hidden }` + el bloque visible, ancho 58 mm, Xprinter XP-58IIHT). Las etiquetas hacen lo mismo con `EtiquetaImpresion.vue` + `lib/imprimirEtiqueta.js`; una clase
+  `imprimiendo-etiqueta` en `<body>` (solo mientras se imprime) aísla sus reglas para no tocar ninguna otra pantalla.
+- **Página** `/etiquetas` (`EtiquetasController`, `Etiquetas/Index.vue`; menú: Más › Cobranza y barra lateral › Cobranza; cualquier usuario autenticado salvo `rol_taller`, que solo ve `/taller`):
+  modos Texto libre, Título + texto, Campos y Envío (con "Tomar datos de un cliente" vía `GET /etiquetas/cliente/{id}`), tamaño Normal/Grande/Muy grande (Grande por defecto).
+  Plantillas de Campos: solo títulos, en `Configuracion` clave `etiquetas_plantillas` (≤20 plantillas, nombre ≤60, ≤12 campos, título ≤40); «Envío» vive en código y no se guarda.
+- **Ficha del cliente:** botón "Imprimir datos de envío" (Nombre, Cédula, Teléfono, Dirección; omite lo vacío).
+- **Privacidad:** los valores impresos solo viven en el estado de la página (ni BD, ni ActivityLog, ni localStorage). Se registra únicamente `etiqueta_impresa` con modo/plantilla y usuario.
+- **No verificado:** impresión real en la Xprinter, ausencia de encabezado/pie del navegador, Safari/iOS, PWA, dispositivos físicos. Ajuste recomendado del navegador al imprimir: márgenes "Ninguno",
+  desactivar "Encabezados y pies de página" y el papel de la Xprinter (58 mm) ya configurado en el sistema. Ningún módulo certificado (falta aprobación visual de Carlos).

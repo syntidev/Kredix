@@ -4,6 +4,7 @@ use App\Http\Controllers\CarteleraController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ConciliacionController;
 use App\Http\Controllers\ConfiguracionController;
+use App\Http\Controllers\EtiquetasController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MovimientoCuentaController;
@@ -36,6 +37,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/clientes/buscar', [ClienteController::class, 'buscar'])->name('clientes.buscar');
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
     Route::post('/clientes/rapido', [ClienteController::class, 'storeRapido'])->name('clientes.store-rapido');
+    Route::get('/etiquetas', [EtiquetasController::class, 'index'])->name('etiquetas.index');
+    Route::get('/etiquetas/cliente/{cliente}', [EtiquetasController::class, 'cliente'])->name('etiquetas.cliente');
+    Route::put('/etiquetas/plantillas', [EtiquetasController::class, 'guardarPlantillas'])->name('etiquetas.plantillas');
+    Route::post('/etiquetas/impresa', [EtiquetasController::class, 'registrarImpresion'])->name('etiquetas.impresa');
     Route::get('/cartera', [ClienteController::class, 'cartera'])->name('cartera');
     Route::get('/cartelera', [CarteleraController::class, 'index'])->name('cartelera');
     Route::get('/conciliacion', [ConciliacionController::class, 'index'])->middleware('acceso_conciliacion')->name('conciliacion.index');

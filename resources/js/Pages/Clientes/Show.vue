@@ -2,13 +2,15 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
-import { ArrowDown, ArrowUp, ChevronDown, Download, FileText, ImageOff, Link2, MessageCircle, NotebookPen, Pencil, Plus, Repeat, Search, Trash2, X } from '@lucide/vue';
+import { ArrowDown, ArrowUp, ChevronDown, Download, FileText, ImageOff, Link2, MessageCircle, NotebookPen, Pencil, Plus, Printer, Repeat, Search, Trash2, X } from '@lucide/vue';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import BackButton from '../../Components/BackButton.vue';
 import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
 import FotoInput from '../../Components/FotoInput.vue';
 import SerialesAgregar from '../../Components/SerialesAgregar.vue';
 import WhatsappCobranza from '../../Components/WhatsappCobranza.vue';
+import EtiquetaImpresion from '../../Components/EtiquetaImpresion.vue';
+import { imprimirEtiqueta } from '../../lib/imprimirEtiqueta';
 import EstadoValidacionLed from '../../Components/EstadoValidacionLed.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import TasaBcvInput from '../../Components/TasaBcvInput.vue';
@@ -252,6 +254,21 @@ const waLinkAlterno = computed(() => {
     const sugerido = props.whatsappCobranza.tipos.find((t) => t.tipo === props.whatsappCobranza.preseleccion)?.texto ?? '';
     return `https://wa.me/${props.cliente.contacto_alterno_telefono.replace(/\D/g, '')}?text=${encodeURIComponent(sugerido)}`;
 });
+
+// "Imprimir datos de envio": las cuatro lineas del cliente (Nombre, Cedula, Telefono, Direccion) por el mismo
+// mecanismo de las etiquetas; la linea sin dato se omite. Nada se guarda: solo queda el evento sin contenido.
+const bloquesEnvio = computed(() => [
+    ['Nombre', props.cliente.nombre],
+    ['Cédula', props.cliente.cedula],
+    ['Teléfono', formatPhoneDisplay(props.cliente.telefono)],
+    ['Dirección', props.cliente.direccion],
+].filter(([, valor]) => !!valor?.toString().trim()).map(([titulo, valor]) => ({ tipo: 'campo', titulo, texto: valor.toString().trim() })));
+
+function imprimirDatosEnvio() {
+    if (bloquesEnvio.value.length === 0) return;
+    axios.post('/etiquetas/impresa', { modo: 'ficha_cliente' }).catch(() => {});
+    imprimirEtiqueta();
+}
 
 const mensajePdfForm = useForm({
     mensaje_pdf: props.cliente.mensaje_pdf ?? '',
@@ -1094,6 +1111,17 @@ watch(algunModalAbierto, (abierto) => {
                     :datos="whatsappCobranza"
                     @gestion-anotada="router.reload({ preserveScroll: true })"
                 />
+                <button
+                    type="button"
+                    class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-2xl bg-white px-3 text-sm font-medium text-kredix-negro shadow-card-sm active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="bloquesEnvio.length === 0"
+                    :title="bloquesEnvio.length === 0 ? 'Este cliente no tiene datos para imprimir' : ''"
+                    data-imprimir-envio
+                    @click="imprimirDatosEnvio"
+                >
+                    <Printer :size="16" />
+                    Imprimir datos de envío
+                </button>
                 <button
                     type="button"
                     class="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-2xl bg-white px-3 text-sm font-medium text-kredix-negro shadow-card-sm active:scale-95"
@@ -2252,5 +2280,7 @@ watch(algunModalAbierto, (abierto) => {
 
         <ComprobanteLightbox :fotos="fotoModalUrls" :indice-inicial="fotoModalIndice" @close="fotoModalUrls = []" />
     </div>
+        <!-- salida de impresion de los datos de envio: oculta en pantalla -->
+        <EtiquetaImpresion :bloques="bloquesEnvio" tamano="grande" impresion />
     </div>
 </template>

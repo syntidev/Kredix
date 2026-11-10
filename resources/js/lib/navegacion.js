@@ -6,6 +6,7 @@ import {
     Megaphone,
     NotebookPen,
     Settings,
+    Tag,
     ShoppingBag,
     Target,
     UserCog,
@@ -75,6 +76,7 @@ export function gruposMas(permisos) {
             titulo: 'Cobranza',
             items: [
                 { href: '/cartera', label: 'Cartera', icon: Wallet },
+                { href: '/etiquetas', label: 'Etiquetas', icon: Tag },
                 ...(permisos.conciliacion ? [{ href: '/conciliacion', label: 'Conciliación', icon: Landmark }] : []),
                 ...(permisos.esAdmin ? [{ href: '/ventas', label: 'Ventas', icon: ShoppingBag }, { href: '/kpi', label: 'KPI', icon: BarChart3 }] : []),
             ],
@@ -118,6 +120,7 @@ export function gruposSidebar(permisos) {
                 items: [
                     { href: '/clientes', label: 'Clientes' },
                     { href: '/cartera', label: 'Cartera' },
+                    { href: '/etiquetas', label: 'Etiquetas' },
                     ...(permisos.conciliacion ? [{ href: '/conciliacion', label: 'Conciliación' }] : []),
                     ...(permisos.esAdmin ? [{ href: '/ventas', label: 'Ventas' }, { href: '/kpi', label: 'KPI' }] : []),
                 ],
