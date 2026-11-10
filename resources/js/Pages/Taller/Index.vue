@@ -268,6 +268,10 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
                     <p class="text-sm text-kredix-negro">{{ t.mecanico }}</p>
                     <p v-if="t.registrado_por" class="text-xs text-kredix-gris">Registro: {{ t.registrado_por }}</p>
                     <p class="text-xs font-medium" :class="t.estado === 'atendido' ? 'text-green-700' : 'text-orange-700'">{{ labelEstado(t.estado) }}</p>
+                    <p v-if="t.trabajado_en" class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800" data-trabajo-terminado-etiqueta>
+                        <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
+                        Trabajo terminado · sin cerrar · {{ formatFecha(t.trabajado_en).slice(0, 5) }}
+                    </p>
                     <p v-if="t.cobro" class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="t.cobro.estado === 'por_cobrar' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-700'" data-cobro>
                         <span class="h-1.5 w-1.5 rounded-full" :class="t.cobro.estado === 'por_cobrar' ? 'bg-amber-500' : 'bg-green-500'"></span>
                         {{ t.cobro.estado === 'por_cobrar' ? 'A CUENTA · el cliente debe ' + formatMoney(t.cobro.saldo) : t.cobro.estado === 'cobrado' ? 'Cobrado' : 'PAGADO' }}

@@ -630,6 +630,23 @@ let confirmacionGuardada = null;
 // fecha real del trabajo (solo fecha): por defecto hoy; el servidor la valida (ni futura ni anterior a la creacion)
 const fechaTrabajo = ref(props.hoy);
 
+// "Trabajo terminado" sin cerrar: cuenta para la comision del tecnico en esa fecha; el ticket sigue En proceso
+const fechaTerminado = ref(props.ticket.trabajado_en ?? props.hoy);
+const procesandoTerminado = ref(false);
+const errorTerminado = ref('');
+function guardarTerminado(fecha) {
+    errorTerminado.value = '';
+    procesandoTerminado.value = true;
+    router.patch(`/taller/${props.ticket.id}/trabajo-terminado`, fecha ? { fecha_trabajo: fecha } : {}, {
+        preserveScroll: true,
+        onError: (errors) => { errorTerminado.value = errors.fecha_trabajo ?? 'No se pudo guardar.'; },
+        onFinish: () => { procesandoTerminado.value = false; },
+    });
+}
+const etiquetaTerminado = computed(() => (props.ticket.trabajado_en && !atendido.value
+    ? `Trabajo terminado · sin cerrar · ${formatFecha(props.ticket.trabajado_en).slice(0, 5)}`
+    : null));
+
 // confirmacion: null | 'aprobar' (aprueba con quien cierra) | 'sin_texto'
 function marcarAtendido(confirmacion = null, sinFotoConfirmada = false) {
     errorAtendido.value = '';
@@ -647,7 +664,8 @@ function marcarAtendido(confirmacion = null, sinFotoConfirmada = false) {
         ...(seCobra.value ? { pagado_en_taller: pagadoEnTaller.value } : {}),
         ...(confirmacion ? { texto_cliente: confirmacion } : {}),
         ...(faltaFotoEntrada.value ? { confirmar_sin_foto: true } : {}),
-        fecha_trabajo: fechaTrabajo.value,
+        // con trabajo terminado marcado la fecha de conteo ya es esa: no se manda otra
+        ...(props.ticket.trabajado_en ? {} : { fecha_trabajo: fechaTrabajo.value }),
     }, {
         preserveScroll: true,
         // el cierre puede dejar o aprobar un borrador armado desde la revision -- reflejarlo en el cuadro
@@ -748,6 +766,10 @@ const cobroUi = computed(() => {
                     :class="atendido ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'"
                 >
                     {{ atendido ? 'Atendido' : 'En proceso' }}
+                </span>
+                <span v-if="etiquetaTerminado" class="ml-2 inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800" data-trabajo-terminado-etiqueta>
+                    <span class="h-2 w-2 rounded-full bg-sky-500"></span>
+                    {{ etiquetaTerminado }}
                 </span>
                 <span v-if="cobroUi" class="ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold" :class="cobroUi.clase" data-cobro>
                     <span class="h-2 w-2 rounded-full" :class="cobroUi.punto"></span>
@@ -856,6 +878,23 @@ const cobroUi = computed(() => {
             <p v-if="pagadoEnTaller === false" class="text-xs text-kredix-gris">Se generara un cargo automatico en Credito por el total del ticket.</p>
         </div>
 
+        <div v-if="!atendido" class="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3" data-trabajo-terminado>
+            <p class="text-sm font-medium text-sky-900">Trabajo terminado <span class="font-normal">(el ticket sigue En proceso; cuenta para la comisión del técnico)</span></p>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div class="flex flex-col gap-1">
+                    <label for="fecha-terminado" class="text-xs text-sky-900">Fecha del trabajo</label>
+                    <input id="fecha-terminado" v-model="fechaTerminado" type="date" :min="ticket.created_at" :max="hoy" class="min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none sm:w-56" />
+                </div>
+                <button type="button" class="min-h-11 rounded-lg bg-sky-700 px-4 text-sm font-semibold text-white disabled:opacity-60" :disabled="procesandoTerminado || !fechaTerminado" @click="guardarTerminado(fechaTerminado)">
+                    {{ ticket.trabajado_en ? 'Cambiar fecha' : 'Marcar trabajo terminado' }}
+                </button>
+                <button v-if="ticket.trabajado_en" type="button" class="min-h-11 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-kredix-negro active:bg-gray-100 disabled:opacity-60" :disabled="procesandoTerminado" @click="guardarTerminado(null)">
+                    Desmarcar
+                </button>
+            </div>
+            <p v-if="errorTerminado" class="text-sm text-kredix-rojo">{{ errorTerminado }}</p>
+        </div>
+
         <div v-if="!atendido" class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3" data-cierre>
             <ul class="flex flex-col gap-1" aria-label="Requisitos para cerrar el ticket" data-checklist-cierre>
                 <li v-for="i in checklistCierre" :key="i.clave" class="flex flex-wrap items-baseline gap-x-2 text-sm" :data-estado="i.estado">
@@ -870,8 +909,10 @@ const cobroUi = computed(() => {
             </ul>
             <div class="flex flex-col gap-1">
                 <label for="fecha-trabajo" class="text-sm font-medium text-kredix-negro">Fecha del trabajo</label>
-                <input id="fecha-trabajo" v-model="fechaTrabajo" type="date" :min="ticket.created_at" :max="hoy" class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none sm:w-56" />
-                <p class="text-xs text-kredix-gris">Cuenta para la semana del técnico. Si no fue hoy, cámbiala antes de cerrar.</p>
+                <input v-if="ticket.trabajado_en" id="fecha-trabajo" :value="ticket.trabajado_en" type="date" disabled class="min-h-11 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-base text-kredix-gris sm:w-56" />
+                <input v-else id="fecha-trabajo" v-model="fechaTrabajo" type="date" :min="ticket.created_at" :max="hoy" class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none sm:w-56" />
+                <p v-if="ticket.trabajado_en" class="text-xs text-kredix-gris" data-ya-contado>Ya contado para el técnico el {{ formatFecha(ticket.trabajado_en).slice(0, 5) }}</p>
+                <p v-else class="text-xs text-kredix-gris">Cuenta para la semana del técnico. Si no fue hoy, cámbiala antes de cerrar.</p>
             </div>
         </div>
         <p v-if="avisoTextoCliente && !confirmandoCierre" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{{ avisoTextoCliente }}</p>
