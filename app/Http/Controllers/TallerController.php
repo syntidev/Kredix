@@ -64,6 +64,7 @@ class TallerController extends Controller
             'total' => $ticket->totalVisible(),
             'etiqueta_total' => $ticket->etiquetaTotal(),
             'cobro' => $this->cobroDe($ticket, $saldos),
+            'trabajado_en' => $ticket->estado === 'en_proceso' ? $ticket->trabajado_en?->format('Y-m-d') : null,
         ];
     }
 
@@ -554,6 +555,7 @@ class TallerController extends Controller
                 'total' => $ticket->totalVisible(),
                 'etiqueta_total' => $ticket->etiquetaTotal(),
                 'cobro' => $this->cobroDe($ticket, $ticket->cliente_id ? MovimientoCuenta::saldosPendientes([$ticket->cliente_id]) : []),
+                'trabajado_en' => $ticket->trabajado_en?->format('Y-m-d'),
                 'repuestos_sin_precio' => $ticket->repuestosSinPrecio(),
                 'fotos_entrada' => $this->fotosUrls($ticket, 'entrada'),
                 'fotos_salida' => $this->fotosUrls($ticket, 'salida'),
@@ -926,6 +928,34 @@ class TallerController extends Controller
         return redirect()->route('taller.show', $ticket->id);
     }
 
+    // "Trabajo terminado" sin cerrar: el ticket sigue En proceso (sin cargo, sin cambio de montos) pero cuenta
+    // para la comision del tecnico en la fecha del trabajo. Sin fecha_trabajo = desmarcar. Hoy = hora actual;
+    // otro dia = ese dia a las 18:00. Cada cambio deja evento con valores anterior/nuevo y usuario.
+    public function trabajoTerminado(Request $request, TicketTaller $ticket)
+    {
+        abort_unless($ticket->estado === 'en_proceso', 422, 'El ticket ya está atendido.');
+
+        $fecha = $request->validate([
+            'fecha_trabajo' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today', 'after_or_equal:'.$ticket->created_at->toDateString()],
+        ], [
+            'fecha_trabajo.before_or_equal' => 'La fecha del trabajo no puede ser futura.',
+            'fecha_trabajo.after_or_equal' => 'La fecha del trabajo no puede ser anterior a la creación del ticket.',
+        ])['fecha_trabajo'] ?? null;
+
+        $anterior = $ticket->trabajado_en?->toDateTimeString();
+        $nuevo = $fecha === null ? null : ($fecha === now()->toDateString() ? now()->toDateTimeString() : $fecha.' 18:00:00');
+        if ($anterior === $nuevo) {
+            return back();
+        }
+
+        $ticket->forceFill(['trabajado_en' => $nuevo])->save();
+        activity('taller')->performedOn($ticket)->causedBy($request->user())
+            ->withProperties(['anterior' => $anterior, 'nuevo' => $nuevo])
+            ->log($nuevo === null ? 'trabajo_terminado_desmarcado' : 'trabajo_terminado_marcado');
+
+        return redirect()->route('taller.show', $ticket->id);
+    }
+
     public function marcarAtendido(Request $request, TicketTaller $ticket)
     {
         $seCobra = $ticket->seCobra();
@@ -954,7 +984,8 @@ class TallerController extends Controller
         ]);
 
         // fecha real del trabajo (solo fecha): no futura ni anterior a la creacion del ticket
-        $fechaTrabajo = $request->validate([
+        // con "trabajo terminado" ya marcado la fecha de conteo es esa: el cierre no la pide ni la mueve
+        $fechaTrabajo = $ticket->trabajado_en ? null : $request->validate([
             'fecha_trabajo' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today', 'after_or_equal:'.$ticket->created_at->toDateString()],
         ], [
             'fecha_trabajo.before_or_equal' => 'La fecha del trabajo no puede ser futura.',

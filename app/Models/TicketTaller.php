@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Jobs\RedactarInforme;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -51,6 +52,7 @@ class TicketTaller extends Model implements HasMedia
         'incluye_armado',
         'monto_armado',
         'comisionable',
+        'trabajado_en',
         'diagnostico',
         'estado',
         'fecha_compromiso',
@@ -77,6 +79,7 @@ class TicketTaller extends Model implements HasMedia
         'es_electrica' => 'boolean',
         'pagado_en_taller' => 'boolean',
         'atendido_en' => 'datetime',
+        'trabajado_en' => 'datetime',
         'atendido_en_aprox' => 'boolean',
         'fecha_compromiso' => 'date',
     ];
@@ -92,6 +95,12 @@ class TicketTaller extends Model implements HasMedia
             ->logOnly(['fecha_compromiso'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    // fecha en que cuenta para la comision del tecnico: cuando hizo el trabajo, o el cierre si nunca se marco
+    public function fechaConteo(): ?Carbon
+    {
+        return $this->trabajado_en ?? $this->atendido_en;
     }
 
     public function cliente(): BelongsTo

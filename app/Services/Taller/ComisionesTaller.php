@@ -6,8 +6,8 @@ use App\Models\TicketTaller;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
-// Comisiones del tecnico por rango (KPI de Taller). Base = tickets atendidos con atendido_en
-// en el rango; solo los comisionables suman a la base:
+// Comisiones del tecnico por rango (KPI de Taller). Base = tickets atendidos O marcados "trabajo terminado"
+// (trabajado_en), contados UNA vez en COALESCE(trabajado_en, atendido_en), dentro del rango; solo los comisionables suman a la base:
 //  - servicio base = monto_servicio + monto_armado
 //  - repuestos base = totalRepuestos()
 //  - cortesia = comisionable con servicio+armado = 0: sin comision de servicio, si de repuestos
@@ -17,8 +17,8 @@ class ComisionesTaller
     public static function calcular(CarbonInterface $desde, CarbonInterface $hasta, float $pctServicio, float $pctRepuestos): array
     {
         $tickets = TicketTaller::query()
-            ->where('estado', 'atendido')
-            ->whereBetween('atendido_en', [$desde->copy()->startOfDay()->toDateTimeString(), $hasta->copy()->endOfDay()->toDateTimeString()])
+            ->where(fn ($q) => $q->where('estado', 'atendido')->orWhereNotNull('trabajado_en'))
+            ->whereRaw('COALESCE(trabajado_en, atendido_en) BETWEEN ? AND ?', [$desde->copy()->startOfDay()->toDateTimeString(), $hasta->copy()->endOfDay()->toDateTimeString()])
             ->with(['mecanico:id,name', 'repuestos'])
             ->get();
 
@@ -34,6 +34,8 @@ class ComisionesTaller
             'detalle' => self::detalle($tickets),
             // atendido_en estimado (no registrado en el momento): el rango puede no ser exacto para ellos
             'tickets_fecha_aprox' => $tickets->where('atendido_en_aprox', true)->count(),
+            // trabajo terminado pero el ticket sigue En proceso: ya cuentan para el tecnico
+            'trabajados_sin_cerrar' => $tickets->where('estado', '!=', 'atendido')->count(),
         ];
     }
 
@@ -41,13 +43,14 @@ class ComisionesTaller
     // en null (se muestran "—") para que la suma de las columnas sea exactamente la base de los totales
     private static function detalle(Collection $tickets): Collection
     {
-        return $tickets->sortBy([['atendido_en', 'asc'], ['id', 'asc']])->map(function (TicketTaller $t) {
+        return $tickets->sortBy(fn (TicketTaller $t) => [$t->fechaConteo()->getTimestamp(), $t->id])->map(function (TicketTaller $t) {
             $servicio = self::centavos((float) $t->monto_servicio + (float) $t->monto_armado);
             $clase = ! $t->comisionable ? 'TIENDA' : ($servicio === 0 ? 'CORTESIA' : 'normal');
 
             return [
                 'id' => $t->id,
-                'fecha' => $t->atendido_en->format('Y-m-d'),
+                'fecha' => $t->fechaConteo()->format('Y-m-d'),
+                'sin_cerrar' => $t->estado !== 'atendido',
                 'aproximada' => (bool) $t->atendido_en_aprox,
                 'mecanico' => $t->mecanico?->name ?? 'Sin asignar',
                 'servicio' => $t->comisionable ? $servicio / 100.0 : null,

@@ -169,6 +169,10 @@ const CONTADORES = [
             <p v-if="kpiTaller.tickets_fecha_aprox > 0" class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
                 {{ kpiTaller.tickets_fecha_aprox }} ticket(s) de este rango tienen fecha de atención aproximada: el corte por fecha puede no ser exacto.
             </p>
+            <p v-if="kpiTaller.trabajados_sin_cerrar > 0" class="rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900" data-trabajados-sin-cerrar>
+                Trabajados sin cerrar: {{ kpiTaller.trabajados_sin_cerrar }} — ya cuentan para el técnico aunque el ticket siga En proceso.
+            </p>
+            <p v-else class="text-xs text-kredix-gris" data-trabajados-sin-cerrar>Trabajados sin cerrar: 0</p>
             <p class="text-xs text-kredix-gris">
                 Comisión: {{ kpiTaller.porcentajes.servicio }}% del servicio (con armado) y {{ kpiTaller.porcentajes.repuestos }}% de los repuestos. Los tickets «de la tienda» no comisionan; una cortesía (servicio $0) solo comisiona repuestos.
             </p>
@@ -236,7 +240,7 @@ const CONTADORES = [
                                     <td class="px-2 py-2 text-kredix-negro">
                                         <Link :href="`/taller/${d.id}`" class="underline">#{{ d.id }}</Link>
                                     </td>
-                                    <td class="whitespace-nowrap px-2 py-2 text-kredix-negro">{{ d.aproximada ? '~' : '' }}{{ fechaCorta(d.fecha) }}</td>
+                                    <td class="whitespace-nowrap px-2 py-2 text-kredix-negro">{{ d.aproximada ? '~' : '' }}{{ fechaCorta(d.fecha) }}<span v-if="d.sin_cerrar" class="ml-1 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800">Sin cerrar</span></td>
                                     <td class="px-2 py-2 text-kredix-negro">{{ d.mecanico }}</td>
                                     <td class="tabular-nums px-2 py-2 text-right text-kredix-negro">{{ d.servicio === null ? '—' : formatMoney(d.servicio) }}</td>
                                     <td class="tabular-nums px-2 py-2 text-right text-kredix-negro">{{ d.repuestos === null ? '—' : formatMoney(d.repuestos) }}</td>

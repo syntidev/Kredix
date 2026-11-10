@@ -425,3 +425,14 @@ quedan pendientes de confirmacion por Carlos.*
 - **Método "Efectivo":** `Clientes/Show.vue` ya no preselecciona 'efectivo' al editar (queda vacío) y `MovimientoCuentaController::update` conserva el método de un cargo si no llega uno. Otros
   valores por defecto 'efectivo' que se dejan como estaban: `cargoForm.metodo_pago_inicial` (Show.vue:369, 503), `abonoForm.metodo_pago` (525, 621) para NUEVOS abonos/iniciales.
 - **No verificado:** Safari/iOS, PWA, cámara real, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).
+
+## Lote 7 Taller: "Trabajo terminado" sin cerrar (2026-11-10) — rama `feat/trabajo-terminado`
+
+- **Columna** `tickets_taller.trabajado_en` (timestamp nullable; migración `2026_11_10_120000_add_trabajado_en_to_tickets_taller`, aditiva). `TicketTaller::fechaConteo()` = `trabajado_en ?? atendido_en`.
+- **Marcar/desmarcar:** `PATCH /taller/{ticket}/trabajo-terminado` (`TallerController::trabajoTerminado`, solo En proceso): `fecha_trabajo` (hoy máx., ≥ creación; hoy = hora actual, otro día = 18:00:00); sin fecha = desmarcar.
+  ActivityLog `trabajo_terminado_marcado` / `trabajo_terminado_desmarcado` con `anterior`/`nuevo` y usuario. No cambia estado, montos ni cuenta.
+- **KPI** (`ComisionesTaller::calcular`, sin tocar la fórmula): entran tickets atendidos O con `trabajado_en`, contados una vez en `COALESCE(trabajado_en, atendido_en)` (eliminados fuera); `trabajados_sin_cerrar`
+  y `sin_cerrar` por fila del detalle (su suma sigue igual que los totales). Cerrar un ticket ya trabajado no mueve ni repite su fecha: `marcarAtendido` ignora `fecha_trabajo` y el campo del lote 6 queda de solo lectura
+  ("Ya contado para el técnico el dd/mm").
+- **UI:** bloque azul "Trabajo terminado" y etiqueta "Trabajo terminado · sin cerrar · dd/mm" en Taller/Show y en la lista (ni verde ni ámbar de cobro); contador y marca "Sin cerrar" en el KPI.
+- **No verificado:** Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).

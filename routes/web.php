@@ -74,6 +74,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/taller/{ticket}', [TallerController::class, 'show'])->name('taller.show');
     Route::put('/taller/{ticket}', [TallerController::class, 'update'])->name('taller.update');
     Route::delete('/taller/{ticket}', [TallerController::class, 'destroy'])->name('taller.destroy');
+    Route::patch('/taller/{ticket}/trabajo-terminado', [TallerController::class, 'trabajoTerminado'])->name('taller.trabajo-terminado');
     Route::patch('/taller/{ticket}/marcar-atendido', [TallerController::class, 'marcarAtendido'])->name('taller.marcar-atendido');
     // Revision tecnica: 404 con el interruptor taller.revision_tecnica_activa apagado
     Route::middleware('taller.revision')->group(function () {
