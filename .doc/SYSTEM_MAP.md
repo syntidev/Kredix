@@ -411,3 +411,17 @@ quedan pendientes de confirmacion por Carlos.*
   Configuración › WhatsApp › «WhatsApp · Cobranza» (solo admin). Se quitó el formulario de las plantillas 1-3; el endpoint `PUT /configuracion/whatsapp` queda
   como legado porque tiene pruebas del Taller que no se modifican.
 - **No verificado:** apertura real de WhatsApp, Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).
+
+## Lote 6 Taller: cierre flexible (2026-11-10) — rama `feat/cierre-flexible`
+
+- **A0 (por qué el #59 no cerraba):** `Taller/Show.vue` habilita el botón con `puedeMarcarAtendido` = texto + (pago si se cobra) [+ foto, antes]. El texto cuenta solo si ya está GUARDADO
+  (`ticket.trabajo_realizado` o una revisión técnica con acciones; lo escrito en el cuadro sin pulsar Guardar no cuenta) y el pago solo cuando se elige Sí/No. La foto subida sí cuenta al instante
+  (`POST /taller/{id}/fotos/entrada` redirige a la ficha y la prop `ticket.fotos_entrada` ya viene actualizada). No era un bug: el aviso gris genérico no decía qué faltaba.
+- **Cierre:** lista de verificación (texto, foto opcional, pago) con nota "escrito, falta pulsar Guardar". La foto de entrada ya no bloquea: sin foto pide confirmar ("Cerrar sin foto de entrada",
+  `confirmar_sin_foto`) y registra `cierre_sin_foto` en ActivityLog. "Fecha del trabajo" (`fecha_trabajo`, hoy por defecto, ni futura ni anterior a la creación): otro día → `atendido_en` = ese día 18:00:00
+  y evento `atendido_en_ajustado`; el cargo conserva su fecha. Sin migraciones; KPI y comisiones sin tocar (siguen por estado atendido y `atendido_en`).
+- **Por cobrar:** `TallerController::cobroDe` → atendido A CUENTA con saldo de la cuenta > 0 = ámbar "A CUENTA · el cliente debe $X"; saldo 0 = verde "Cobrado"; pagado en taller = verde "PAGADO".
+  `MovimientoCuenta::saldosPendientes()` calcula el saldo de varios clientes en una consulta (misma fórmula que `saldoPendiente()`, que ahora delega en ella). Filtro `?por_cobrar=1` con un subselect.
+- **Método "Efectivo":** `Clientes/Show.vue` ya no preselecciona 'efectivo' al editar (queda vacío) y `MovimientoCuentaController::update` conserva el método de un cargo si no llega uno. Otros
+  valores por defecto 'efectivo' que se dejan como estaban: `cargoForm.metodo_pago_inicial` (Show.vue:369, 503), `abonoForm.metodo_pago` (525, 621) para NUEVOS abonos/iniciales.
+- **No verificado:** Safari/iOS, PWA, cámara real, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).

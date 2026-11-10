@@ -149,11 +149,30 @@ class MovimientoCuenta extends Model implements HasMedia
 
     public static function saldoPendiente(int $clienteId): float
     {
-        $cargos = static::where('cliente_id', $clienteId)->where('tipo', 'cargo')->sum('monto');
-        $abonos = static::where('cliente_id', $clienteId)->where('tipo', 'abono')->sum('monto');
-        $ajustes = static::where('cliente_id', $clienteId)->where('tipo', 'ajuste_devolucion')->sum('monto');
+        return static::saldosPendientes([$clienteId])[$clienteId];
+    }
 
-        return (float) $cargos - (float) $abonos - (float) $ajustes;
+    /**
+     * Misma formula que saldoPendiente (cargos - abonos - ajustes, solo vigentes) para varios clientes en UNA
+     * consulta: listas que muestran el saldo de muchos clientes sin una consulta por fila.
+     *
+     * @param  list<int>  $clienteIds
+     * @return array<int, float> clienteId => saldo (0.0 si no tiene movimientos)
+     */
+    public static function saldosPendientes(array $clienteIds): array
+    {
+        $saldos = array_fill_keys($clienteIds, 0.0);
+        if ($clienteIds === []) {
+            return $saldos;
+        }
+
+        $totales = static::whereIn('cliente_id', $clienteIds)->whereIn('tipo', ['cargo', 'abono', 'ajuste_devolucion'])
+            ->selectRaw('cliente_id, tipo, SUM(monto) as total')->groupBy('cliente_id', 'tipo')->get();
+        foreach ($totales as $fila) {
+            $saldos[$fila->cliente_id] += $fila->tipo === 'cargo' ? (float) $fila->total : -(float) $fila->total;
+        }
+
+        return $saldos;
     }
 
     public static function totalCobrado(int $clienteId): float

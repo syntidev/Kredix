@@ -41,7 +41,8 @@ class TallerController extends Controller
         ])->all();
     }
 
-    private function ticketResumen(TicketTaller $ticket): array
+    // $saldos: clienteId => saldo de la cuenta (MovimientoCuenta::saldosPendientes), calculado en lote por quien llama
+    private function ticketResumen(TicketTaller $ticket, array $saldos = []): array
     {
         return [
             'id' => $ticket->id,
@@ -62,7 +63,26 @@ class TallerController extends Controller
             // null en trabajo de la tienda: para esos tickets no viaja ninguna cifra
             'total' => $ticket->totalVisible(),
             'etiqueta_total' => $ticket->etiquetaTotal(),
+            'cobro' => $this->cobroDe($ticket, $saldos),
         ];
+    }
+
+    // Estado de cobro de un ticket atendido: pagado en el taller, o A CUENTA con el saldo de la CUENTA del cliente
+    // (mismo calculo de la ficha): por_cobrar mientras debe algo, cobrado cuando llega a 0. null si no aplica.
+    private function cobroDe(TicketTaller $ticket, array $saldos): ?array
+    {
+        if ($ticket->estado !== 'atendido' || $ticket->esTrabajoTienda()) {
+            return null;
+        }
+        if ($ticket->pagado_en_taller) {
+            return ['estado' => 'pagado', 'saldo' => 0.0];
+        }
+        if ($ticket->movimiento_cuenta_id === null || $ticket->cliente_id === null) {
+            return null;
+        }
+        $saldo = round($saldos[$ticket->cliente_id] ?? 0.0, 2);
+
+        return ['estado' => $saldo > 0 ? 'por_cobrar' : 'cobrado', 'saldo' => $saldo];
     }
 
     // selector de mecanico: solo rol_taller, mas el mecanico actual del ticket
@@ -86,6 +106,7 @@ class TallerController extends Controller
         $estado = $request->query('estado');
         $rango = $request->query('rango');
         $tipoServicio = $request->query('tipo_servicio');
+        $porCobrar = $request->boolean('por_cobrar');
 
         $tickets = TicketTaller::query()
             ->with(['cliente:id,nombre', 'mecanico:id,name', 'registradoPor:id,name', 'repuestos'])
@@ -93,6 +114,10 @@ class TallerController extends Controller
             ->when($rango === 'hoy', fn ($query) => $query->whereDate('created_at', today()))
             ->when($rango === 'esta_semana', fn ($query) => $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]))
             ->when($rango === 'este_mes', fn ($query) => $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]))
+            // atendidos A CUENTA cuyo cliente aun debe algo: un solo subselect con la misma formula del saldo
+            ->when($porCobrar, fn ($query) => $query->where('estado', 'atendido')->where('pagado_en_taller', false)->whereNotNull('movimiento_cuenta_id')
+                ->whereIn('cliente_id', fn ($sub) => $sub->select('cliente_id')->from('movimientos_cuenta')->whereNull('deleted_at')
+                    ->groupBy('cliente_id')->havingRaw("SUM(CASE tipo WHEN 'cargo' THEN monto WHEN 'abono' THEN -monto WHEN 'ajuste_devolucion' THEN -monto ELSE 0 END) > 0")))
             ->when($tipoServicio === 'vip', fn ($query) => $query->where('tipo_servicio', 'vip'))
             ->when($tipoServicio === 'normal', fn ($query) => $query->where(fn ($q) => $q->whereNull('tipo_servicio')->orWhere('tipo_servicio', '!=', 'vip')))
             // en proceso arriba por fecha de compromiso (sin fecha al final); los atendidos
@@ -103,7 +128,10 @@ class TallerController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $tickets->getCollection()->transform(fn ($ticket) => $this->ticketResumen($ticket));
+        $saldos = MovimientoCuenta::saldosPendientes($tickets->getCollection()
+            ->filter(fn ($t) => $t->estado === 'atendido' && ! $t->pagado_en_taller && $t->movimiento_cuenta_id !== null && $t->cliente_id !== null)
+            ->pluck('cliente_id')->unique()->values()->all());
+        $tickets->getCollection()->transform(fn ($ticket) => $this->ticketResumen($ticket, $saldos));
 
         // la lista "Mis tickets" del tecnico existe para llegar a la Revision: apagada, no hay lista aparte
         $misTickets = $request->user()->rol_taller && Funciones::revisionTecnica()
@@ -122,6 +150,7 @@ class TallerController extends Controller
             'estado' => $estado,
             'rango' => $rango,
             'tipoServicio' => $tipoServicio,
+            'porCobrar' => $porCobrar,
             'contadoresCompromiso' => FechaCompromiso::contadores(),
             'gruposCompromiso' => FechaCompromiso::GRUPOS,
         ]);
@@ -504,6 +533,8 @@ class TallerController extends Controller
             'mensajesWhatsapp' => $this->mensajesWhatsapp($ticket),
             'compromisoConfig' => FechaCompromiso::configuracion(),
             'presetsServicio' => AjustesTaller::presetsServicio(),
+            // tope de la fecha del trabajo al cerrar (hoy en la zona de la app)
+            'hoy' => now()->toDateString(),
             'ticket' => [
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',
@@ -522,6 +553,7 @@ class TallerController extends Controller
                     : $ticket->repuestos,
                 'total' => $ticket->totalVisible(),
                 'etiqueta_total' => $ticket->etiquetaTotal(),
+                'cobro' => $this->cobroDe($ticket, $ticket->cliente_id ? MovimientoCuenta::saldosPendientes([$ticket->cliente_id]) : []),
                 'repuestos_sin_precio' => $ticket->repuestosSinPrecio(),
                 'fotos_entrada' => $this->fotosUrls($ticket, 'entrada'),
                 'fotos_salida' => $this->fotosUrls($ticket, 'salida'),
@@ -904,11 +936,11 @@ class TallerController extends Controller
             return back()->withErrors(['trabajo_realizado' => 'Debes hacer la revision tecnica o escribir el trabajo realizado antes de marcar el ticket como atendido.']);
         }
 
-        // VIP ya no exige foto de entrada al crear (se agenda antes de ver la
-        // bici) -- por eso el cierre debe validarla aqui explicitamente, no
-        // solo salida, o un VIP podria cerrar sin haber subido nunca entrada.
-        if ($ticket->getMedia('entrada')->isEmpty()) {
-            return back()->withErrors(['fotos_entrada' => 'Falta al menos 1 foto de entrada para poder marcar el ticket como atendido.']);
+        // La foto de entrada es el camino normal, pero ya no bloquea el cierre: sin foto hace falta confirmarlo
+        // (la pantalla pregunta "Cerrar sin foto de entrada") y queda el evento cierre_sin_foto en el registro.
+        $sinFoto = $ticket->getMedia('entrada')->isEmpty();
+        if ($sinFoto && ! $request->boolean('confirmar_sin_foto')) {
+            return back()->withErrors(['fotos_entrada' => 'Cerrar sin foto de entrada requiere confirmarlo.']);
         }
 
         // la foto de salida es opcional (autorizado por Carlos 2026-11-01)
@@ -920,6 +952,14 @@ class TallerController extends Controller
         ], [
             'pagado_en_taller.required' => 'indica si el ticket se pago en el momento',
         ]);
+
+        // fecha real del trabajo (solo fecha): no futura ni anterior a la creacion del ticket
+        $fechaTrabajo = $request->validate([
+            'fecha_trabajo' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today', 'after_or_equal:'.$ticket->created_at->toDateString()],
+        ], [
+            'fecha_trabajo.before_or_equal' => 'La fecha del trabajo no puede ser futura.',
+            'fecha_trabajo.after_or_equal' => 'La fecha del trabajo no puede ser anterior a la creación del ticket.',
+        ])['fecha_trabajo'] ?? null;
 
         // texto en borrador o desactualizado (o el borrador que este cierre armaria)
         // NO sale en el PDF: cerrar asi exige decirlo explicito. "aprobar" lo
@@ -936,7 +976,7 @@ class TallerController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($ticket, $seCobra, $validated, $textoPendiente, $confirmacion) {
+        DB::transaction(function () use ($ticket, $seCobra, $validated, $textoPendiente, $confirmacion, $fechaTrabajo, $sinFoto) {
             $pagadoEnTaller = $seCobra ? (bool) $validated['pagado_en_taller'] : false;
 
             // si ya tiene movimiento_cuenta_id, el cargo ya se genero antes --
@@ -995,10 +1035,22 @@ class TallerController extends Controller
                     'texto_cliente_hash' => RedactarInforme::hash($ticket->revision_tecnica),
                 ]);
             }
+            // hoy: la hora actual; otro dia: ese dia a las 18:00 (cierra en la semana del trabajo, no en la del cierre).
+            // El cargo del cliente conserva su fecha real de generacion
+            $ajustada = $fechaTrabajo !== null && $fechaTrabajo !== now()->toDateString();
             $ticket->estado = 'atendido';
-            $ticket->atendido_en = now();
+            $ticket->atendido_en = $ajustada ? $fechaTrabajo.' 18:00:00' : now();
             $ticket->pagado_en_taller = $pagadoEnTaller;
             $ticket->save();
+
+            if ($ajustada) {
+                activity('taller')->performedOn($ticket)->causedBy(auth()->user())
+                    ->withProperties(['anterior' => now()->toDateTimeString(), 'nuevo' => $ticket->atendido_en->toDateTimeString()])
+                    ->log('atendido_en_ajustado');
+            }
+            if ($sinFoto) {
+                activity('taller')->performedOn($ticket)->causedBy(auth()->user())->log('cierre_sin_foto');
+            }
         });
 
         return redirect()->route('taller.show', $ticket->id);

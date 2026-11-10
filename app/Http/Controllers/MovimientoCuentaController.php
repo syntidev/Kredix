@@ -511,7 +511,8 @@ class MovimientoCuentaController extends Controller
                 'monto' => $monto,
                 'moneda' => $validated['moneda'],
                 'tasa_cambio' => $validated['tasa_cambio'] ?? null,
-                'metodo_pago' => $validated['metodo_pago'] ?? null,
+                // una compra sin metodo conserva lo que tenia (nunca se inyecta un valor); el formulario ya no preselecciona
+                'metodo_pago' => $validated['metodo_pago'] ?? ($esCargo ? $movimiento->metodo_pago : null),
                 'referencia' => ($validated['metodo_pago'] ?? null) !== 'efectivo' ? ($validated['referencia'] ?? null) : null,
                 'comentario' => $validated['comentario'] ?? null,
                 // solo los cargos; volver a marcar "pendiente" borra la entrega anterior

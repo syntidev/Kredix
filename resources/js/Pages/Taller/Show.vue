@@ -50,6 +50,8 @@ const props = defineProps({
     funciones: { type: Object, required: true },
     // servicios rapidos [{nombre, monto}] de Configuracion > Taller
     presetsServicio: { type: Array, default: () => [] },
+    // hoy (zona de la app): tope de la fecha del trabajo al cerrar
+    hoy: { type: String, required: true },
 });
 
 // "Trabajo de la tienda" = ticket sin cliente: ahi no se muestra ni se registra ninguna cifra
@@ -622,22 +624,36 @@ const pagadoEnTaller = ref(null);
 const textoPendiente = computed(() => ['borrador', 'desactualizado'].includes(textoCliente.value.estado)
     || (!props.ticket.trabajo_realizado?.trim() && !!props.ticket.revision));
 const confirmandoCierre = ref(false);
+// sin foto de entrada se puede cerrar, pero pidiendo confirmar (y queda en el registro)
+const confirmandoSinFoto = ref(false);
+let confirmacionGuardada = null;
+// fecha real del trabajo (solo fecha): por defecto hoy; el servidor la valida (ni futura ni anterior a la creacion)
+const fechaTrabajo = ref(props.hoy);
 
 // confirmacion: null | 'aprobar' (aprueba con quien cierra) | 'sin_texto'
-function marcarAtendido(confirmacion = null) {
+function marcarAtendido(confirmacion = null, sinFotoConfirmada = false) {
     errorAtendido.value = '';
     if (textoPendiente.value && !confirmacion) {
         confirmandoCierre.value = true;
         return;
     }
+    if (faltaFotoEntrada.value && !sinFotoConfirmada) {
+        confirmacionGuardada = confirmacion;
+        confirmandoCierre.value = false;
+        confirmandoSinFoto.value = true;
+        return;
+    }
     router.patch(`/taller/${props.ticket.id}/marcar-atendido`, {
         ...(seCobra.value ? { pagado_en_taller: pagadoEnTaller.value } : {}),
         ...(confirmacion ? { texto_cliente: confirmacion } : {}),
+        ...(faltaFotoEntrada.value ? { confirmar_sin_foto: true } : {}),
+        fecha_trabajo: fechaTrabajo.value,
     }, {
         preserveScroll: true,
         // el cierre puede dejar o aprobar un borrador armado desde la revision -- reflejarlo en el cuadro
         onSuccess: () => {
             confirmandoCierre.value = false;
+            confirmandoSinFoto.value = false;
             textoForm.trabajo_realizado = props.ticket.trabajo_realizado ?? '';
         },
         onError: (errors) => {
@@ -645,7 +661,8 @@ function marcarAtendido(confirmacion = null) {
                 confirmandoCierre.value = true;
                 return;
             }
-            errorAtendido.value = errors.trabajo_realizado ?? errors.fotos_entrada ?? errors.fotos_salida ?? errors.pagado_en_taller ?? 'No se pudo marcar como atendido.';
+            confirmandoSinFoto.value = false;
+            errorAtendido.value = errors.trabajo_realizado ?? errors.fotos_entrada ?? errors.fotos_salida ?? errors.pagado_en_taller ?? errors.fecha_trabajo ?? 'No se pudo marcar como atendido.';
         },
     });
 }
@@ -659,18 +676,40 @@ const avisoTextoCliente = computed(() => ({
     desactualizado: 'La revisión cambió después de aprobar el texto para el cliente: no saldrá en el PDF hasta que lo revises y lo guardes de nuevo.',
 }[textoCliente.value.estado] ?? ''));
 const faltaPagoElegido = computed(() => seCobra.value && pagadoEnTaller.value === null);
-const puedeMarcarAtendido = computed(() => !faltaFotoEntrada.value &&!faltaTrabajoRealizado.value && !faltaPagoElegido.value);
+// la foto de entrada ya no bloquea (solo pide confirmar); lo obligatorio es el texto y la respuesta de pago
+const puedeMarcarAtendido = computed(() => !faltaTrabajoRealizado.value && !faltaPagoElegido.value);
+// el texto escrito en el cuadro solo cuenta cuando se guarda
+const textoSinGuardar = computed(() => !!textoForm.trabajo_realizado?.trim() && textoForm.trabajo_realizado !== (props.ticket.trabajo_realizado ?? ''));
 
-// lista en vez de cadena de if/else-if -- con 4 condiciones posibles la
-// combinatoria de frases hechas a mano se vuelve inmanejable (gap real:
-// faltaba fotos_entrada por completo, backend ya la bloqueaba pero el
-// frontend no la mostraba como razon de bloqueo)
-const itemsFaltantesParaCerrar = computed(() => {
-    const items = [];
-    if (faltaTrabajoRealizado.value) items.push('hacer la revisión técnica o escribir el texto para el cliente');
-    if (faltaFotoEntrada.value) items.push('subir al menos 1 foto de entrada');
-    if (faltaPagoElegido.value) items.push('indicar si se pago en el momento');
-    return items;
+// una linea por requisito de cierre: estado 'ok' (cumplido), 'falta' (obligatorio pendiente) u 'opcional'
+const checklistCierre = computed(() => [
+    {
+        clave: 'texto',
+        texto: 'Texto del trabajo realizado',
+        estado: faltaTrabajoRealizado.value ? 'falta' : 'ok',
+        nota: faltaTrabajoRealizado.value ? (textoSinGuardar.value ? 'escrito, falta pulsar Guardar' : 'escríbelo y guárdalo, o haz la revisión técnica') : '',
+    },
+    {
+        clave: 'foto',
+        texto: 'Foto de entrada',
+        estado: faltaFotoEntrada.value ? 'opcional' : 'ok',
+        nota: faltaFotoEntrada.value ? 'opcional: sin foto se pedirá confirmar' : '',
+    },
+    ...(seCobra.value ? [{
+        clave: 'pago',
+        texto: '¿Se pagó en el momento?',
+        estado: faltaPagoElegido.value ? 'falta' : 'ok',
+        nota: faltaPagoElegido.value ? 'elige Sí o No' : '',
+    }] : []),
+]);
+const itemsFaltantesParaCerrar = computed(() => checklistCierre.value.filter((i) => i.estado === 'falta').map((i) => i.texto));
+
+// indicador de cobro de un ticket atendido (ambar = el cliente aun debe; verde = cobrado o pagado en el taller)
+const cobroUi = computed(() => {
+    const c = props.ticket.cobro;
+    if (!c) return null;
+    if (c.estado === 'por_cobrar') return { clase: 'bg-amber-100 text-amber-800', punto: 'bg-amber-500', texto: `A CUENTA · el cliente debe ${formatMoney(c.saldo)}` };
+    return { clase: 'bg-green-100 text-green-700', punto: 'bg-green-500', texto: c.estado === 'cobrado' ? 'Cobrado' : 'PAGADO' };
 });
 </script>
 
@@ -709,6 +748,10 @@ const itemsFaltantesParaCerrar = computed(() => {
                     :class="atendido ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'"
                 >
                     {{ atendido ? 'Atendido' : 'En proceso' }}
+                </span>
+                <span v-if="cobroUi" class="ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold" :class="cobroUi.clase" data-cobro>
+                    <span class="h-2 w-2 rounded-full" :class="cobroUi.punto"></span>
+                    {{ cobroUi.texto }}
                 </span>
             </h1>
             <div class="flex flex-wrap items-center gap-2">
@@ -813,10 +856,38 @@ const itemsFaltantesParaCerrar = computed(() => {
             <p v-if="pagadoEnTaller === false" class="text-xs text-kredix-gris">Se generara un cargo automatico en Credito por el total del ticket.</p>
         </div>
 
-        <p v-if="!atendido && !puedeMarcarAtendido" class="text-sm text-kredix-gris">
-            Falta {{ itemsFaltantesParaCerrar.join(', ') }} para poder cerrar el ticket.
-        </p>
+        <div v-if="!atendido" class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3" data-cierre>
+            <ul class="flex flex-col gap-1" aria-label="Requisitos para cerrar el ticket" data-checklist-cierre>
+                <li v-for="i in checklistCierre" :key="i.clave" class="flex flex-wrap items-baseline gap-x-2 text-sm" :data-estado="i.estado">
+                    <span
+                        class="inline-flex h-5 w-5 shrink-0 items-center justify-center self-center rounded-full text-xs font-bold"
+                        :class="i.estado === 'ok' ? 'bg-green-100 text-green-700' : i.estado === 'falta' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-kredix-gris'"
+                        aria-hidden="true"
+                    >{{ i.estado === 'ok' ? '✓' : i.estado === 'falta' ? '!' : '○' }}</span>
+                    <span class="font-medium text-kredix-negro">{{ i.texto }}</span>
+                    <span v-if="i.nota" class="text-xs text-kredix-gris">{{ i.nota }}</span>
+                </li>
+            </ul>
+            <div class="flex flex-col gap-1">
+                <label for="fecha-trabajo" class="text-sm font-medium text-kredix-negro">Fecha del trabajo</label>
+                <input id="fecha-trabajo" v-model="fechaTrabajo" type="date" :min="ticket.created_at" :max="hoy" class="min-h-11 w-full rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none sm:w-56" />
+                <p class="text-xs text-kredix-gris">Cuenta para la semana del técnico. Si no fue hoy, cámbiala antes de cerrar.</p>
+            </div>
+        </div>
         <p v-if="avisoTextoCliente && !confirmandoCierre" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{{ avisoTextoCliente }}</p>
+
+        <div v-if="confirmandoSinFoto && !atendido" role="alertdialog" aria-labelledby="aviso-sin-foto" class="flex flex-col gap-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-4" data-confirmar-sin-foto>
+            <p id="aviso-sin-foto" class="font-semibold text-amber-900">Cerrar sin foto de entrada</p>
+            <p class="text-sm text-amber-800">Este ticket no tiene foto de entrada. Puedes cerrarlo igual; quedará anotado en el registro.</p>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <button type="button" class="min-h-11 flex-1 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white" @click="marcarAtendido(confirmacionGuardada, true)">
+                    Cerrar sin foto
+                </button>
+                <button type="button" class="min-h-11 flex-1 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="confirmandoSinFoto = false">
+                    Cancelar
+                </button>
+            </div>
+        </div>
 
         <div v-if="confirmandoCierre && !atendido" role="alertdialog" aria-labelledby="aviso-cierre" class="flex flex-col gap-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-4">
             <p id="aviso-cierre" class="font-semibold text-amber-900">El cliente recibirá el informe SIN el texto de trabajo realizado</p>

@@ -17,6 +17,8 @@ const props = defineProps({
     estado: { type: String, default: null },
     rango: { type: String, default: null },
     tipoServicio: { type: String, default: null },
+    // filtro "Por cobrar": atendidos A CUENTA cuyo cliente aun debe
+    porCobrar: { type: Boolean, default: false },
     // {atrasados, hoy, manana} de TODOS los tickets en proceso (no solo de esta pagina)
     contadoresCompromiso: { type: Object, required: true },
     gruposCompromiso: { type: Object, required: true },
@@ -72,6 +74,7 @@ function irA(cambios) {
         estado: props.estado || undefined,
         rango: props.rango || undefined,
         tipo_servicio: props.tipoServicio || undefined,
+        por_cobrar: props.porCobrar ? 1 : undefined,
         page: 1,
         ...cambios,
     };
@@ -92,11 +95,17 @@ function filtrarTipoServicio(valor) {
     irA({ tipo_servicio: valor });
 }
 
+function alternarPorCobrar() {
+    irA({ por_cobrar: props.porCobrar ? null : 1 });
+}
+
 function irAPagina(pagina) {
     irA({ page: pagina });
 }
 
-function colorEstado(estado) {
+// atendido A CUENTA con deuda = ambar; el resto de atendidos, verde
+function colorEstado(estado, cobro = null) {
+    if (cobro?.estado === 'por_cobrar') return 'bg-amber-500';
     return estado === 'atendido' ? 'bg-green-500' : 'bg-orange-500';
 }
 
@@ -173,6 +182,16 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
             >
                 {{ f.etiqueta }}
             </button>
+            <button
+                type="button"
+                class="min-h-11 rounded-full border px-3 text-sm font-medium"
+                :class="porCobrar ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-gray-300 text-kredix-negro'"
+                :aria-pressed="porCobrar"
+                data-filtro-por-cobrar
+                @click="alternarPorCobrar"
+            >
+                Por cobrar
+            </button>
         </div>
 
         <div class="flex flex-wrap gap-2">
@@ -211,7 +230,7 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
                 class="flex items-center justify-between gap-3 rounded-xl border border-[#e3e8ee] bg-white p-3 shadow-[0_1px_3px_rgba(0,55,112,0.08)] active:bg-gray-50"
             >
                 <div class="flex min-w-0 items-center gap-3">
-                    <span class="h-2.5 w-2.5 shrink-0 rounded-full" :class="colorEstado(t.estado)" :title="labelEstado(t.estado)"></span>
+                    <span class="h-2.5 w-2.5 shrink-0 rounded-full" :class="colorEstado(t.estado, t.cobro)" :title="labelEstado(t.estado)"></span>
                     <div class="min-w-0">
                         <p class="flex flex-wrap items-center gap-x-1 font-medium text-kredix-negro">
                             <span class="truncate">{{ t.cliente ?? 'Trabajo de la tienda' }}</span>
@@ -249,6 +268,10 @@ const CATEGORIA_LABEL = props.etiquetas.categorias;
                     <p class="text-sm text-kredix-negro">{{ t.mecanico }}</p>
                     <p v-if="t.registrado_por" class="text-xs text-kredix-gris">Registro: {{ t.registrado_por }}</p>
                     <p class="text-xs font-medium" :class="t.estado === 'atendido' ? 'text-green-700' : 'text-orange-700'">{{ labelEstado(t.estado) }}</p>
+                    <p v-if="t.cobro" class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="t.cobro.estado === 'por_cobrar' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-700'" data-cobro>
+                        <span class="h-1.5 w-1.5 rounded-full" :class="t.cobro.estado === 'por_cobrar' ? 'bg-amber-500' : 'bg-green-500'"></span>
+                        {{ t.cobro.estado === 'por_cobrar' ? 'A CUENTA · el cliente debe ' + formatMoney(t.cobro.saldo) : t.cobro.estado === 'cobrado' ? 'Cobrado' : 'PAGADO' }}
+                    </p>
                 </div>
             </Link>
             </template>

@@ -708,7 +708,7 @@ const editForm = useForm({
     monto: '',
     moneda: 'usd',
     tasa_cambio: '',
-    metodo_pago: 'efectivo',
+    metodo_pago: '',
     referencia: '',
     comentario: '',
     comprobante: null,
@@ -730,7 +730,8 @@ function openEditMov(m) {
     editForm.monto = (m.tipo === 'cargo' || m.tipo === 'gestion') ? '' : m.monto;
     editForm.moneda = m.moneda;
     editForm.tasa_cambio = m.tasa_cambio ?? '';
-    editForm.metodo_pago = m.metodo_pago ?? 'efectivo';
+    // sin metodo se queda vacio (antes se inyectaba 'efectivo' al editar una compra que no tenia)
+    editForm.metodo_pago = m.metodo_pago ?? '';
     editForm.referencia = m.referencia ?? '';
     editForm.comentario = m.comentario ?? '';
     editForm.comprobante = null;
@@ -1725,6 +1726,7 @@ watch(algunModalAbierto, (abierto) => {
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Metodo de pago</label>
                     <select v-model="editForm.metodo_pago" class="min-h-11 w-full min-w-0 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none">
+                        <option value="" disabled>Selecciona...</option>
                         <option value="efectivo">Efectivo</option>
                         <option value="zelle">Zelle</option>
                         <option value="binance">Binance</option>
