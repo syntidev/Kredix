@@ -38,7 +38,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
     Route::post('/clientes/rapido', [ClienteController::class, 'storeRapido'])->name('clientes.store-rapido');
     Route::get('/etiquetas', [EtiquetasController::class, 'index'])->name('etiquetas.index');
+    Route::get('/etiquetas/clientes', [EtiquetasController::class, 'clientes'])->name('etiquetas.clientes');
     Route::get('/etiquetas/cliente/{cliente}', [EtiquetasController::class, 'cliente'])->name('etiquetas.cliente');
+    Route::put('/etiquetas/cliente/{cliente}', [EtiquetasController::class, 'guardarEnFicha'])->name('etiquetas.cliente.guardar');
     Route::put('/etiquetas/plantillas', [EtiquetasController::class, 'guardarPlantillas'])->name('etiquetas.plantillas');
     Route::post('/etiquetas/impresa', [EtiquetasController::class, 'registrarImpresion'])->name('etiquetas.impresa');
     Route::get('/cartera', [ClienteController::class, 'cartera'])->name('cartera');

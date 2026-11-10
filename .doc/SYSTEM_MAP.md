@@ -449,3 +449,15 @@ quedan pendientes de confirmacion por Carlos.*
   ("Ya contado para el técnico el dd/mm").
 - **UI:** bloque azul "Trabajo terminado" y etiqueta "Trabajo terminado · sin cerrar · dd/mm" en Taller/Show y en la lista (ni verde ni ámbar de cobro); contador y marca "Sin cerrar" en el KPI.
 - **No verificado:** Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).
+
+## Lote 9: Etiquetas con clientes registrados (2026-11-10) — rama `feat/etiquetas-clientes`
+
+- **Buscador del modo Envío** (`GET /etiquetas/clientes`, `EtiquetasController::clientes`): lo primero de la pantalla (ancho completo, enfocado). Busca por nombre (todas las palabras), cédula o teléfono (solo dígitos, "0414…" o "+58414…"),
+  sin mayúsculas ni acentos (se filtra en PHP, no depende de la collation), mínimo 2 caracteres, máximo 8. Al elegir: "Cliente: NOMBRE" + "Quitar cliente"; los cuatro campos salen de `GET /etiquetas/cliente/{id}` y se pueden editar.
+- **Casilla "Imprimir"** por fila (Envío y Campos): marcada sola cuando hay valor (y al escribir, mientras no se toque la casilla); se imprime solo lo marcado Y con valor.
+- **Bidireccional:** con cliente ligado, la fila que difiere de la ficha muestra "Distinto a la ficha" y un solo botón "Guardar en la ficha del cliente" → `PUT /etiquetas/cliente/{id}`. Solo Nombre/Cédula/Teléfono/Dirección, solo los que difieren y traen valor
+  (vaciar nunca borra). Rellenar un campo vacío es directo; reemplazar uno con valor pide confirmación en pantalla y `confirmar_reemplazo` en el servidor (422 si falta). Validación y mensajes: los de la edición normal
+  (`ClienteController::reglasEdicion/mensajesEdicion`, ahora compartidos). ActivityLog `cliente_actualizado_desde_etiqueta` (usuario + campos con anterior/nuevo); la edición normal del cliente NO registra actividad, por eso este evento es nuevo.
+  Permiso: el mismo de editar un cliente (usuario autenticado sin rol exclusivo de Taller). La dirección ya se edita en la ficha (`Clientes/Show.vue`, formulario de edición).
+- Sin cliente ligado todo funciona como en el lote 8 (nada se guarda, nadie se da de alta, sin botón de guardar en ficha). Lo impreso sigue sin persistirse.
+- **No verificado:** impresión real en la Xprinter, Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).
