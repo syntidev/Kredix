@@ -461,3 +461,13 @@ quedan pendientes de confirmacion por Carlos.*
   Permiso: el mismo de editar un cliente (usuario autenticado sin rol exclusivo de Taller). La dirección ya se edita en la ficha (`Clientes/Show.vue`, formulario de edición).
 - Sin cliente ligado todo funciona como en el lote 8 (nada se guarda, nadie se da de alta, sin botón de guardar en ficha). Lo impreso sigue sin persistirse.
 - **No verificado:** impresión real en la Xprinter, Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).
+
+## Lote 10 — WhatsApp de cobranza: Promoción del mes + acceso no-Taller
+
+- Tipo nuevo `promocion` («Promoción del mes») en `PlantillasWhatsapp::COBRANZA`, penúltimo (antes de «Mensaje libre»). Variables: `{nombre}`, `{saldo}`, `{mes}`, `{fecha_limite}`. Clave `whatsapp_cobranza_promocion`, máx. 1000 (el texto por defecto mide ~480 caracteres Unicode).
+  `{saldo}` = `MovimientoCuenta::saldoPendiente()` con el mismo formato (`$1,199.00`); `{mes}` y `{fecha_limite}` (último día del mes, «30 de noviembre de 2026») salen de `Carbon::now('America/Caracas')` y una lista de meses en español (`CobranzaWhatsapp::MESES`).
+  En la ficha: deshabilitada con la pista «Sin saldo pendiente» si el saldo es 0; la preselección inteligente no cambia. «Mensaje libre» sigue con solo `{nombre}`.
+- Acceso (causa): la ficha NUNCA estuvo restringida; lo único admin-only era la edición de plantillas, por decisión del lote 5 (`ConfiguracionController::index` entregaba `plantillasCobranza` solo a `es_admin` y `updateWhatsappCobranza` hacía `abort_unless(es_admin)`).
+  Ahora todo usuario autenticado no-Taller ve y edita las plantillas de cobranza (Configuración › WhatsApp · Cobranza, menú Administración › Configuración); `RestringeRolTaller` mantiene el 403 para rol Taller. Lo demás de Configuración no cambió (`ajustesTaller` y `PUT /configuracion/taller` siguen solo admin).
+- Pruebas: `CobranzaPromocionTest` (12). Se ajustaron 3 de `CobranzaWhatsappTest` que codificaban lo que este lote cambia (6→7 tipos; edición solo admin).
+- **No verificado:** apertura real de WhatsApp, Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).

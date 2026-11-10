@@ -9,7 +9,7 @@ defineOptions({ layout: AppLayout });
 const lightboxUrl = ref(null);
 
 const props = defineProps({
-    // bloque "Cobranza" (solo admin): mismo formato que plantillasTaller
+    // bloque "Cobranza": mismo formato que plantillasTaller
     plantillasCobranza: { type: Array, default: () => [] },
     // bloque "Taller": [{ campo, etiqueta, variables, texto (vigente), defecto (original) }]
     plantillasTaller: { type: Array, default: () => [] },
@@ -71,7 +71,7 @@ function guardarTaller() {
     });
 }
 
-// tab 1, bloque Cobranza (solo admin): 6 textos con su propio Guardar y "Restaurar texto por defecto"
+// tab 1, bloque Cobranza (todo usuario no-Taller): 7 textos con su propio Guardar y "Restaurar texto por defecto"
 const cobranzaForm = useForm(Object.fromEntries(props.plantillasCobranza.map((p) => [p.campo, p.texto])));
 
 function restaurarCobranza(p) {

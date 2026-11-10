@@ -36,6 +36,16 @@ class PlantillasWhatsapp
             'texto' => "Hola {nombre},\n\nSaldo pendiente: {saldo}\n\nQuedamos atentos, gracias por su preferencia."],
         'por_entregar' => ['clave' => 'whatsapp_cobranza_por_entregar', 'etiqueta' => 'Por entregar', 'variables' => ['nombre', 'lista_articulos'],
             'texto' => "Hola {nombre} 👋 Tienes pendiente de entrega:\n{lista_articulos}\nCoordinemos la entrega por aquí."],
+        // promocion mensual: {mes} y {fecha_limite} (ultimo dia del mes, America/Caracas) se calculan al abrir; el 10 % es texto editable
+        'promocion' => ['clave' => 'whatsapp_cobranza_promocion', 'etiqueta' => 'Promoción del mes', 'variables' => ['nombre', 'saldo', 'mes', 'fecha_limite'],
+            'texto' => "¡Hola, {nombre}! 👋 Te saludamos de parte del equipo de OnBike Margarita.
+
+Este mes tenemos un beneficio para ti: 10% de descuento sobre tu saldo pendiente de {saldo} si lo cancelas en su totalidad hasta el {fecha_limite}. 🚴‍♂️✨
+
+Puedes pagar en la modalidad que prefieras:
+💵 Divisas (Efectivo, Zelle, Binance).
+🇻🇪 Bolívares (calculados a la tasa del Euro).
+Para activar tu descuento, escríbenos por aquí y coordinamos tu pago. ¡Estamos a la orden! 📲"],
         'libre' => ['clave' => 'whatsapp_cobranza_libre', 'etiqueta' => 'Mensaje libre', 'variables' => ['nombre'],
             'texto' => 'Hola {nombre} 👋 '],
     ];

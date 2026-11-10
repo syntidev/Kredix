@@ -17,6 +17,8 @@ class CobranzaWhatsapp
 {
     private const ESPACIO = 'cobranza';
 
+    private const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
     public static function tipos(): array
     {
         return array_keys(PlantillasWhatsapp::COBRANZA);
@@ -43,6 +45,7 @@ class CobranzaWhatsapp
             'saldo' => self::dinero(MovimientoCuenta::saldoPendiente($cliente->id)),
         ];
         $hoy = Carbon::now()->startOfDay();
+        $hoyCaracas = Carbon::now('America/Caracas');
         $vencida = $cuota && $cuota->fecha_vencimiento->lt($hoy);
 
         $valores = [
@@ -55,11 +58,13 @@ class CobranzaWhatsapp
             'abono_recibido' => $abono ? [...$base, 'abono_monto' => self::dinero((float) $abono->monto), 'abono_fecha' => $abono->fecha?->format('d/m/Y')] : $base,
             'saldo' => $base,
             'por_entregar' => $base,
+            'promocion' => [...$base, 'mes' => self::MESES[$hoyCaracas->month - 1], 'fecha_limite' => $hoyCaracas->endOfMonth()->day.' de '.self::MESES[$hoyCaracas->month - 1].' de '.$hoyCaracas->year],
             'libre' => ['nombre' => $cliente->nombre],
         ];
         $listas = ['estado_cuenta' => ['lista_compras', $compras->all()], 'por_entregar' => ['lista_articulos', $articulos->all()]];
         $pistas = [
             'abono_recibido' => $abono ? null : 'El cliente no tiene abonos registrados.',
+            'promocion' => MovimientoCuenta::saldoPendiente($cliente->id) > 0 ? null : 'Sin saldo pendiente',
             'por_entregar' => $articulos->isEmpty() ? 'El cliente no tiene artículos por entregar.' : null,
         ];
 
