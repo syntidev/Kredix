@@ -87,7 +87,7 @@ class CobranzaWhatsappTest extends TestCase
 
         $tipos = collect($this->datos()['tipos']);
 
-        $this->assertCount(6, $tipos);
+        $this->assertCount(7, $tipos);
         foreach ($tipos as $t) {
             $this->assertNotSame('', trim($t['texto']), $t['tipo']);
             $this->assertStringNotContainsString('{', $t['texto'], $t['tipo']);
@@ -216,7 +216,8 @@ class CobranzaWhatsappTest extends TestCase
 
     public function test_configuracion_valida_acceso_largo_y_variables(): void
     {
-        $this->guardar($this->todosPorDefecto(), $this->usuario)->assertForbidden();
+        // lote 10: la edicion ya no es solo admin; solo el rol Taller queda fuera
+        $this->guardar($this->todosPorDefecto(), User::factory()->create(['rol_taller' => true]))->assertForbidden();
         $this->guardar([...$this->todosPorDefecto(), 'saldo' => str_repeat('a', 1001)])->assertSessionHasErrors('saldo');
         $this->guardar([...$this->todosPorDefecto(), 'saldo' => 'Hola {nombre} {cuota_fecha}'])->assertSessionHasErrors('saldo');
         $this->guardar([...$this->todosPorDefecto(), 'libre' => ''])->assertSessionHasErrors('libre');
@@ -224,8 +225,8 @@ class CobranzaWhatsappTest extends TestCase
 
     public function test_la_configuracion_solo_viaja_a_admin(): void
     {
-        $this->actingAs($this->admin)->get('/configuracion')->assertInertia(fn ($p) => $p->has('plantillasCobranza', 6));
-        $this->actingAs($this->usuario)->get('/configuracion')->assertInertia(fn ($p) => $p->has('plantillasCobranza', 0));
+        $this->actingAs($this->admin)->get('/configuracion')->assertInertia(fn ($p) => $p->has('plantillasCobranza', 7));
+        $this->actingAs($this->usuario)->get('/configuracion')->assertInertia(fn ($p) => $p->has('plantillasCobranza', 7));
     }
 
     // ---- trazabilidad ----

@@ -41,14 +41,14 @@ class ConfiguracionController extends Controller
                 'comision_repuestos_pct' => AjustesTaller::comisionRepuestosPct(),
                 'presets_servicio' => AjustesTaller::presetsServicio(),
             ] : null,
-            // plantillas de cobranza: solo admin las edita; el dato no viaja a quien no lo ve
-            'plantillasCobranza' => request()->user()->es_admin ? collect(PlantillasWhatsapp::COBRANZA)->map(fn (array $c, string $tipo) => [
+            // plantillas de cobranza: las ve y edita todo usuario que no sea de solo Taller (el middleware ya lo excluye)
+            'plantillasCobranza' => collect(PlantillasWhatsapp::COBRANZA)->map(fn (array $c, string $tipo) => [
                 'campo' => $tipo,
                 'etiqueta' => $c['etiqueta'],
                 'variables' => $c['variables'],
                 'texto' => PlantillasWhatsapp::texto($tipo, 'cobranza'),
                 'defecto' => PlantillasWhatsapp::defecto($tipo, 'cobranza'),
-            ])->values() : [],
+            ])->values(),
             'tasaBcvActual' => Configuracion::valorDe('tasa_bcv_actual'),
             'pdfMensajeGlobal' => Configuracion::valorDe('pdf_mensaje_global'),
             'bannerSuperiorUrl' => ConfiguracionPdf::instancia()->getFirstMediaUrl('banner_superior', 'pdf') ?: null,
@@ -123,12 +123,10 @@ class ConfiguracionController extends Controller
         return redirect()->route('configuracion.index');
     }
 
-    // Bloque "Cobranza" de la pestana WhatsApp (solo admin): mismo patron que el del Taller. Un texto igual al
+    // Bloque "Cobranza" de la pestana WhatsApp (todo usuario no-Taller, lote 10): mismo patron que el del Taller. Un texto igual al
     // original se guarda como null y sigue al original si algun dia cambia
     public function updateWhatsappCobranza(Request $request)
     {
-        abort_unless($request->user()->es_admin, 403);
-
         $reglas = [];
         foreach (array_keys(PlantillasWhatsapp::COBRANZA) as $tipo) {
             $reglas[$tipo] = ['required', 'string', 'max:1000', function (string $atributo, mixed $valor, Closure $fallar) use ($tipo) {
