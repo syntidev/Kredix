@@ -43,6 +43,7 @@ class ConfiguracionController extends Controller
                 'tecnico_defecto_id' => AjustesTaller::tecnicoDefectoId(),
                 'comision_servicio_pct' => AjustesTaller::comisionServicioPct(),
                 'comision_repuestos_pct' => AjustesTaller::comisionRepuestosPct(),
+                'presets_servicio' => AjustesTaller::presetsServicio(),
             ] : null,
             'tasaBcvActual' => Configuracion::valorDe('tasa_bcv_actual'),
             'pdfMensajeGlobal' => Configuracion::valorDe('pdf_mensaje_global'),
@@ -125,7 +126,17 @@ class ConfiguracionController extends Controller
             'tecnico_defecto_id' => ['nullable', Rule::exists('users', 'id')->where('rol_taller', 1)->where('es_oculto', 0)],
             'comision_servicio_pct' => ['required', 'numeric', 'between:0,100'],
             'comision_repuestos_pct' => ['required', 'numeric', 'between:0,100'],
+            // servicios rapidos: solo se tocan si el formulario los manda
+            'presets_servicio' => ['sometimes', 'nullable', 'array', 'max:'.AjustesTaller::MAX_PRESETS_SERVICIO],
+            'presets_servicio.*.nombre' => ['required', 'string', 'min:1', 'max:60'],
+            'presets_servicio.*.monto' => ['required', 'numeric', 'between:0,9999.99'],
         ], [
+            'presets_servicio.max' => 'Máximo '.AjustesTaller::MAX_PRESETS_SERVICIO.' servicios rápidos.',
+            'presets_servicio.*.nombre.required' => 'Cada servicio rápido necesita un nombre.',
+            'presets_servicio.*.nombre.max' => 'El nombre del servicio rápido admite hasta 60 caracteres.',
+            'presets_servicio.*.monto.required' => 'Cada servicio rápido necesita un monto.',
+            'presets_servicio.*.monto.numeric' => 'El monto del servicio rápido debe ser un número.',
+            'presets_servicio.*.monto.between' => 'El monto del servicio rápido debe estar entre 0 y 9999.99.',
             'comision_servicio_pct.between' => 'El porcentaje debe estar entre 0 y 100.',
             'comision_repuestos_pct.between' => 'El porcentaje debe estar entre 0 y 100.',
             'tecnico_defecto_id.exists' => 'Elige un técnico válido.',
@@ -137,6 +148,13 @@ class ConfiguracionController extends Controller
             AjustesTaller::CLAVE_COMISION_REPUESTOS => $validated['comision_repuestos_pct'],
         ] as $clave => $valor) {
             Configuracion::updateOrCreate(['clave' => $clave], ['valor' => $valor]);
+        }
+
+        if (array_key_exists('presets_servicio', $validated)) {
+            $presets = collect($validated['presets_servicio'] ?? [])
+                ->map(fn ($p) => ['nombre' => trim($p['nombre']), 'monto' => round((float) $p['monto'], 2)])
+                ->values()->all();
+            Configuracion::updateOrCreate(['clave' => AjustesTaller::CLAVE_PRESETS_SERVICIO], ['valor' => json_encode($presets, JSON_UNESCAPED_UNICODE)]);
         }
 
         return redirect()->route('configuracion.index');

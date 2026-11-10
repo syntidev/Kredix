@@ -67,6 +67,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/clientes/{cliente}/responsable', [ClienteController::class, 'actualizarResponsable'])->name('clientes.responsable');
     Route::get('/taller', [TallerController::class, 'index'])->name('taller.index');
     Route::get('/taller/nuevo', [TallerController::class, 'create'])->name('taller.create');
+    Route::get('/taller/bicis', [TallerController::class, 'bicis'])->name('taller.bicis');
     Route::post('/taller', [TallerController::class, 'store'])->name('taller.store');
     Route::get('/taller/{ticket}', [TallerController::class, 'show'])->name('taller.show');
     Route::put('/taller/{ticket}', [TallerController::class, 'update'])->name('taller.update');

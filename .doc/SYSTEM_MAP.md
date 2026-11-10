@@ -384,3 +384,15 @@ quedan pendientes de confirmacion por Carlos.*
   (`MovimientoCuentaController.php`, `'metodo_pago' => $validated['metodo_pago'] ?? null`). El nombre es `registrado_por` del cargo (quien lo registró,
   `store()`; `update()` no lo cambia), mostrado por `ClienteController` (`'registrado_por' => $m->registradoPor?->name`).
 - **No verificado:** producción, Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).
+
+## Lote 4 Taller (2026-11-10) — rama `feat/taller-presets-bicis`
+
+- **Servicios rápidos (presets):** lista editable en Configuración › Taller (solo admin), clave `taller_presets_servicio` (JSON `[{nombre, monto}]`,
+  máx. 20, nombre 1–60, monto 0–9999.99, sin migración, sin datos sembrados). `AjustesTaller::presetsServicio()`. Chips (`PresetsServicio.vue`) en
+  Taller/Nuevo (deshabilitados si Servicio es de monto fijo: básico/full/vip) y en la edición de Taller/Show: SUMAN su monto a Servicio y, en Show,
+  agregan el nombre al borrador de "trabajo realizado". No crean líneas ni tipos de comisión: el KPI no cambió.
+- **Sugerencias de bici:** `GET /taller/bicis` (`?q=` mín. 2 caracteres → hasta 8; `?cliente_id=` → hasta 5 del cliente), sin tabla nueva, desde
+  `tickets_taller` vivos, `BicisTaller` (sin mayúsculas/acentos/espacios, una por texto, datos del ticket más reciente). `BiciAutocompletar.vue`.
+- **C1 (no se implementó C2):** un ticket sin pagos ni abonos SÍ se puede marcar atendido: `TallerController::marcarAtendido` solo exige trabajo
+  realizado o revisión, ≥1 foto de entrada y decir si se pagó en taller o a cuenta (`pagado_en_taller=false` genera el cargo). Cerrarlo basta.
+- **No verificado:** producción, Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).

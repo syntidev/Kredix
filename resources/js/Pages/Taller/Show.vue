@@ -27,6 +27,8 @@ import PhoneInput from '../../Components/PhoneInput.vue';
 import { formatFecha } from '../../lib/formatFecha';
 import { formatMoney } from '../../lib/formatMoney';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
+import BiciAutocompletar from '../../Components/BiciAutocompletar.vue';
+import PresetsServicio from '../../Components/PresetsServicio.vue';
 import { forzarVerticalSiEsNecesario, comprimirImagenSiEsNecesario } from '../../lib/forzarVertical';
 
 defineOptions({ layout: AppLayout });
@@ -46,6 +48,8 @@ const props = defineProps({
     compromisoConfig: { type: Object, required: true },
     // interruptores de config/taller.php: { revision_tecnica, trabajo_tienda }
     funciones: { type: Object, required: true },
+    // servicios rapidos [{nombre, monto}] de Configuracion > Taller
+    presetsServicio: { type: Array, default: () => [] },
 });
 
 // "Trabajo de la tienda" = ticket sin cliente: ahi no se muestra ni se registra ninguna cifra
@@ -410,6 +414,22 @@ function pedirTextoIa() {
         onError: () => (errorTexto.value = 'No se pudo pedir el texto a la IA. Intenta de nuevo.'),
         onFinish: () => (procesandoTexto.value = false),
     });
+}
+
+// una bici sugerida rellena categoria, rin y electrica del formulario de edicion
+function elegirBici(b) {
+    editForm.categoria_bici = b.categoria_bici ?? '';
+    editForm.talla_rin = b.talla_rin ?? '';
+    editForm.es_electrica = !!b.es_electrica;
+}
+
+// el chip SUMA su monto a Servicio y agrega su nombre al borrador de trabajo realizado (no se guarda solo)
+function sumarPreset(preset) {
+    editForm.monto_servicio = Math.round(((Number(editForm.monto_servicio) || 0) + Number(preset.monto)) * 100) / 100;
+    if (!textoForm.trabajo_realizado.includes(preset.nombre)) {
+        textoForm.trabajo_realizado = [textoForm.trabajo_realizado.trim(), preset.nombre].filter(Boolean).join(', ');
+        editandoTexto.value = true;
+    }
 }
 
 // nota interna del tecnico -> al borrador editable; no se guarda hasta tocar Guardar
@@ -953,7 +973,7 @@ const itemsFaltantesParaCerrar = computed(() => {
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Bicicleta (marca y modelo)</label>
-                    <input v-model="editForm.bici_marca_modelo" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <BiciAutocompletar v-model="editForm.bici_marca_modelo" :cliente-id="ticket.cliente?.id ?? null" @elegir="elegirBici" />
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Categoria</label>
@@ -980,6 +1000,7 @@ const itemsFaltantesParaCerrar = computed(() => {
                 <div v-if="!editForm.trabajo_tienda" class="flex flex-col gap-1">
                     <label class="text-sm font-medium text-kredix-negro">Monto</label>
                     <input v-model="editForm.monto_servicio" type="number" step="0.01" min="0" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                    <PresetsServicio :presets="presetsServicio" @elegir="sumarPreset" />
                 </div>
                 <div v-if="puedeIncluirArmado" class="flex flex-col gap-2">
                     <label class="flex min-h-14 items-start gap-3 rounded-lg border-4 border-kredix-negro p-3 text-base font-bold text-kredix-negro">

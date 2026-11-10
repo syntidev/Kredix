@@ -14,6 +14,7 @@ use App\Services\Taller\FechaCompromiso;
 use App\Services\Taller\Funciones;
 use App\Services\Taller\InformeRevision;
 use App\Services\Taller\AjustesTaller;
+use App\Services\Taller\BicisTaller;
 use App\Services\Taller\PlantillasWhatsapp;
 use App\Services\Taller\PresupuestoWhatsapp;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -320,6 +321,22 @@ class TallerController extends Controller
             'mecanicos' => $this->mecanicosOpciones(),
             'tecnicoDefectoId' => AjustesTaller::tecnicoDefectoId(),
             'compromisoConfig' => FechaCompromiso::configuracion(),
+            'presetsServicio' => AjustesTaller::presetsServicio(),
+        ]);
+    }
+
+    // Autocompletado de bici (solo lectura, JSON): ?q= (min 2 caracteres) -> sugerencias del historial;
+    // ?cliente_id= -> bicis distintas de los tickets anteriores de ese cliente
+    public function bicis(Request $request)
+    {
+        $datos = $request->validate([
+            'q' => ['nullable', 'string', 'max:255'],
+            'cliente_id' => ['nullable', 'integer'],
+        ]);
+
+        return response()->json([
+            'sugerencias' => BicisTaller::sugerencias($datos['q'] ?? ''),
+            'cliente' => isset($datos['cliente_id']) ? BicisTaller::delCliente((int) $datos['cliente_id']) : [],
         ]);
     }
 
@@ -486,6 +503,7 @@ class TallerController extends Controller
             'siguienteTicketId' => $siguienteTicketId,
             'mensajesWhatsapp' => $this->mensajesWhatsapp($ticket),
             'compromisoConfig' => FechaCompromiso::configuracion(),
+            'presetsServicio' => AjustesTaller::presetsServicio(),
             'ticket' => [
                 ...$ticket->only([
                     'id', 'tipo', 'motivo_ingreso', 'bici_marca_modelo', 'categoria_bici', 'talla_rin', 'es_electrica',

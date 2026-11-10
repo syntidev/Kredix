@@ -9,6 +9,8 @@ import ComprobanteLightbox from '../../Components/ComprobanteLightbox.vue';
 import ComisionableCheck from '../../Components/ComisionableCheck.vue';
 import FechaCompromiso from '../../Components/FechaCompromiso.vue';
 import FotosCasillas from '../../Components/FotosCasillas.vue';
+import BiciAutocompletar from '../../Components/BiciAutocompletar.vue';
+import PresetsServicio from '../../Components/PresetsServicio.vue';
 import PhoneInput from '../../Components/PhoneInput.vue';
 import { formatMoney } from '../../lib/formatMoney';
 import { convertirHeicSiEsNecesario, MENSAJE_HEIC_FALLO } from '../../lib/convertirHeic';
@@ -27,6 +29,8 @@ const props = defineProps({
     compromisoConfig: { type: Object, required: true },
     // interruptores de config/taller.php: { revision_tecnica, trabajo_tienda }
     funciones: { type: Object, required: true },
+    // servicios rapidos [{nombre, monto}] de Configuracion > Taller
+    presetsServicio: { type: Array, default: () => [] },
 });
 const TALLAS_RIN_CORTAS = ['16', '20', '24', '26', '29'];
 const MONTOS_SERVICIO = { basico: 15, full: 20, vip: 25 };
@@ -163,6 +167,22 @@ function onTallaChange() {
 
 function onTallaOtroInput() {
     form.talla_rin = tallaOtro.value;
+}
+
+// una bici sugerida rellena categoria, rin y electrica (el texto lo pone el v-model del campo)
+function elegirBici(b) {
+    form.categoria_bici = b.categoria_bici ?? '';
+    form.es_electrica = !!b.es_electrica;
+    const rin = b.talla_rin ?? '';
+    const corta = rin === '' || TALLAS_RIN_CORTAS.includes(rin);
+    tallaSeleccion.value = corta ? rin : 'Otro';
+    tallaOtro.value = corta ? '' : rin;
+    form.talla_rin = rin;
+}
+
+// el chip SUMA su monto al de Servicio (tocarlo dos veces suma dos veces); sigue editable a mano
+function sumarPreset(preset) {
+    form.monto_servicio = Math.round(((Number(form.monto_servicio) || 0) + Number(preset.monto)) * 100) / 100;
 }
 
 // --- tipo de servicio: 3 montos fijos + "Otro" monto libre ---
@@ -335,7 +355,7 @@ function submit() {
 
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-medium text-kredix-negro">Bicicleta (marca y modelo)</label>
-                <input v-model="form.bici_marca_modelo" type="text" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                <BiciAutocompletar v-model="form.bici_marca_modelo" :cliente-id="form.cliente_id" @elegir="elegirBici" />
                 <p v-if="form.errors.bici_marca_modelo" class="text-sm text-kredix-rojo">{{ form.errors.bici_marca_modelo }}</p>
             </div>
 
@@ -388,6 +408,7 @@ function submit() {
                     class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none"
                     :class="esMontoFijo ? 'bg-gray-50 text-kredix-gris' : ''"
                 />
+                <PresetsServicio :presets="presetsServicio" :disabled="esMontoFijo" @elegir="sumarPreset" />
                 <p v-if="form.errors.monto_servicio" class="text-sm text-kredix-rojo">{{ form.errors.monto_servicio }}</p>
             </div>
 

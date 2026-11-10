@@ -41,10 +41,13 @@ const ajustesTallerForm = useForm({
     tecnico_defecto_id: props.ajustesTaller?.tecnico_defecto_id ?? '',
     comision_servicio_pct: props.ajustesTaller?.comision_servicio_pct ?? 50,
     comision_repuestos_pct: props.ajustesTaller?.comision_repuestos_pct ?? 5,
+    presets_servicio: (props.ajustesTaller?.presets_servicio ?? []).map((p) => ({ ...p })),
 });
 
+const MAX_PRESETS = 20;
+
 function guardarAjustesTaller() {
-    ajustesTallerForm.transform((data) => ({ ...data, tecnico_defecto_id: data.tecnico_defecto_id || null, _method: 'put' })).post('/configuracion/taller', {
+    ajustesTallerForm.transform((data) => ({ ...data, tecnico_defecto_id: data.tecnico_defecto_id || null, presets_servicio: data.presets_servicio.length ? data.presets_servicio : '', _method: 'put' })).post('/configuracion/taller', {
         preserveScroll: true,
     });
 }
@@ -304,6 +307,24 @@ function onLogoChange(event) {
                 <input id="taller-com-repuestos" v-model="ajustesTallerForm.comision_repuestos_pct" type="number" inputmode="decimal" min="0" max="100" step="0.01" class="min-h-11 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
                 <p v-if="ajustesTallerForm.errors.comision_repuestos_pct" class="text-sm text-kredix-rojo">{{ ajustesTallerForm.errors.comision_repuestos_pct }}</p>
             </div>
+
+            <fieldset class="flex min-w-0 flex-col gap-2" data-presets-config>
+                <legend class="text-sm font-medium text-kredix-negro">Servicios rápidos</legend>
+                <p class="text-xs text-kredix-gris">Botones del ticket: cada toque suma su monto (USD) al Servicio. Máximo {{ MAX_PRESETS }}.</p>
+                <div v-for="(p, i) in ajustesTallerForm.presets_servicio" :key="i" class="flex flex-col gap-1">
+                    <div class="flex items-center gap-2">
+                        <input v-model="p.nombre" type="text" maxlength="60" placeholder="Nombre" :aria-label="`Nombre del servicio rápido ${i + 1}`" class="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        <input v-model="p.monto" type="number" inputmode="decimal" min="0" max="9999.99" step="0.01" placeholder="USD" :aria-label="`Monto del servicio rápido ${i + 1}`" class="min-h-11 w-24 rounded-lg border border-gray-300 px-3 text-base text-kredix-negro focus:border-kredix-rojo focus:outline-none" />
+                        <button type="button" class="min-h-11 min-w-11 rounded-lg border border-gray-300 text-sm text-kredix-negro active:bg-gray-100" :aria-label="`Quitar servicio rápido ${i + 1}`" @click="ajustesTallerForm.presets_servicio.splice(i, 1)">✕</button>
+                    </div>
+                    <p v-if="ajustesTallerForm.errors[`presets_servicio.${i}.nombre`]" class="text-sm text-kredix-rojo">{{ ajustesTallerForm.errors[`presets_servicio.${i}.nombre`] }}</p>
+                    <p v-if="ajustesTallerForm.errors[`presets_servicio.${i}.monto`]" class="text-sm text-kredix-rojo">{{ ajustesTallerForm.errors[`presets_servicio.${i}.monto`] }}</p>
+                </div>
+                <p v-if="ajustesTallerForm.errors.presets_servicio" class="text-sm text-kredix-rojo">{{ ajustesTallerForm.errors.presets_servicio }}</p>
+                <button v-if="ajustesTallerForm.presets_servicio.length < MAX_PRESETS" type="button" class="min-h-11 self-start rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100" @click="ajustesTallerForm.presets_servicio.push({ nombre: '', monto: '' })">
+                    + Agregar servicio rápido
+                </button>
+            </fieldset>
 
             <button type="submit" class="min-h-11 rounded-2xl bg-kredix-negro text-sm font-semibold text-white disabled:opacity-60" :disabled="ajustesTallerForm.processing">
                 Guardar

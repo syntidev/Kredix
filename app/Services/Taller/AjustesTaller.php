@@ -16,6 +16,11 @@ class AjustesTaller
 
     public const CLAVE_COMISION_REPUESTOS = 'taller_comision_repuestos_pct';
 
+    // lista editable de "servicios rapidos" (JSON [{nombre, monto}]); sin datos sembrados
+    public const CLAVE_PRESETS_SERVICIO = 'taller_presets_servicio';
+
+    public const MAX_PRESETS_SERVICIO = 20;
+
     // si la clave no existe el codigo usa estos valores
     public const COMISION_SERVICIO_DEFECTO = 50.0;
 
@@ -45,5 +50,16 @@ class AjustesTaller
     public static function comisionRepuestosPct(): float
     {
         return (float) (Configuracion::valorDe(self::CLAVE_COMISION_REPUESTOS) ?? self::COMISION_REPUESTOS_DEFECTO);
+    }
+
+    // [{nombre, monto}] guardados; [] si no hay o el JSON esta danado
+    public static function presetsServicio(): array
+    {
+        $guardado = json_decode((string) Configuracion::valorDe(self::CLAVE_PRESETS_SERVICIO), true);
+
+        return collect(is_array($guardado) ? $guardado : [])
+            ->filter(fn ($p) => is_array($p) && filled($p['nombre'] ?? null) && is_numeric($p['monto'] ?? null))
+            ->map(fn ($p) => ['nombre' => (string) $p['nombre'], 'monto' => round((float) $p['monto'], 2)])
+            ->values()->all();
     }
 }
