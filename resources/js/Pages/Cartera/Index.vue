@@ -128,6 +128,10 @@ function urlExportar() {
             />
         </div>
 
+        <Link href="/cartera/whatsapp-lote" class="flex min-h-11 w-fit items-center gap-2 self-start rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100">
+            WhatsApp en lote
+        </Link>
+
         <a v-if="esAdmin" :href="urlExportar()" class="flex min-h-11 w-fit items-center gap-2 self-start rounded-lg border border-gray-300 px-4 text-sm font-medium text-kredix-negro active:bg-gray-100">
             Exportar a Excel
         </a>

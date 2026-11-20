@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CarteleraController;
+use App\Http\Controllers\CarteraWhatsappController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ConciliacionController;
 use App\Http\Controllers\ConfiguracionController;
@@ -44,6 +45,9 @@ Route::middleware('auth')->group(function () {
     Route::put('/etiquetas/plantillas', [EtiquetasController::class, 'guardarPlantillas'])->name('etiquetas.plantillas');
     Route::post('/etiquetas/impresa', [EtiquetasController::class, 'registrarImpresion'])->name('etiquetas.impresa');
     Route::get('/cartera', [ClienteController::class, 'cartera'])->name('cartera');
+    Route::get('/cartera/whatsapp-lote', [CarteraWhatsappController::class, 'index'])->name('cartera.whatsapp-lote');
+    Route::get('/cartera/whatsapp-lote/mensajes', [CarteraWhatsappController::class, 'mensajes'])->name('cartera.whatsapp-lote.mensajes');
+    Route::post('/cartera/whatsapp-lote/{cliente}/deshacer', [CarteraWhatsappController::class, 'deshacer'])->name('cartera.whatsapp-lote.deshacer');
     Route::get('/cartelera', [CarteleraController::class, 'index'])->name('cartelera');
     Route::get('/conciliacion', [ConciliacionController::class, 'index'])->middleware('acceso_conciliacion')->name('conciliacion.index');
     Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion.index');

@@ -471,3 +471,14 @@ quedan pendientes de confirmacion por Carlos.*
   Ahora todo usuario autenticado no-Taller ve y edita las plantillas de cobranza (Configuración › WhatsApp · Cobranza, menú Administración › Configuración); `RestringeRolTaller` mantiene el 403 para rol Taller. Lo demás de Configuración no cambió (`ajustesTaller` y `PUT /configuracion/taller` siguen solo admin).
 - Pruebas: `CobranzaPromocionTest` (12). Se ajustaron 3 de `CobranzaWhatsappTest` que codificaban lo que este lote cambia (6→7 tipos; edición solo admin).
 - **No verificado:** apertura real de WhatsApp, Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado (falta aprobación visual de Carlos).
+
+## Lote 11 — Cartera: cola de WhatsApp en lote
+
+- Ruta `GET /cartera/whatsapp-lote` (`CarteraWhatsappController::index`, página `Cartera/WhatsappLote.vue`), botón «WhatsApp en lote» en `/cartera`. Acceso: todo autenticado salvo rol Taller (403 por `RestringeRolTaller`).
+- Origen: `ClienteController::clientesConMetricasCartera()` (hecho público; es lo que lista /cartera sin filtros: TODOS los clientes, no existe en /cartera un filtro «atraso o compromiso»). Orden por nombre sin acentos/mayúsculas; rango Desde/Hasta por primera letra; nombres sin letra solo entran con A–Z completo y se cuentan aparte.
+- Estados: Pendiente / Enviado (evento ActivityLog `whatsapp_cobranza` del mismo tipo en el mes calendario America/Caracas, neto de `whatsapp_cobranza_deshecho`) / Omitido (solo en pantalla) / Sin teléfono / No aplica (`CobranzaWhatsapp::disponibles()`, mismas reglas que las pistas de la ficha, en lote).
+- Envío: enlace `<a target=_blank>` wa.me real; registra con el endpoint existente `POST /clientes/{id}/whatsapp-cobranza` (sin texto). El estado local cambia en `setTimeout(0)` para que Vue no re-renderice el `href` antes de abrir el enlace (bug real detectado en navegador).
+- Deshacer: `POST /cartera/whatsapp-lote/{cliente}/deshacer` registra `whatsapp_cobranza_deshecho`; 422 si no hay envío neto del mes.
+- Mensajes: `GET /cartera/whatsapp-lote/mensajes` (máx. 12 ids) usa `CobranzaWhatsapp::paraCliente`; la carga trae solo los 6 primeros, el resto se precarga. Saldos con `saldosPendientes()`; consultas constantes (prueba con 233 clientes).
+- Pruebas: `CarteraWhatsappLoteTest` (8). Sin migraciones.
+- **No verificado:** apertura real de WhatsApp, Safari/iOS, PWA, dispositivos físicos; ningún módulo certificado.
