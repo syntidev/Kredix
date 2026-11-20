@@ -488,7 +488,7 @@ class ClienteController extends Controller
      * (listado paginado) y carteraExportar() (Excel), ningun calculo
      * duplicado entre ambos.
      */
-    private function clientesConMetricasCartera()
+    public function clientesConMetricasCartera()
     {
         $movimientos = MovimientoCuenta::orderBy('fecha')->get()->groupBy('cliente_id');
 

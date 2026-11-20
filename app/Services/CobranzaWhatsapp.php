@@ -92,6 +92,29 @@ class CobranzaWhatsapp
         ];
     }
 
+    /**
+     * Mismas reglas de disponibilidad que las pistas de paraCliente, para muchos clientes en pocas consultas (cola en lote).
+     *
+     * @param  list<int>  $ids
+     * @return array<int, bool> clienteId => el tipo se puede enviar
+     */
+    public static function disponibles(string $tipo, array $ids): array
+    {
+        $todos = array_fill_keys($ids, true);
+        if ($ids === [] || ! in_array($tipo, ['promocion', 'abono_recibido', 'por_entregar'], true)) {
+            return $todos;
+        }
+        if ($tipo === 'promocion') {
+            return array_map(fn (float $saldo) => $saldo > 0, MovimientoCuenta::saldosPendientes($ids));
+        }
+        $con = MovimientoCuenta::whereIn('cliente_id', $ids)
+            ->when($tipo === 'abono_recibido', fn ($q) => $q->where('tipo', 'abono')->where('es_contado', false))
+            ->when($tipo === 'por_entregar', fn ($q) => $q->where('tipo', 'cargo')->where('pendiente_entrega', true))
+            ->distinct()->pluck('cliente_id')->flip();
+
+        return collect($ids)->mapWithKeys(fn ($id) => [$id => $con->has($id)])->all();
+    }
+
     // la cuota pendiente de menor fecha de los planes vivos del cliente
     private static function proximaCuota(Cliente $cliente): ?Cuota
     {
